@@ -245,7 +245,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia, Michoacán</p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v59</span></p>
   </div>
   <div class="nav">
     <div class="nav-section">Principal</div>
@@ -367,8 +367,8 @@
       </div>
       <div class="card">
         <div class="card-label">Nómina Mensual Total</div>
-        <div class="card-value">$29,600</div>
-        <div class="card-sub">4 colaboradores activos</div>
+        <div class="card-value" id="dash-nomina-mensual">$29,600</div>
+        <div class="card-sub" id="dash-nomina-sub">4 colaboradores activos</div>
       </div>
       <div class="card">
         <div class="card-label">Deudas Activas</div>
@@ -960,10 +960,10 @@
       <div><div class="sec-title">Nómina y Empleados</div><div class="sec-sub">Gestión de pagos, faltas y actas</div></div>
     </div>
     <div class="grid g4" style="margin-bottom:16px">
-      <div class="card"><div class="card-label">Nómina Mensual</div><div class="card-value accent">$29,600</div></div>
-      <div class="card"><div class="card-label">Nómina Quincenal</div><div class="card-value">$14,800</div></div>
-      <div class="card"><div class="card-label">Nómina Semanal</div><div class="card-value">$7,400</div></div>
-      <div class="card"><div class="card-label">Nómina Anual</div><div class="card-value blue">$355,200</div></div>
+      <div class="card"><div class="card-label">Nómina Mensual</div><div class="card-value accent" id="nom-tot-mensual">$29,600</div></div>
+      <div class="card"><div class="card-label">Nómina Quincenal</div><div class="card-value" id="nom-tot-quincenal">$14,800</div></div>
+      <div class="card"><div class="card-label">Nómina Semanal</div><div class="card-value" id="nom-tot-semanal">$7,400</div></div>
+      <div class="card"><div class="card-label">Nómina Anual</div><div class="card-value blue" id="nom-tot-anual">$355,200</div></div>
     </div>
 
     <div class="pill-nav">
@@ -1098,6 +1098,7 @@
         <!-- Datos del empleado -->
         <div class="card">
           <div class="card-title"><span class="dot"></span>Datos del Empleado</div>
+          <div class="form-group" style="margin-bottom:12px"><label>👤 Empleado (autocompletar)</label><select id="calc-emp" onchange="calcCargarEmpleado()"><option value="">— Selecciona un empleado —</option></select></div>
           <div class="grid g2">
             <div class="form-group"><label>Salario Diario (MXN)</label><input type="number" id="calc-salario" placeholder="ej. 266.67" oninput="calcNomina()" value="266.67"></div>
             <div class="form-group"><label>Fecha Inicio Labores</label><input type="date" id="calc-fecha-ini" oninput="calcNomina()"></div>
@@ -1451,120 +1452,35 @@
     </div>
 
     <!-- STOCK tab -->
-    <div id="inv-stock">
-      <div class="card" style="margin-bottom:12px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input type="text" id="inv-buscar" placeholder="🔍 Buscar modelo..." oninput="filtrarStock()" style="flex:1;min-width:180px;padding:7px 12px;font-size:12px">
-          <select id="inv-filtro-canal" onchange="filtrarStock()" style="padding:7px 10px;font-size:12px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
-            <option value="">Todos los canales</option>
-            <option value="ML">Mercado Libre</option>
-            <option value="Shopify">Shopify</option>
-            <option value="Fisica">Tienda Física</option>
-          </select>
-          <select id="inv-filtro-estado" onchange="filtrarStock()" style="padding:7px 10px;font-size:12px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text)">
-            <option value="">Todos</option>
-            <option value="ok">✅ OK</option>
-            <option value="bajo">⚠️ Stock bajo</option>
-            <option value="agotado">❌ Agotado</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" onclick="exportarInventario()">⬇ CSV</button>
-        </div>
-      </div>
-      <div class="card" style="overflow-x:auto">
-        <table class="tbl" id="inv-tabla">
-          <thead>
-            <tr>
-              <th>Modelo</th><th>Talla</th><th>Color/Horma</th>
-              <th class="num">ML</th><th class="num">Shopify</th><th class="num">Física</th>
-              <th class="num">Total</th><th>Estado</th><th>Reorden</th><th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="inv-tbody"></tbody>
-        </table>
-      </div>
+    <div id="inv-stock" style="display:none">
+      <div id="inv-delete-pass-admin"></div>
+      <div class="card"><div onclick="invToggleSec('sec-somb')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🎩 Sombreros y Texanas</span><span id="sec-somb-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-somb" style="display:none;margin-top:12px"><div id="inv-stock-sombreros"></div></div></div>
+      <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-acc')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🪶 Accesorios</span><span id="sec-acc-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-acc" style="display:none;margin-top:12px"><div id="inv-accesorios-list"></div></div></div>
+      <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-kits')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🎁 Kits</span><span id="sec-kits-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-kits" style="display:none;margin-top:12px"><div id="inv-kits-list"></div></div></div>
+      <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-op')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">📦 Operación</span><span id="sec-op-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-op" style="display:none;margin-top:12px"><div id="inv-operacion-list"></div></div></div>
     </div>
 
     <!-- AGREGAR tab -->
     <div id="inv-agregar" style="display:none">
       <div class="grid g2">
         <div class="card">
-          <div class="card-title"><span class="dot"></span>Agregar / Actualizar Stock</div>
-          <div class="form-group">
-            <label>Modelo</label>
-            <input type="text" id="inv-mod-search" placeholder="Escribe para buscar..." oninput="filtrarModelosInv()" list="inv-mod-list" style="margin-bottom:0">
-            <datalist id="inv-mod-list"></datalist>
-          </div>
-          <div class="grid g2">
-            <div class="form-group"><label>Talla (cm)</label>
-              <select id="inv-talla">
-                <option>53</option><option>54</option><option>55</option><option>56</option>
-                <option>57</option><option>58</option><option>59</option><option>60</option>
-                <option>61</option><option>62</option><option>Única</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Color / Variante</label>
-              <input type="text" id="inv-color" placeholder="ej. Negro, Hueso, Café">
-            </div>
-          </div>
-          <div class="form-group"><label>Tipo de horma</label>
-            <select id="inv-horma">
-              <option value="">Sin especificar</option>
-              <option>Americana (Copa alta)</option>
-              <option>Latina (Copa baja)</option>
-              <option>Tombstone</option><option>Roper</option>
-              <option>Laredo</option><option>Otro</option>
-            </select>
-          </div>
-          <div class="grid g3">
-            <div class="form-group"><label>Stock ML</label><input type="number" id="inv-q-ml" value="0" min="0"></div>
-            <div class="form-group"><label>Stock Shopify</label><input type="number" id="inv-q-shop" value="0" min="0"></div>
-            <div class="form-group"><label>Stock Física</label><input type="number" id="inv-q-fis" value="0" min="0"></div>
-          </div>
-          <div class="grid g2">
-            <div class="form-group"><label>Punto de reorden</label><input type="number" id="inv-reorden" value="3" min="0"></div>
-            <div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="inv-costo" placeholder="ej. 450"></div>
-          </div>
-          <button class="btn btn-primary" onclick="guardarStock()">💾 Guardar en Inventario</button>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><span class="dot"></span>Agregar / Actualizar Stock de Sombrero — Texana</span><button onclick="abrirGestionOpciones()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">⚙️ Gestionar opciones</button></div>
+          <div id="inv-form-sombrero"></div>
         </div>
-
-        <!-- Movimiento manual -->
         <div class="card">
-          <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Registrar Movimiento</div>
-          <div class="form-group"><label>Tipo</label>
-            <select id="mov-tipo">
-              <option value="entrada">📥 Entrada (compra)</option>
-              <option value="salida-ml">📤 Salida ML</option>
-              <option value="salida-fisica">🏪 Salida Tienda Física</option>
-              <option value="salida-shopify">🌐 Salida Shopify</option>
-              <option value="ajuste">⚙️ Ajuste de inventario</option>
-              <option value="devolucion">↩️ Devolución</option>
-            </select>
-          </div>
-          <div class="form-group"><label>Modelo</label>
-            <input type="text" id="mov-modelo" placeholder="Nombre del modelo" list="inv-mod-list2">
-            <datalist id="inv-mod-list2"></datalist>
-          </div>
-          <div class="grid g2">
-            <div class="form-group"><label>Talla</label>
-              <select id="mov-talla">
-                <option>53</option><option>54</option><option>55</option><option>56</option>
-                <option>57</option><option>58</option><option>59</option><option>60</option>
-                <option>61</option><option>62</option><option>Única</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Cantidad</label><input type="number" id="mov-qty" value="1" min="1"></div>
-          </div>
-          <div class="form-group"><label>Referencia / Nota</label><input type="text" id="mov-nota" placeholder="ej. Pedido Dportenis #1234"></div>
-          <button class="btn btn-primary" onclick="registrarMovimiento()">📋 Registrar Movimiento</button>
-          <div class="sep"></div>
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">Últimos movimientos</div>
-          <div id="mov-recientes" style="font-size:11px;max-height:200px;overflow-y:auto"></div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><span class="dot" style="background:var(--blue)"></span>Registrar Movimiento</span><button onclick="abrirGestionTipos()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">⚙️ Tipos</button></div>
+          <div id="inv-form-movimiento"></div>
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📋 Últimos movimientos</div><div id="inv-movs-recientes"></div></div>
         </div>
       </div>
     </div>
 
     <!-- ALERTAS tab -->
     <div id="inv-alertas" style="display:none">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span>📋 Tallas por Pedir (Sombreros)</div>
+        <div id="inv-tallas-pedir"></div>
+      </div>
       <div id="inv-alertas-ventas"></div>
       <div class="grid g2">
         <div class="card">
@@ -2191,7 +2107,7 @@ const GASTOS = [
   ]}
 ];
 
-const EMPLEADOS = [
+const EMPLEADOS_DEFAULT = [
   {nombre:'Empleado 1',salario_mensual:4000,frecuencia:'Mensual',area:'Empaque/Envíos'},
   {nombre:'Empleado 2',salario_mensual:8000,frecuencia:'Mensual',area:'Atención ML'},
   {nombre:'Empleado 3',salario_mensual:7600,frecuencia:'Mensual',area:'Producción'},
@@ -2452,6 +2368,7 @@ function initDashboard() {
     _setTxt('kpi-dev', (DATA.devoluciones||0).toLocaleString('es-MX'));
     _setTxt('kpi-ticket', $(Math.round(DATA.ticket_bruto||0)));
     _setTxt('kpi-ticket-sub', 'Neto: '+$(Math.round(DATA.ticket_neto||0))+' por venta');
+    try{ var _en=getEmpleados(); var _tn=_en.reduce(function(a,e){return a+e.salario_mensual;},0); _setTxt('dash-nomina-mensual', $(Math.round(_tn))); _setTxt('dash-nomina-sub', _en.length+' colaboradores activos'); }catch(e){}
     _setTxt('mc-ml', $(Math.round(DATA.bruto_total||0)));
     _setTxt('mc-ml-sub', _totU.toLocaleString('es-MX')+' órdenes');
     var _tp = DATA.top_productos||[]; var _medals=['🥇','🥈','🥉'];
@@ -2979,9 +2896,36 @@ function eliminarModelo(nombre) {
 }
 
 // ═══ NÓMINA ═══
+function getEmpleados(){
+  var lista=(typeof empleadasData!=='undefined' && empleadasData && empleadasData.length)?empleadasData:EMPLEADOS_DEFAULT;
+  return lista.map(function(e){ return { nombre:e.nombre||'', salario_mensual:parseFloat(e.salario!=null?e.salario:e.salario_mensual)||0, frecuencia:e.frecuencia||'Mensual', area:e.area||'' }; });
+}
+function poblarSelectsEmpleados(){
+  try{
+    var _esc=function(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+    var lista=(typeof empleadasData!=='undefined' && empleadasData)?empleadasData:[];
+    var opts=lista.map(function(e){ return '<option>'+_esc(e.nombre||'Sin nombre')+'</option>'; }).join('');
+    if(!opts) opts='<option>— Sin empleadas —</option>';
+    ['falta-emp','acta-emp'].forEach(function(id){
+      var s=document.getElementById(id);
+      if(s){ var prev=s.value; s.innerHTML=opts; if(prev){ for(var i=0;i<s.options.length;i++){ if(s.options[i].value===prev){ s.value=prev; break; } } } }
+    });
+    var _sc=document.getElementById('calc-emp');
+    if(_sc){ var _pc=_sc.value; _sc.innerHTML='<option value="">— Selecciona un empleado —</option>'+lista.map(function(e,i){ return '<option value="'+i+'">'+_esc(e.nombre||'Sin nombre')+'</option>'; }).join(''); if(_pc) _sc.value=_pc; }
+  }catch(e){ console.warn('poblarSelectsEmpleados',e); }
+}
 function initNomina() {
+  poblarSelectsEmpleados();
+  try{
+    var _emps=getEmpleados(); var _totM=_emps.reduce(function(a,e){return a+e.salario_mensual;},0);
+    var _sn=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+    _sn('nom-tot-mensual', $(Math.round(_totM)));
+    _sn('nom-tot-quincenal', $(Math.round(_totM/2)));
+    _sn('nom-tot-semanal', $(Math.round(_totM/4)));
+    _sn('nom-tot-anual', $(Math.round(_totM*12)));
+  }catch(e){}
   const container = document.getElementById('emp-cards');
-  if(container) container.innerHTML = EMPLEADOS.map(e=>`
+  if(container) container.innerHTML = getEmpleados().map(e=>`
     <div class="emp-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
@@ -2997,8 +2941,8 @@ function initNomina() {
       </div>
     </div>`).join('');
 
-  makeChart('chartNomina','doughnut',EMPLEADOS.map(e=>e.nombre),[{
-    data:EMPLEADOS.map(e=>e.salario_mensual),
+  makeChart('chartNomina','doughnut',getEmpleados().map(e=>e.nombre),[{
+    data:getEmpleados().map(e=>e.salario_mensual),
     backgroundColor:['#c9963a','#5b8af4','#3ecf8e','#9b72f4'],
     borderWidth:2,borderColor:'#1a1a22'
   }],{plugins:{legend:{display:true,position:'bottom',labels:{color:'#9896a8',font:{size:10},boxWidth:10}}},scales:{x:{display:false},y:{display:false}}});
@@ -3018,6 +2962,7 @@ function showNomTab(el, id) {
   document.querySelectorAll('.pill-nav .pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   if(id==='nom-calendario'){renderPagCalendar();renderPagChecklist();}
+  try{ poblarSelectsEmpleados(); }catch(e){}
 }
 
 function saveFalta() {
@@ -3203,6 +3148,20 @@ function eliminarPagoCal(idx) {
 }
 
 // ═══ NÓMINA CALCULADORA COMPLETA ═══
+function calcCargarEmpleado(){
+  try{
+    var sel=document.getElementById('calc-emp'); if(!sel) return;
+    var idx=parseInt(sel.value);
+    var lista=(typeof empleadasData!=='undefined' && empleadasData)?empleadasData:[];
+    if(isNaN(idx) || !lista[idx]) return;
+    var e=lista[idx];
+    var salMensual=parseFloat(e.salario)||0;
+    var s=function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; };
+    if(salMensual>0) s('calc-salario', (salMensual/30).toFixed(2));
+    if(e.ingreso) s('calc-fecha-ini', e.ingreso);
+    calcNomina();
+  }catch(err){ console.warn('calcCargarEmpleado',err); }
+}
 function calcNomina() {
   const sd=parseFloat(document.getElementById('calc-salario')?.value)||0;
   const faltas=parseInt(document.getElementById('calc-faltas')?.value)||0;
@@ -3356,7 +3315,7 @@ let empleadasData = JSON.parse(localStorage.getItem('empleadas_perfiles') || JSO
   {id:4,nombre:'Empleada 4',cumple:'',ingreso:'',area:'Almacén',salario:4000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
 ]));
 
-function saveEmpleadas() { localStorage.setItem('empleadas_perfiles', JSON.stringify(empleadasData)); }
+function saveEmpleadas() { save('empleadas_perfiles', empleadasData); poblarSelectsEmpleados(); }
 
 function initEmpleadas() {
   renderPerfiles();
@@ -3542,7 +3501,380 @@ function saveMov() { localStorage.setItem('inventario_movimientos', JSON.stringi
 function saveProv() { localStorage.setItem('inventario_proveedores', JSON.stringify(provData)); }
 function saveCli() { localStorage.setItem('inventario_clientes', JSON.stringify(clientesData)); }
 
+// ═══════ INVENTARIO SOMBREROS (estructura real) ═══════
+const INV_TALLAS = [
+  {cm:'53',pulg:'6⅝'},{cm:'54',pulg:'6¾'},{cm:'55',pulg:'6⅞'},{cm:'56',pulg:'7'},
+  {cm:'57',pulg:'7⅛'},{cm:'58',pulg:'7¼'},{cm:'59',pulg:'7⅜'},{cm:'60',pulg:'7½'},
+  {cm:'61',pulg:'7⅝'},{cm:'62',pulg:'7¾'}
+];
+const INV_OPCIONES_DEF = {
+  marcas:['Tombstone','Goldstone','Nicol Hats','Rocha Hats','Laredo','Panamá','Stetson','Resistol'],
+  calidades:['20X','1,000X','5,000X','500X'],
+  hormas:['Chaparral','Johnson','Este Oeste','Roper','Marlboro','Laredo','Indiana','Denver'],
+  colores:['Negro','Granite','Nutria','Nuez','Arena','Plata','Morada','Rosa','Roja','Verde','Tabaco','Café']
+};
+let invOpciones = JSON.parse(JSON.stringify(INV_OPCIONES_DEF));
+try{ var _io=JSON.parse(localStorage.getItem('inv_opciones')||'null'); if(_io && typeof _io==='object'){ ['marcas','calidades','hormas','colores'].forEach(function(k){ if(Array.isArray(_io[k])) invOpciones[k]=_io[k]; }); } }catch(e){}
+let invSombreros = [];
+try{ var _is=JSON.parse(localStorage.getItem('inv_sombreros')||'[]'); if(Array.isArray(_is)) invSombreros=_is; }catch(e){}
+
+function _invEsc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function invOpts(arr){ return '<option value="">— Selecciona —</option>'+(arr||[]).map(function(x){ return '<option>'+_invEsc(x)+'</option>'; }).join(''); }
+function invTallaOpts(){ return '<option value="">— Talla —</option>'+INV_TALLAS.map(function(t){ return '<option value="'+t.cm+'">'+t.cm+' cm ('+t.pulg+'")</option>'; }).join(''); }
+function _invTallaPulg(cm){ var f=INV_TALLAS.find(function(x){return x.cm===cm;}); return f?f.pulg:''; }
+
+// ═══════ INVENTARIO ACCESORIOS ═══════
+const INV_ACCESORIOS_DEF = ['Pluma Metalica','Pluma Metalica Tombstone','Pluma Metalica Adherible','Pluma Stetson','Pluma Negra','Toquilla Negra','Toquilla Coñag','Toquilla Blanca','Placa Tombstone','Toquilla Exotica Coñag','Toquilla Exotica Negra','Toquilla de Lux Blanca','Toquilla de Lux Rosa','Toquilla Blanca 3H Clasica','Toquilla Negra 3H Negra','Pines Tombstone','Pines Adh Corazon','Pines Adh Craneo','Pines Adh Estrella','Letras Adheribles','Westeros Adherible','Beplay'];
+let invAccesorios = INV_ACCESORIOS_DEF.map(function(n){ return {nombre:n, piezas:0, costo:0}; });
+try{ var _ia=JSON.parse(localStorage.getItem('inv_accesorios')||'null'); if(Array.isArray(_ia) && _ia.length) invAccesorios=_ia; }catch(e){}
+
+// ═══════ INVENTARIO KITS Y OPERACIÓN ═══════
+const INV_KITS_DEF = ['Toquilla Negra con Placa','Toquilla Coñag con Placa','Toquilla Blanca con Placa','Duo Plumas'];
+const INV_OPERACION_DEF = ['Playo','Cinta adhesiva','Cinta Fragil','Cajas Tombstone','Cajas genericas octagonales','Cajas genericas rectangulares','Hojas','Opalina','Tinta de impresora','Silicón'];
+function _invLoadCat(key, def){ var d=def.map(function(n){return {nombre:n,piezas:0,costo:0};}); try{ var s=JSON.parse(localStorage.getItem(key)||'null'); if(Array.isArray(s)&&s.length) d=s; }catch(e){} return d; }
+let invKits = _invLoadCat('inv_kits', INV_KITS_DEF);
+let invOperacion = _invLoadCat('inv_operacion', INV_OPERACION_DEF);
+var _INV_CATS = {
+  kits:      { get data(){return invKits;},      cont:'inv-kits-list',      key:'inv_kits',      label:'kit' },
+  operacion: { get data(){return invOperacion;}, cont:'inv-operacion-list', key:'inv_operacion', label:'artículo' }
+};
+function invCatRender(catKey){
+  var cat=_INV_CATS[catKey]; if(!cat) return;
+  var c=document.getElementById(cat.cont); if(!c) return;
+  var data=cat.data;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12px;color:var(--text)';
+  var totPz=data.reduce(function(a,x){return a+(x.piezas||0);},0);
+  var totVal=data.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0);
+  var h='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+data.length+' items · '+totPz+' piezas · valor en costo $'+totVal.toLocaleString('es-MX')+'</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;padding:0 2px"><span>Artículo</span><span style="text-align:center">Piezas</span><span style="text-align:center">Costo c/u</span><span></span></div>';
+  data.forEach(function(a,i){
+    h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;margin-bottom:5px">'
+      +'<input value="'+_invEsc(a.nombre)+'" onchange="invCatEdNombre(\''+catKey+'\','+i+',this.value)" style="'+inp+'">'
+      +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="invCatEd(\''+catKey+'\','+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
+      +'<input type="number" value="'+(a.costo||0)+'" min="0" placeholder="$" onchange="invCatEd(\''+catKey+'\','+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
+      +'<button onclick="invCatDel(\''+catKey+'\','+i+')" title="Quitar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:6px;margin-top:10px;border-top:1px dashed var(--border);padding-top:10px"><input id="invcat-nuevo-'+catKey+'" placeholder="+ Nuevo '+cat.label+'" style="flex:1;'+inp+'"><button onclick="invCatAdd(\''+catKey+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
+  c.innerHTML=h;
+  if(typeof renderInvKpis==='function') renderInvKpis();
+}
+function invCatEd(catKey,i,campo,val){ var cat=_INV_CATS[catKey]; if(cat&&cat.data[i]){ cat.data[i][campo]=parseFloat(val)||0; save(cat.key,cat.data); } }
+function invCatEdNombre(catKey,i,val){ var cat=_INV_CATS[catKey]; if(cat&&cat.data[i]){ cat.data[i].nombre=val; save(cat.key,cat.data); } }
+function invCatDel(catKey,i){ var cat=_INV_CATS[catKey]; if(!cat) return; if(!confirm('¿Quitar este artículo del inventario?')) return; if(!invAutorizado()) return; var _cn=(cat.data[i]||{}).nombre||''; cat.data.splice(i,1); save(cat.key,cat.data); logInventario('Eliminó '+cat.label+': '+_cn); invCatRender(catKey); }
+function invCatAdd(catKey){ var cat=_INV_CATS[catKey]; if(!cat) return; var el=document.getElementById('invcat-nuevo-'+catKey); var n=(el?el.value:'').trim(); if(!n) return; cat.data.push({nombre:n,piezas:0,costo:0}); save(cat.key,cat.data); logInventario('Agregó '+cat.label+': '+n); invCatRender(catKey); if(el) el.value=''; }
+
+function renderAccesorios(){
+  var c=document.getElementById('inv-accesorios-list'); if(!c) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12px;color:var(--text)';
+  var grupos={};
+  invAccesorios.forEach(function(a,i){ var cat=_invCatAccesorio(a.nombre); if(!grupos[cat])grupos[cat]=[]; grupos[cat].push({a:a,i:i}); });
+  var orden=['Plumas','Toquillas','Placas','Pines','Letras','Otros'];
+  var cats=orden.filter(function(x){return grupos[x];}).concat(Object.keys(grupos).filter(function(x){return orden.indexOf(x)<0;}));
+  var totPz=invAccesorios.reduce(function(a,x){return a+(x.piezas||0);},0);
+  var totVal=invAccesorios.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0);
+  var h='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invAccesorios.length+' accesorios · '+totPz+' piezas · valor en costo $'+totVal.toLocaleString('es-MX')+'</div>';
+  cats.forEach(function(cat){
+    var items=grupos[cat];
+    var pz=items.reduce(function(a,x){return a+(x.a.piezas||0);},0);
+    h+='<div style="font-weight:700;font-size:12px;color:var(--accent2);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--border)">'+cat+' <span style="color:var(--text2);font-weight:400;font-size:11px">('+items.length+' · '+pz+' pzs)</span></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:4px;padding:0 2px"><span>Accesorio</span><span style="text-align:center">Piezas</span><span style="text-align:center">Costo c/u</span><span></span></div>';
+    items.forEach(function(x){
+      var i=x.i, a=x.a;
+      h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;margin-bottom:5px">'
+        +'<input value="'+_invEsc(a.nombre)+'" onchange="accEditarNombre('+i+',this.value)" style="'+inp+'">'
+        +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="accEditar('+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
+        +'<input type="number" value="'+(a.costo||0)+'" min="0" placeholder="$" onchange="accEditar('+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
+        +'<button onclick="accEliminar('+i+')" title="Quitar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+    });
+  });
+  h+='<div style="display:flex;gap:6px;margin-top:14px;border-top:1px dashed var(--border);padding-top:10px"><input id="acc-nuevo" placeholder="+ Nuevo accesorio" style="flex:1;'+inp+'"><button onclick="accAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
+  c.innerHTML=h;
+  if(typeof renderInvKpis==='function') renderInvKpis();
+}
+function _accGuardar(){ save('inv_accesorios', invAccesorios); }
+function accEditar(i,campo,val){ if(invAccesorios[i]){ invAccesorios[i][campo]=parseFloat(val)||0; _accGuardar(); } }
+function accEditarNombre(i,val){ if(invAccesorios[i]){ invAccesorios[i].nombre=val; _accGuardar(); } }
+function accEliminar(i){ if(!confirm('¿Quitar este accesorio del inventario?')) return; if(!invAutorizado()) return; var _an=(invAccesorios[i]||{}).nombre||''; invAccesorios.splice(i,1); _accGuardar(); logInventario('Eliminó accesorio: '+_an); renderAccesorios(); }
+function accAgregar(){ var n=(document.getElementById('acc-nuevo')?.value||'').trim(); if(!n) return; invAccesorios.push({nombre:n,piezas:0,costo:0}); _accGuardar(); logInventario('Agregó accesorio: '+n); renderAccesorios(); var el=document.getElementById('acc-nuevo'); if(el) el.value=''; }
+
+// ═══════ REGISTRAR MOVIMIENTO (sombreros) ═══════
+const INV_TIPOS_MOV_DEF = ['Entrada (compra)','Salida (venta)','Ajuste de inventario','Devolución','Traspaso','Merma / Daño'];
+let invTiposMov = INV_TIPOS_MOV_DEF.slice();
+try{ var _itm=JSON.parse(localStorage.getItem('inv_tipos_mov')||'null'); if(Array.isArray(_itm)&&_itm.length) invTiposMov=_itm; }catch(e){}
+function _movEsEntrada(t){ return /entrada|compra|ingreso/i.test(t||''); }
+function _movEsSalida(t){ return /salida|venta|merma|da(ñ|n)o|baja/i.test(t||''); }
+
+function renderFormMovimiento(){
+  var c=document.getElementById('inv-form-movimiento'); if(!c) return;
+  c.innerHTML =
+    '<div class="grid g2"><div class="form-group"><label>Tipo de movimiento</label><select id="movx-tipo">'+invTiposMov.map(function(t){return '<option>'+_invEsc(t)+'</option>';}).join('')+'</select></div>'
+    +'<div class="form-group"><label>📅 Fecha</label><input type="date" id="movx-fecha"></div></div>'
+    +'<div style="font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">🎩 Artículo — Sombrero / Texana</div>'
+    +'<div class="grid g2"><div class="form-group"><label>Marca</label><select id="movx-marca">'+invOpts(invOpciones.marcas)+'</select></div>'
+    +'<div class="form-group"><label>Calidad</label><select id="movx-calidad">'+invOpts(invOpciones.calidades)+'</select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Horma</label><select id="movx-horma">'+invOpts(invOpciones.hormas)+'</select></div>'
+    +'<div class="form-group"><label>Talla</label><select id="movx-talla">'+invTallaOpts()+'</select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Color</label><select id="movx-color">'+invOpts(invOpciones.colores)+'</select></div>'
+    +'<div class="form-group"><label>Piezas</label><input type="number" id="movx-piezas" value="1" min="1"></div></div>'
+    +'<div class="form-group"><label>Referencia / Notas</label><input type="text" id="movx-ref" placeholder="ej. Pedido Dportenis #1234, ajuste, etc."></div>'
+    +'<button class="btn btn-accent" onclick="registrarMovimientoSombrero()" style="margin-top:6px;width:100%">📋 Registrar Movimiento</button>';
+}
+function registrarMovimientoSombrero(){
+  var g=function(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; };
+  var tipo=g('movx-tipo'), marca=g('movx-marca'), calidad=g('movx-calidad'), horma=g('movx-horma'), talla=g('movx-talla'), color=g('movx-color');
+  var piezas=parseInt(g('movx-piezas'))||0, ref=g('movx-ref');
+  if(!piezas){ alert('Indica cuántas piezas.'); return; }
+  var modelo=[marca,calidad,horma,color].filter(Boolean).join(' ')||'(sin especificar)';
+  var mov={ fecha:g('movx-fecha')||new Date().toISOString().slice(0,10), tipo:tipo, modelo:modelo, talla:talla, qty:piezas, nota:ref, marca:marca, calidad:calidad, horma:horma, color:color };
+  if(typeof movData!=='undefined'){ movData.unshift(mov); try{ if(typeof saveMov==='function'){ saveMov(); } save('inventario_movimientos', movData); }catch(e){} }
+  // Ajustar stock de sombreros
+  try{
+    var esEnt=_movEsEntrada(tipo), esSal=_movEsSalida(tipo);
+    if((esEnt||esSal) && typeof invSombreros!=='undefined'){
+      var f=invSombreros.find(function(x){ return x.marca===marca&&x.calidad===calidad&&x.horma===horma&&x.talla===talla&&x.color===color; });
+      if(esEnt){ if(f){ f.piezas=(f.piezas||0)+piezas; } else { invSombreros.push({fecha:mov.fecha,marca:marca,calidad:calidad,horma:horma,talla:talla,color:color,piezas:piezas,costo:0}); } }
+      else if(esSal && f){ f.piezas=Math.max(0,(f.piezas||0)-piezas); }
+      save('inv_sombreros', invSombreros);
+      if(typeof renderStockSombreros==='function') renderStockSombreros();
+    }
+  }catch(e){}
+  if(typeof mostrarToast==='function') mostrarToast('✅ Movimiento registrado','green');
+  logInventario('Movimiento — '+(mov.tipo||'')+': '+(mov.modelo||'')+(mov.talla?' '+mov.talla+'cm':'')+' ('+mov.qty+' pzs)');
+  if(typeof renderMovimientos==='function'){ try{ renderMovimientos(); }catch(e){} }
+  renderMovsRecientes();
+  var p=document.getElementById('movx-piezas'); if(p) p.value='1';
+  var r=document.getElementById('movx-ref'); if(r) r.value='';
+}
+function renderMovsRecientes(){
+  var c=document.getElementById('inv-movs-recientes'); if(!c) return;
+  var data=(typeof movData!=='undefined')?movData:[];
+  if(!data.length){ c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Sin movimientos aún.</div>'; return; }
+  var h='';
+  data.slice(0,15).forEach(function(m,i){
+    var sal=_movEsSalida(m.tipo);
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="min-width:0;flex:1"><div style="font-size:12px;font-weight:600">'+_invEsc(m.tipo||'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_invEsc(m.modelo||'')+(m.talla?' · '+_invEsc(m.talla)+'cm':'')+'</div>'
+      +(m.nota?'<div style="font-size:10px;color:var(--text2);font-style:italic">'+_invEsc(m.nota)+'</div>':'')+'</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;white-space:nowrap">'
+      +'<div style="font-weight:700;font-size:14px;color:'+(sal?'var(--red)':(_movEsEntrada(m.tipo)?'var(--green)':'var(--text2)'))+'">'+(sal?'−':(_movEsEntrada(m.tipo)?'+':''))+(m.qty||0)+'</div>'
+      +'<button onclick="eliminarMovimiento('+i+')" title="Borrar movimiento" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div></div>';
+  });
+  c.innerHTML=h;
+}
+function eliminarMovimiento(i){
+  var data=(typeof movData!=='undefined')?movData:null; if(!data||!data[i]) return;
+  if(!confirm('¿Borrar este movimiento? Se revertirá su efecto en el stock.')) return;
+  if(!invAutorizado()) return;
+  var m=data[i];
+  try{
+    var esEnt=_movEsEntrada(m.tipo), esSal=_movEsSalida(m.tipo);
+    if((esEnt||esSal) && typeof invSombreros!=='undefined'){
+      var f=invSombreros.find(function(x){ return x.marca===m.marca&&x.calidad===m.calidad&&x.horma===m.horma&&x.talla===m.talla&&x.color===m.color; });
+      if(f){
+        if(esEnt){ f.piezas=Math.max(0,(f.piezas||0)-(m.qty||0)); }
+        else if(esSal){ f.piezas=(f.piezas||0)+(m.qty||0); }
+        save('inv_sombreros', invSombreros);
+        if(typeof renderStockSombreros==='function') renderStockSombreros();
+      }
+    }
+  }catch(e){}
+  data.splice(i,1);
+  try{ if(typeof saveMov==='function'){ saveMov(); } save('inventario_movimientos', data); }catch(e){}
+  if(typeof renderMovimientos==='function'){ try{ renderMovimientos(); }catch(e){} }
+  renderMovsRecientes();
+  if(typeof mostrarToast==='function') mostrarToast('Movimiento borrado','blue');
+  logInventario('Borró movimiento: '+(m.tipo||'')+' '+(m.modelo||''));
+}
+// ── Gestionar tipos de movimiento ──
+function abrirGestionTipos(){
+  var ov=document.createElement('div'); ov.id='inv-tipos-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div id="inv-tipos-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:20px"></div>';
+  document.body.appendChild(ov); renderGestionTipos();
+}
+function _tiposCerrar(){ var o=document.getElementById('inv-tipos-overlay'); if(o) o.remove(); }
+function renderGestionTipos(){
+  var box=document.getElementById('inv-tipos-box'); if(!box) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--text)';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0;color:var(--accent2);font-size:17px">⚙️ Tipos de Movimiento</h2><button onclick="_tiposCerrar()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div><p style="color:var(--text2);font-size:11px;margin:0 0 12px">Los que digan "entrada/compra" suman al stock; "salida/venta/merma" restan.</p>';
+  invTiposMov.forEach(function(t,i){
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input value="'+_invEsc(t)+'" onchange="tipoMovEditar('+i+',this.value)" style="flex:1;'+inp+'"><button onclick="tipoMovEliminar('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:6px;margin-top:8px;border-top:1px dashed var(--border);padding-top:8px"><input id="tipomov-nuevo" placeholder="+ Nuevo tipo" style="flex:1;'+inp+'"><button onclick="tipoMovAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 11px;cursor:pointer;font-weight:700">+</button></div>';
+  h+='<div style="text-align:right;margin-top:12px"><button onclick="_tiposCerrar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:8px 18px;cursor:pointer;font-weight:700">Listo</button></div>';
+  box.innerHTML=h;
+}
+function _tiposGuardar(){ save('inv_tipos_mov', invTiposMov); renderFormMovimiento(); }
+function tipoMovEditar(i,v){ invTiposMov[i]=v; _tiposGuardar(); }
+function tipoMovEliminar(i){ invTiposMov.splice(i,1); _tiposGuardar(); renderGestionTipos(); }
+function tipoMovAgregar(){ var v=(document.getElementById('tipomov-nuevo')?.value||'').trim(); if(!v) return; invTiposMov.push(v); _tiposGuardar(); renderGestionTipos(); }
+
+function renderFormSombrero(){
+  var c=document.getElementById('inv-form-sombrero'); if(!c) return;
+  c.innerHTML =
+    '<div class="grid g2"><div class="form-group"><label>📅 Fecha de ingreso</label><input type="date" id="som-fecha"></div>'
+    +'<div class="form-group"><label>Marca</label><select id="som-marca">'+invOpts(invOpciones.marcas)+'</select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Calidad</label><select id="som-calidad">'+invOpts(invOpciones.calidades)+'</select></div>'
+    +'<div class="form-group"><label>Horma</label><select id="som-horma">'+invOpts(invOpciones.hormas)+'</select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Talla</label><select id="som-talla">'+invTallaOpts()+'</select></div>'
+    +'<div class="form-group"><label>Color</label><select id="som-color">'+invOpts(invOpciones.colores)+'</select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Piezas</label><input type="number" id="som-piezas" value="1" min="0"></div>'
+    +'<div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="som-costo" placeholder="ej. 1800"></div></div>'
+    +'<button class="btn btn-accent" onclick="guardarSombrero()" style="margin-top:8px;width:100%">💾 Guardar Sombrero en Inventario</button>';
+}
+function guardarSombrero(){
+  var g=function(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; };
+  var item={ fecha:g('som-fecha')||new Date().toISOString().slice(0,10), marca:g('som-marca'), calidad:g('som-calidad'), horma:g('som-horma'), talla:g('som-talla'), color:g('som-color'), piezas:parseInt(g('som-piezas'))||0, costo:parseFloat(g('som-costo'))||0 };
+  if(!item.marca && !item.horma){ alert('Elige al menos la Marca y la Horma del sombrero.'); return; }
+  var found=invSombreros.find(function(x){ return x.marca===item.marca&&x.calidad===item.calidad&&x.horma===item.horma&&x.talla===item.talla&&x.color===item.color; });
+  if(found){ found.piezas=(found.piezas||0)+item.piezas; if(item.costo) found.costo=item.costo; found.fecha=item.fecha; }
+  else { invSombreros.push(item); }
+  save('inv_sombreros', invSombreros);
+  if(typeof mostrarToast==='function') mostrarToast('✅ Sombrero guardado en inventario','green');
+  logInventario('Agregó sombrero: '+[item.marca,item.calidad,item.horma,item.talla,item.color].filter(Boolean).join(' ')+' ('+item.piezas+' pzs)');
+  renderStockSombreros();
+  var p=document.getElementById('som-piezas'); if(p) p.value='1';
+  var co=document.getElementById('som-costo'); if(co) co.value='';
+}
+function renderTallasPorPedir(){
+  var c=document.getElementById('inv-tallas-pedir'); if(!c) return;
+  var TALLAS=INV_TALLAS.map(function(t){return t.cm;});
+  var combos={};
+  invSombreros.forEach(function(s){
+    if(!s.marca && !s.horma) return;
+    var key=(s.marca||'?')+' · '+(s.horma||'?');
+    if(!combos[key]) combos[key]={};
+    combos[key][s.talla]=(combos[key][s.talla]||0)+(s.piezas||0);
+  });
+  var keys=Object.keys(combos).sort();
+  if(!keys.length){ c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:10px">Agrega sombreros para ver qué tallas te faltan por pedir.</div>'; return; }
+  var h='<div style="font-size:11px;color:var(--text2);margin-bottom:10px">Por cada Marca + Horma: las tallas que te faltan (0 piezas) y las de bajo stock, del rango 53 a 62.</div>';
+  keys.forEach(function(key){
+    var tq=combos[key];
+    var faltan=TALLAS.filter(function(t){ return !tq[t] || tq[t]<=0; });
+    var bajo=TALLAS.filter(function(t){ return tq[t]>0 && tq[t]<=2; });
+    h+='<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;padding:9px 11px">'
+      +'<div style="font-weight:700;font-size:12px;color:var(--accent2);margin-bottom:5px">🎩 '+_invEsc(key)+'</div>';
+    if(faltan.length){ h+='<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--red);font-weight:600">🔴 Faltan por pedir: </span>'+faltan.join(', ')+'</div>'; }
+    else { h+='<div style="font-size:11px;color:var(--green);margin-bottom:3px">✅ Tienes todas las tallas 53-62</div>'; }
+    if(bajo.length){ h+='<div style="font-size:11px"><span style="color:#e8b84b;font-weight:600">⚠️ Bajo stock (1-2 pzs): </span>'+bajo.join(', ')+'</div>'; }
+    h+='</div>';
+  });
+  c.innerHTML=h;
+}
+function _invEsAdmin(){ try{ var s=JSON.parse(localStorage.getItem('erp_session')||'null'); return !!(s && s.rol==='admin'); }catch(e){ return false; } }
+function _invGenPass(){ return String(Math.floor(1000+Math.random()*9000)); }
+function _invGetDeletePass(){ var p=localStorage.getItem('inv_delete_pass'); if(!p){ p=_invGenPass(); try{ localStorage.setItem('inv_delete_pass',p); }catch(e){} try{ save('inv_delete_pass',p); }catch(e){} } return p; }
+function _invRotateDeletePass(){ var np=_invGenPass(); try{ localStorage.setItem('inv_delete_pass',np); }catch(e){} try{ save('inv_delete_pass',np); }catch(e){} if(typeof renderDeletePassAdmin==='function') renderDeletePassAdmin(); }
+function invAutorizado(){
+  if(_invEsAdmin()) return true;
+  var actual=_invGetDeletePass();
+  var pass=prompt('🔒 Esta acción requiere autorización.\nIngresa la contraseña de eliminación (pídesela al administrador):');
+  if(pass===null) return false;
+  if((pass||'').trim()===actual){ _invRotateDeletePass(); if(typeof mostrarToast==='function') mostrarToast('Autorizado ✓','green'); return true; }
+  alert('Contraseña incorrecta. Pide la contraseña ACTUAL al administrador (cambia después de cada uso).');
+  return false;
+}
+function renderDeletePassAdmin(){
+  var c=document.getElementById('inv-delete-pass-admin'); if(!c) return;
+  if(!_invEsAdmin()){ c.style.display='none'; c.innerHTML=''; return; }
+  c.style.display='block';
+  var p=_invGetDeletePass();
+  c.innerHTML='<div style="background:rgba(201,150,58,.12);border:1px solid rgba(201,150,58,.35);border-radius:10px;padding:11px 13px;margin-bottom:14px"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">🔑 Contraseña para eliminar del inventario (solo tú, admin, la ves). Dásela a quien necesite borrar — <b>cambia sola</b> después de usarse.</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:22px;font-weight:800;color:var(--accent2);letter-spacing:4px">'+p+'</div><button onclick="_invRotateDeletePass()" style="background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer">🔄 Cambiar ahora</button></div></div>';
+}
+
+var _invStockVista = 'marca';
+var _invSelMode = false;
+var _invSel = {};
+function invSetVista(v){ _invStockVista=v; renderStockSombreros(); }
+function invToggleSelMode(){ _invSelMode=!_invSelMode; _invSel={}; renderStockSombreros(); }
+function invSelToggle(i){ if(_invSel[i]) delete _invSel[i]; else _invSel[i]=true; renderStockSombreros(); }
+function invNumSel(){ return Object.keys(_invSel).length; }
+function invEliminarSeleccionados(){
+  var ids=Object.keys(_invSel).map(Number).filter(function(x){return !isNaN(x);});
+  if(!ids.length){ alert('No seleccionaste ningún sombrero.'); return; }
+  if(!confirm('¿Eliminar '+ids.length+' registro(s) seleccionado(s)?')) return;
+  if(!invAutorizado()) return;
+  ids.sort(function(a,b){return b-a;}).forEach(function(i){ invSombreros.splice(i,1); });
+  save('inv_sombreros', invSombreros);
+  _invSelMode=false; _invSel={};
+  renderStockSombreros(); if(typeof renderTallasPorPedir==='function') renderTallasPorPedir();
+  if(typeof mostrarToast==='function') mostrarToast('Registros eliminados','blue');
+  logInventario('Eliminó '+ids.length+' sombrero(s) del inventario');
+}
+function renderStockSombreros(){
+  var t=document.getElementById('inv-stock-sombreros'); if(!t) return;
+  if(!invSombreros.length){ t.innerHTML='<div style="color:var(--text2);font-size:12px;padding:12px;text-align:center">Aún no hay sombreros en inventario. Llena el formulario y guarda. 🎩</div>'; return; }
+  var campo=(_invStockVista==='horma')?'horma':'marca';
+  var grupos={};
+  invSombreros.forEach(function(s,i){ var key=(s[campo]||'(Sin '+campo+')'); if(!grupos[key])grupos[key]=[]; grupos[key].push({s:s,i:i}); });
+  var totPz=invSombreros.reduce(function(a,s){return a+(s.piezas||0);},0);
+  var keys=Object.keys(grupos).sort();
+  var btn=function(v,txt){ var on=(_invStockVista===v); return '<button onclick="invSetVista(\''+v+'\')" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:'+(on?'var(--accent2)':'transparent')+';color:'+(on?'#0f0f13':'var(--text2)')+';font-weight:700;font-size:12px;cursor:pointer">'+txt+'</button>'; };
+  var h='<div style="display:flex;gap:6px;margin-bottom:8px">'+btn('marca','Por Marca')+btn('horma','Por Horma')+'</div>';
+  if(_invSelMode){
+    h+='<div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="invEliminarSeleccionados()" style="flex:1;padding:8px;border-radius:7px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🗑️ Eliminar seleccionados ('+invNumSel()+')</button><button onclick="invToggleSelMode()" style="padding:8px 16px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:12px;cursor:pointer">Cancelar</button></div>';
+  } else {
+    h+='<div style="margin-bottom:10px"><button onclick="invToggleSelMode()" style="width:100%;padding:8px;border-radius:7px;border:1px solid rgba(244,91,105,.4);background:rgba(244,91,105,.12);color:var(--red);font-weight:700;font-size:12px;cursor:pointer">🗑️ Seleccionar para eliminar</button></div>';
+  }
+  h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invSombreros.length+' registros · '+totPz+' piezas · '+keys.length+' '+(campo==='horma'?'hormas':'marcas')+'</div>';
+  keys.forEach(function(key){
+    var items=grupos[key];
+    var pz=items.reduce(function(a,x){return a+(x.s.piezas||0);},0);
+    var gid='grp'+key.replace(/[^a-zA-Z0-9]/g,'');
+    var abierto=_invSelMode;
+    h+='<div style="border:1px solid var(--border);border-radius:9px;margin-bottom:8px;overflow:hidden">'
+      +'<div onclick="invToggleGrupo(\''+gid+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:var(--surface2);cursor:pointer">'
+      +'<span style="font-weight:700;font-size:13px;color:var(--accent2)"><span id="'+gid+'-arrow">'+(abierto?'▾':'▸')+'</span> '+_invEsc(key)+'</span>'
+      +'<span style="font-size:11px;color:var(--text2)">'+items.length+' · '+pz+' pzs</span></div>'
+      +'<div id="'+gid+'" style="display:'+(abierto?'block':'none')+';padding:4px 8px;overflow-x:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="color:var(--text2);text-align:left">'+(_invSelMode?'<th style="width:24px"></th>':'')+'<th style="padding:4px 3px">Fecha</th><th>'+(campo==='horma'?'Marca':'Horma')+'</th><th>Calidad</th><th>Talla</th><th>Color</th><th style="text-align:right">Pzs</th><th style="text-align:right">Costo</th></tr></thead><tbody>';
+    items.forEach(function(x){
+      var s=x.s;
+      h+='<tr style="border-bottom:1px solid var(--border)">';
+      if(_invSelMode){ h+='<td style="text-align:center"><input type="checkbox" '+(_invSel[x.i]?'checked':'')+' onchange="invSelToggle('+x.i+')" style="cursor:pointer"></td>'; }
+      h+='<td style="padding:4px 3px;color:var(--text2)">'+_invEsc(s.fecha)+'</td><td>'+(campo==='horma'?_invEsc(s.marca):_invEsc(s.horma))+'</td><td>'+_invEsc(s.calidad)+'</td><td>'+(s.talla?_invEsc(s.talla)+' cm ('+_invTallaPulg(s.talla)+'")':'—')+'</td><td>'+_invEsc(s.color)+'</td><td style="text-align:right;font-weight:700;color:var(--accent2)">'+(s.piezas||0)+'</td><td style="text-align:right">$'+(s.costo||0).toLocaleString('es-MX')+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+  });
+  t.innerHTML=h;
+}
+function invToggleGrupo(gid){ var e=document.getElementById(gid); var ar=document.getElementById(gid+'-arrow'); if(e){ var show=(e.style.display==='none'); e.style.display=show?'block':'none'; if(ar) ar.textContent=show?'▾':'▸'; } }
+function eliminarSombrero(i){ if(!confirm('¿Borrar este registro de sombrero?')) return; invSombreros.splice(i,1); save('inv_sombreros', invSombreros); renderStockSombreros(); }
+
+// ── Gestionar opciones (marca/calidad/horma/color) ──
+function abrirGestionOpciones(){
+  var ov=document.createElement('div'); ov.id='inv-opc-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div id="inv-opc-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:600px;width:100%;padding:20px"></div>';
+  document.body.appendChild(ov); renderGestionOpciones();
+}
+function _invCerrarOpc(){ var o=document.getElementById('inv-opc-overlay'); if(o) o.remove(); }
+function renderGestionOpciones(){
+  var box=document.getElementById('inv-opc-box'); if(!box) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--text)';
+  var cats=[['marcas','Marca'],['calidades','Calidad'],['hormas','Horma'],['colores','Color']];
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0;color:var(--accent2);font-size:18px">⚙️ Opciones de Sombreros</h2><button onclick="_invCerrarOpc()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div><p style="color:var(--text2);font-size:11px;margin:0 0 14px">Agrega o quita marcas, calidades, hormas y colores. Se guarda en la nube.</p>';
+  cats.forEach(function(cat){
+    var key=cat[0];
+    h+='<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;padding:10px"><div style="color:var(--accent2);font-weight:700;font-size:13px;margin-bottom:8px">'+cat[1]+'</div>';
+    (invOpciones[key]||[]).forEach(function(v,i){
+      h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px"><input value="'+_invEsc(v)+'" onchange="invEditarOpc(\''+key+'\','+i+',this.value)" style="flex:1;'+inp+'"><button onclick="invEliminarOpc(\''+key+'\','+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+    });
+    h+='<div style="display:flex;gap:6px;margin-top:6px;border-top:1px dashed var(--border);padding-top:8px"><input id="newopc-'+key+'" placeholder="+ Agregar" style="flex:1;'+inp+'"><button onclick="invAgregarOpc(\''+key+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 11px;cursor:pointer;font-weight:700">+</button></div></div>';
+  });
+  h+='<div style="text-align:right"><button onclick="_invCerrarOpc()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 20px;cursor:pointer;font-weight:700">Listo</button></div>';
+  box.innerHTML=h;
+}
+function _invGuardarOpc(){ save('inv_opciones', invOpciones); renderFormSombrero(); }
+function invEditarOpc(key,i,v){ if(invOpciones[key]){ invOpciones[key][i]=v; _invGuardarOpc(); } }
+function invEliminarOpc(key,i){ if(invOpciones[key]){ invOpciones[key].splice(i,1); _invGuardarOpc(); renderGestionOpciones(); } }
+function invAgregarOpc(key){ var v=(document.getElementById('newopc-'+key)?.value||'').trim(); if(!v) return; if(!invOpciones[key]) invOpciones[key]=[]; invOpciones[key].push(v); _invGuardarOpc(); renderGestionOpciones(); }
+
 function initInventario() {
+  try{ renderDeletePassAdmin(); renderFormSombrero(); renderStockSombreros(); renderAccesorios(); invCatRender('kits'); invCatRender('operacion'); renderFormMovimiento(); renderMovsRecientes(); renderTallasPorPedir(); renderInvKpis(); }catch(e){ console.warn(e); }
   // Populate model datalists
   const mods = MODELOS_ML.map(m=>m.n);
   ['inv-mod-list','inv-mod-list2'].forEach(id=>{
@@ -3582,17 +3914,42 @@ function getEstadoBadge(estado) {
   return '<span style="background:rgba(62,207,142,.15);color:var(--green);border:1px solid var(--green);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">✅ OK</span>';
 }
 
+function invToggleSec(id){ var e=document.getElementById(id); var ar=document.getElementById(id+'-arrow'); if(e){ var show=(e.style.display==='none'); e.style.display=show?'block':'none'; if(ar) ar.textContent=show?'▾':'▸'; } }
+function _invCatAccesorio(nombre){
+  var n=(nombre||'').toLowerCase();
+  if(n.indexOf('pluma')>=0) return 'Plumas';
+  if(n.indexOf('toquilla')>=0) return 'Toquillas';
+  if(n.indexOf('placa')>=0) return 'Placas';
+  if(n.indexOf('pines')>=0||n.indexOf('pin ')>=0) return 'Pines';
+  if(n.indexOf('letra')>=0) return 'Letras';
+  return 'Otros';
+}
+function logInventario(accion){
+  try{
+    var u = (typeof currentUser!=='undefined' && currentUser) ? currentUser : {id:'?',nombre:'Desconocido'};
+    var arr = (typeof loadBitacora==='function') ? loadBitacora() : [];
+    var now = new Date();
+    arr.push({ id:'auto'+Date.now()+Math.floor(Math.random()*1000), fecha: now.toISOString().slice(0,10), hora: now.toTimeString().slice(0,5), usuarioId: (u.id||'?'), usuarioNombre: (u.nombre||'Desconocido'), actividades: '📦 '+accion, clientes:'', anotaciones:'', auto:true });
+    if(typeof saveBitacora==='function') saveBitacora(arr);
+    if(typeof renderBitacora==='function'){ try{ renderBitacora(); }catch(e){} }
+  }catch(e){ console.warn('logInventario',e); }
+}
+
 function renderInvKpis() {
-  const el=document.getElementById('inv-kpis'); if(!el) return;
-  const total=invData.reduce((a,i)=>(a+(i.q_ml||0)+(i.q_shop||0)+(i.q_fis||0)),0);
-  const agotados=invData.filter(i=>getEstado(i)==='agotado').length;
-  const bajos=invData.filter(i=>getEstado(i)==='bajo').length;
-  const valorizacion=invData.reduce((a,i)=>a+((i.q_ml||0)+(i.q_shop||0)+(i.q_fis||0))*(i.costo||0),0);
-  el.innerHTML=`
-    <div class="card"><div class="card-label">Total piezas</div><div class="card-value blue">${total.toLocaleString()}</div><div class="card-sub">${invData.length} variantes registradas</div></div>
-    <div class="card"><div class="card-label">Agotados</div><div class="card-value red">${agotados}</div><div class="card-sub">Variantes sin stock</div></div>
-    <div class="card"><div class="card-label">Stock bajo</div><div class="card-value" style="color:#e8b84b">${bajos}</div><div class="card-sub">Por debajo del reorden</div></div>
-    <div class="card"><div class="card-label">Valorización</div><div class="card-value accent">$${Math.round(valorizacion).toLocaleString()}</div><div class="card-sub">A precio de costo</div></div>`;
+  var el=document.getElementById('inv-kpis'); if(!el) return;
+  var todos=[];
+  try{ if(typeof invSombreros!=='undefined'&&invSombreros) todos=todos.concat(invSombreros); }catch(e){}
+  try{ if(typeof invAccesorios!=='undefined'&&invAccesorios) todos=todos.concat(invAccesorios); }catch(e){}
+  try{ if(typeof invKits!=='undefined'&&invKits) todos=todos.concat(invKits); }catch(e){}
+  try{ if(typeof invOperacion!=='undefined'&&invOperacion) todos=todos.concat(invOperacion); }catch(e){}
+  var total=todos.reduce(function(a,i){return a+(i.piezas||0);},0);
+  var agotados=todos.filter(function(i){return (i.piezas||0)===0;}).length;
+  var bajos=todos.filter(function(i){return (i.piezas||0)>0 && (i.piezas||0)<=2;}).length;
+  var val=todos.reduce(function(a,i){return a+(i.piezas||0)*(i.costo||0);},0);
+  el.innerHTML='<div class="card"><div class="card-label">Total piezas</div><div class="card-value blue">'+total.toLocaleString('es-MX')+'</div><div class="card-sub">'+todos.length+' registros en inventario</div></div>'
+    +'<div class="card"><div class="card-label">Agotados</div><div class="card-value red">'+agotados+'</div><div class="card-sub">Con 0 piezas</div></div>'
+    +'<div class="card"><div class="card-label">Stock bajo</div><div class="card-value" style="color:#e8b84b">'+bajos+'</div><div class="card-sub">1-2 piezas</div></div>'
+    +'<div class="card"><div class="card-label">Valorización</div><div class="card-value accent">$'+Math.round(val).toLocaleString('es-MX')+'</div><div class="card-sub">A precio de costo</div></div>';
 }
 
 function filtrarStock() {
@@ -4981,6 +5338,14 @@ function eliminarDocHistorial(i) {
 // ═══ RESPALDO Y RESTAURACIÓN ═══
 const BACKUP_KEYS = [
   'cfg_margen_ml',
+  'inv_opciones',
+  'inv_sombreros',
+  'inv_accesorios',
+  'inv_kits',
+  'inv_operacion',
+  'inv_tipos_mov',
+  'inv_delete_pass',
+  'bitacora_entries',
   'componentes_custom',
   'daily_entries',
   'ventas_diarias_v2',
@@ -6950,6 +7315,7 @@ function loadBitacora(){
 }
 function saveBitacora(arr){
   try { localStorage.setItem('bitacora_entries', JSON.stringify(arr)); } catch(e){}
+  try { save('bitacora_entries', arr); } catch(e){}
 }
 function escapeHTML(s){
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
