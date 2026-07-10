@@ -817,7 +817,7 @@
 
       <!-- Columna derecha: resultado -->
       <div class="card" style="position:sticky;top:60px;align-self:start">
-        <div class="card-title"><span class="dot" style="background:var(--green)"></span>DESGLOSE DE MARGEN</div>
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>DESGLOSE DE MARGEN <span onclick="resetCfgMargen()" style="cursor:pointer;font-size:10px;color:var(--text2);font-weight:400;margin-left:8px">↺ restablecer</span></div>
 
         <div style="font-size:12px">
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
@@ -825,19 +825,19 @@
             <span id="res-precio" style="font-weight:700;color:var(--accent2)">$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
-            <span>Comisión ML (19.5%)</span>
+            <span>Comisión ML (<input type="number" step="0.1" min="0" value="19.5" id="cfg-comision" oninput="calcMargen();guardarCfgMargen()" style="width:48px;background:#0f0f13;border:1px solid var(--accent);color:var(--accent2);border-radius:5px;padding:2px 4px;font-size:11px;text-align:right;font-weight:600">%)</span>
             <span id="res-comision" style="color:var(--red)">−$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
             <span>Cargo envío ML</span>
-            <span id="res-envio" style="color:var(--red)">−$139</span>
+            <span style="color:var(--red)">−$<input type="number" step="0.01" min="0" value="139.50" id="cfg-envio" oninput="calcMargen();guardarCfgMargen()" style="width:80px;background:#0f0f13;border:1px solid var(--red);color:var(--red);border-radius:5px;padding:2px 5px;font-size:11px;text-align:right;font-weight:600"></span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
-            <span>Retención IVA (6.9%)</span>
+            <span>Retención IVA (<input type="number" step="0.1" min="0" value="6.9" id="cfg-iva" oninput="calcMargen();guardarCfgMargen()" style="width:48px;background:#0f0f13;border:1px solid var(--accent);color:var(--accent2);border-radius:5px;padding:2px 4px;font-size:11px;text-align:right;font-weight:600">%)</span>
             <span id="res-iva" style="color:var(--red)">−$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
-            <span>Retención ISR (2.16%)</span>
+            <span>Retención ISR (<input type="number" step="0.01" min="0" value="2.16" id="cfg-isr" oninput="calcMargen();guardarCfgMargen()" style="width:48px;background:#0f0f13;border:1px solid var(--accent);color:var(--accent2);border-radius:5px;padding:2px 4px;font-size:11px;text-align:right;font-weight:600">%)</span>
             <span id="res-isr" style="color:var(--red)">−$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-weight:700">
@@ -845,7 +845,7 @@
             <span id="res-neto-ml" style="color:var(--blue)">$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
-            <span>Adelanto 1.8%</span>
+            <span>Adelanto <input type="number" step="0.1" min="0" value="1.8" id="cfg-adelanto" oninput="calcMargen();guardarCfgMargen()" style="width:48px;background:#0f0f13;border:1px solid var(--accent);color:var(--accent2);border-radius:5px;padding:2px 4px;font-size:11px;text-align:right;font-weight:600">%</span>
             <span id="res-adelanto" style="color:var(--red)">−$0</span>
           </div>
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-weight:700">
@@ -2669,6 +2669,7 @@ function initCostos() {
     html += '</div></div>';
   });
   list.innerHTML = html;
+  cargarCfgMargen();
   // Open first category by default
   const firstBody = list.querySelector('.cat-body');
   const firstArrow = list.querySelector('.cat-arrow');
@@ -2783,6 +2784,22 @@ function toggleCat(el) {
   } else { body.style.display='none'; if(arrow) arrow.textContent='▶'; }
 }
 
+function guardarCfgMargen(){
+  try{ var g=function(id,d){ return parseFloat(document.getElementById(id)?.value)||d; };
+    save('cfg_margen_ml', { comision:g('cfg-comision',19.5), envio:g('cfg-envio',139.50), iva:g('cfg-iva',6.9), isr:g('cfg-isr',2.16), adelanto:g('cfg-adelanto',1.8) });
+  }catch(e){}
+}
+function cargarCfgMargen(){
+  try{ var cfg=JSON.parse(localStorage.getItem('cfg_margen_ml')||'null');
+    if(cfg){ var s=function(id,v){ var e=document.getElementById(id); if(e&&v!=null) e.value=v; };
+      s('cfg-comision',cfg.comision); s('cfg-envio',cfg.envio); s('cfg-iva',cfg.iva); s('cfg-isr',cfg.isr); s('cfg-adelanto',cfg.adelanto); }
+  }catch(e){}
+}
+function resetCfgMargen(){
+  var d={ 'cfg-comision':19.5,'cfg-envio':139.50,'cfg-iva':6.9,'cfg-isr':2.16,'cfg-adelanto':1.8 };
+  for(var id in d){ var e=document.getElementById(id); if(e) e.value=d[id]; }
+  calcMargen(); guardarCfgMargen();
+}
 function calcMargen() {
   const precio = parseFloat(document.getElementById('calc-precio')?.value)||0;
   let costo = 0; let count = 0; let compNombres = [];
@@ -2791,13 +2808,17 @@ function calcMargen() {
     compNombres.push(cb.getAttribute('data-nombre')||'');
   });
 
-  // ML fees: 19.5% comisión, $139.50 envío, 6.9% IVA, 2.16% ISR
-  const comision = precio * 0.195;
-  const envio = 139.50;
-  const iva = precio * 0.069;
-  const isr = precio * 0.0216;
+  // ML fees EDITABLES (lee los campos configurables del desglose)
+  const _pCom = (parseFloat(document.getElementById('cfg-comision')?.value)||19.5)/100;
+  const _pIva = (parseFloat(document.getElementById('cfg-iva')?.value)||6.9)/100;
+  const _pIsr = (parseFloat(document.getElementById('cfg-isr')?.value)||2.16)/100;
+  const _pAde = (parseFloat(document.getElementById('cfg-adelanto')?.value)||1.8)/100;
+  const comision = precio * _pCom;
+  const envio = parseFloat(document.getElementById('cfg-envio')?.value)||139.50;
+  const iva = precio * _pIva;
+  const isr = precio * _pIsr;
   const neto_ml = precio - comision - envio - iva - isr;
-  const adelanto = neto_ml * 0.018;
+  const adelanto = neto_ml * _pAde;
   const neto_real = neto_ml - adelanto;
   const util = neto_real - costo;
   const margen = precio>0 ? (util/precio*100) : 0;
@@ -2822,7 +2843,6 @@ function calcMargen() {
   const set = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   set('res-precio', '$'+precio.toLocaleString('es-MX',{minimumFractionDigits:2}));
   set('res-comision', '−$'+Math.round(comision).toLocaleString());
-  set('res-envio', '−$'+envio.toFixed(2));
   set('res-iva', '−$'+Math.round(iva).toLocaleString());
   set('res-isr', '−$'+Math.round(isr).toLocaleString());
   set('res-neto-ml', '$'+Math.round(neto_ml).toLocaleString());
@@ -4890,6 +4910,7 @@ function eliminarDocHistorial(i) {
 
 // ═══ RESPALDO Y RESTAURACIÓN ═══
 const BACKUP_KEYS = [
+  'cfg_margen_ml',
   'daily_entries',
   'ventas_diarias_v2',
   'fisica_entries',
