@@ -810,7 +810,7 @@
           <div id="comp-selected-list" style="min-height:40px;font-size:12px;color:var(--text2)">Ningún componente seleccionado</div>
         </div>
         <div class="card">
-          <div class="card-title"><span class="dot" style="background:var(--blue)"></span>ELIGE COMPONENTES</div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span><span class="dot" style="background:var(--blue)"></span>ELIGE COMPONENTES</span><button onclick="abrirGestionComp()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer">⚙️ Gestionar</button></div>
           <div id="componentes-list"></div>
         </div>
       </div>
@@ -2198,7 +2198,7 @@ const EMPLEADOS = [
   {nombre:'Empleado 4',salario_mensual:4000,frecuencia:'Mensual',area:'Auxiliar'},
 ];
 
-const COMPONENTES = [
+const COMPONENTES_DEFAULT = [
   {cat:'Telar / Base',items:[
     {n:'Telar 1,000X Tombstone',p:410},{n:'Telar 5,000X Tombstone',p:1910},
     {n:'Telar 1,000X R1500X',p:388},{n:'Telar Viejon Bicolor Nicol Hats',p:362},
@@ -2229,6 +2229,8 @@ const COMPONENTES = [
     {n:'Silicón',p:2},{n:'Embalaje',p:10},{n:'Operación',p:50}
   ]}
 ];
+let COMPONENTES = JSON.parse(JSON.stringify(COMPONENTES_DEFAULT));
+try{ var _ccustom=JSON.parse(localStorage.getItem('componentes_custom')||'null'); if(_ccustom && Array.isArray(_ccustom) && _ccustom.length){ COMPONENTES=_ccustom; } }catch(e){}
 
 const DEUDAS_INIT = [
   {n:'Tarjetas de Crédito',m:10000,pago:10000,tipo:'Tarjeta Crédito'},
@@ -2646,6 +2648,74 @@ const MODELOS_ML = [{"n":"Caja Tombstone Más 3 Plumas Para Sombrero","precio":7
 
 let modeloActual = null;
 let modelosGuardados = JSON.parse(localStorage.getItem('modelos_guardados')||'{}');
+
+function _escAttr(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function cargarComponentes(){
+  try{ var c=JSON.parse(localStorage.getItem('componentes_custom')||'null'); if(c && Array.isArray(c) && c.length){ COMPONENTES=c; } }catch(e){}
+}
+function guardarComponentes(){ try{ save('componentes_custom', COMPONENTES); }catch(e){} }
+
+function abrirGestionComp(){
+  var ov=document.createElement('div');
+  ov.id='gestion-comp-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) cerrarGestionComp(); };
+  ov.innerHTML='<div id="gestion-comp-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:640px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)"></div>';
+  document.body.appendChild(ov);
+  renderGestionComp();
+}
+function cerrarGestionComp(){ var o=document.getElementById('gestion-comp-overlay'); if(o) o.remove(); if(document.getElementById('componentes-list')) initCostos(); }
+
+function renderGestionComp(){
+  var box=document.getElementById('gestion-comp-box'); if(!box) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    +'<h2 style="margin:0;color:var(--accent2);font-size:18px">⚙️ Gestionar Componentes</h2>'
+    +'<button onclick="cerrarGestionComp()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer;line-height:1">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 14px">Agrega, edita, borra o reclasifica. Se guarda solo en la nube.</p>';
+  COMPONENTES.forEach(function(cat,ci){
+    h+='<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">'
+      +'<div style="display:flex;gap:6px;align-items:center;padding:8px 10px;background:var(--surface2)">'
+      +'<input value="'+_escAttr(cat.cat)+'" onchange="compRenombrarCat('+ci+',this.value)" style="flex:1;'+inp+';color:var(--accent2);font-weight:700;font-size:13px">'
+      +'<button onclick="compEliminarCat('+ci+')" title="Eliminar categoría" style="background:rgba(244,91,105,.15);border:1px solid rgba(244,91,105,.3);color:var(--red);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px">🗑</button></div>'
+      +'<div style="padding:8px 10px">';
+    (cat.items||[]).forEach(function(it,ii){
+      h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
+        +'<input value="'+_escAttr(it.n)+'" onchange="compEditarNombre('+ci+','+ii+',this.value)" style="flex:1;'+inp+';color:var(--text)">'
+        +'<span style="color:var(--text2);font-size:12px">$</span>'
+        +'<input type="number" value="'+(it.p||0)+'" onchange="compEditarPrecio('+ci+','+ii+',this.value)" style="width:78px;'+inp+';color:var(--accent2);text-align:right">'
+        +'<button onclick="compEliminar('+ci+','+ii+')" title="Borrar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">✕</button></div>';
+    });
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-top:8px;border-top:1px dashed var(--border);padding-top:8px">'
+      +'<input id="ncomp-n-'+ci+'" placeholder="+ Nuevo componente" style="flex:1;'+inp+';color:var(--text)">'
+      +'<span style="color:var(--text2);font-size:12px">$</span>'
+      +'<input id="ncomp-p-'+ci+'" type="number" placeholder="0" style="width:78px;'+inp+';color:var(--accent2);text-align:right">'
+      +'<button onclick="compAgregar('+ci+')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 11px;cursor:pointer;font-size:13px;font-weight:700">+</button></div>'
+      +'</div></div>';
+  });
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'
+    +'<input id="ncat-name" placeholder="Nombre de nueva categoría" style="flex:1;'+inp+';color:var(--text);font-size:13px;padding:7px 9px">'
+    +'<button onclick="compAgregarCat()" style="background:var(--accent);border:none;color:#0f0f13;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:13px;font-weight:700">+ Categoría</button></div>'
+    +'<div style="text-align:right;margin-top:16px"><button onclick="cerrarGestionComp()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 20px;cursor:pointer;font-weight:700">Listo</button></div>';
+  box.innerHTML=h;
+}
+
+function compEditarNombre(ci,ii,v){ if(COMPONENTES[ci]&&COMPONENTES[ci].items[ii]){ COMPONENTES[ci].items[ii].n=v; guardarComponentes(); } }
+function compEditarPrecio(ci,ii,v){ if(COMPONENTES[ci]&&COMPONENTES[ci].items[ii]){ COMPONENTES[ci].items[ii].p=parseFloat(v)||0; guardarComponentes(); } }
+function compEliminar(ci,ii){ if(COMPONENTES[ci]){ COMPONENTES[ci].items.splice(ii,1); guardarComponentes(); renderGestionComp(); } }
+function compAgregar(ci){
+  var n=(document.getElementById('ncomp-n-'+ci)?.value||'').trim();
+  var p=parseFloat(document.getElementById('ncomp-p-'+ci)?.value)||0;
+  if(!n) return;
+  COMPONENTES[ci].items.push({n:n,p:p}); guardarComponentes(); renderGestionComp();
+}
+function compRenombrarCat(ci,v){ if(COMPONENTES[ci]){ COMPONENTES[ci].cat=v; guardarComponentes(); } }
+function compEliminarCat(ci){ if(!confirm('¿Eliminar esta categoría y todos sus componentes?')) return; COMPONENTES.splice(ci,1); guardarComponentes(); renderGestionComp(); }
+function compAgregarCat(){
+  var n=(document.getElementById('ncat-name')?.value||'').trim();
+  if(!n) return;
+  COMPONENTES.push({cat:n,items:[]}); guardarComponentes(); renderGestionComp();
+}
 
 function initCostos() {
   const list = document.getElementById('componentes-list');
@@ -4911,6 +4981,7 @@ function eliminarDocHistorial(i) {
 // ═══ RESPALDO Y RESTAURACIÓN ═══
 const BACKUP_KEYS = [
   'cfg_margen_ml',
+  'componentes_custom',
   'daily_entries',
   'ventas_diarias_v2',
   'fisica_entries',
@@ -7494,7 +7565,7 @@ function renderShopifyPage(){
       <div class="alert alert-green" style="margin-bottom:14px"><span>&#129518;</span><div>Calcula la utilidad real por modelo de Shopify. Elige un modelo (o escribe el precio), marca los componentes de costo y ajusta el <b>env&iacute;o</b>.</div></div>
       <div class="grid g2">
         <div class="card">
-          <div class="card-title"><span class="dot" style="background:var(--blue)"></span>ELIGE COMPONENTES</div>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span><span class="dot" style="background:var(--blue)"></span>ELIGE COMPONENTES</span><button onclick="abrirGestionComp()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer">⚙️ Gestionar</button></div>
           <div style="margin:10px 0 12px">
             <label style="font-size:11px;color:var(--text2)">Modelo</label>
             <select id="shop-modelo-sel" onchange="aplicarModeloShop()" style="width:100%;background:#22222e;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:4px"></select>
