@@ -245,7 +245,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v74</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v75</span></p>
   </div>
   <div class="nav">
     <div class="nav-section">Principal</div>
@@ -5347,12 +5347,55 @@ function actualizarPreviewTicket() {
   <div style="text-align:center;font-size:9px;color:#aaa;margin-top:8px">Documento generado con ERP Sombreros Westeros</div>`;
 }
 
+function _tkNorm(s){ return (s==null?'':String(s)).toLowerCase().replace(/[,\.]/g,'').replace(/\s+/g,' ').trim(); }
+function _tkBuscarInv(modelo, talla){
+  var m=_tkNorm(modelo); if(!m) return null;
+  var listas=[];
+  if(typeof invAccesorios!=='undefined') listas.push({lista:invAccesorios,key:'inv_accesorios'});
+  if(typeof invKits!=='undefined') listas.push({lista:invKits,key:'inv_kits'});
+  if(typeof invOperacion!=='undefined') listas.push({lista:invOperacion,key:'inv_operacion'});
+  if(typeof invSeccionesCustom!=='undefined' && typeof invSecData!=='undefined'){ invSeccionesCustom.forEach(function(sec){ if(invSecData[sec.id]) listas.push({lista:invSecData[sec.id],key:'inv_sec_'+sec.id}); }); }
+  for(var i=0;i<listas.length;i++){
+    var found=listas[i].lista.find(function(x){ return _tkNorm(x.nombre)===m; });
+    if(found) return {item:found, key:listas[i].key, lista:listas[i].lista, tipo:'item'};
+  }
+  if(typeof invSombreros!=='undefined'){
+    var tN=(''+(talla||'')).replace(/[^0-9]/g,'');
+    var som=invSombreros.find(function(s){
+      var comp=_tkNorm([s.marca,s.calidad,s.horma,s.color].filter(Boolean).join(' '));
+      var tMatch = !tN || !s.talla || (''+s.talla).replace(/[^0-9]/g,'')===tN;
+      return comp===m && tMatch;
+    });
+    if(som) return {item:som, key:'inv_sombreros', lista:invSombreros, tipo:'sombrero'};
+  }
+  return null;
+}
+function _tkProcesarVenta(folio){
+  var g=function(id){ var e=document.getElementById(id); return e?(e.value||''):''; };
+  var fecha=g('tk-fecha')||new Date().toISOString().slice(0,10);
+  var cliente=g('tk-cliente'), vendedor=g('tk-vendedor'), pago=g('tk-pago')||'Efectivo';
+  var ventaId='tk'+Date.now();
+  var deducidos=[], noEnc=[], tocado=false;
+  (docItems.ticket||[]).forEach(function(it){
+    try{ state.fisicaEntries.push({ fecha:fecha, cliente:cliente, modelo:it.modelo, talla:it.talla, precio:(it.precio||0)*(it.qty||1), cantidad:it.qty||1, precioUnit:it.precio||0, vendedor:vendedor, comision:0, pago:pago, notas:'Ticket '+folio, ventaId:ventaId, origen:'ticket' }); }catch(e){}
+    var mtc=_tkBuscarInv(it.modelo, it.talla);
+    if(mtc){ mtc.item.piezas=Math.max(0,(mtc.item.piezas||0)-(it.qty||1)); try{ save(mtc.key, mtc.lista); }catch(e){} deducidos.push(it.modelo); tocado=true; }
+    else { noEnc.push(it.modelo); }
+  });
+  try{ save('fisica_entries', state.fisicaEntries); }catch(e){}
+  try{ if(typeof renderFisica==='function') renderFisica(); }catch(e){}
+  if(tocado){ try{ if(typeof renderStockSombreros==='function') renderStockSombreros(); if(typeof renderAccesorios==='function') renderAccesorios(); if(typeof invCatRender==='function'){ invCatRender('kits'); invCatRender('operacion'); } if(typeof renderSeccionesCustom==='function') renderSeccionesCustom(); if(typeof renderInvKpis==='function') renderInvKpis(); }catch(e){} }
+  if(typeof logInventario==='function' && deducidos.length) logInventario('Venta con Ticket '+folio+' — descontó del stock: '+deducidos.join(', '));
+  return {deducidos:deducidos, noEnc:noEnc};
+}
+
 function generarTicket() {
   if(!docItems.ticket.length){alert('Agrega al menos un producto al ticket.');return;}
   const folio=nextFolio('ticket');
   document.getElementById('tk-folio').value=folio;
   actualizarPreviewTicket();
   guardarDocumento('ticket');
+  var _res=_tkProcesarVenta(folio);
   const preview=document.getElementById('tk-preview').innerHTML;
   const esPers = !!(document.getElementById('tk-personalizada') && document.getElementById('tk-personalizada').checked);
   var cuerpo;
@@ -5372,6 +5415,10 @@ function generarTicket() {
     +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:13px;cursor:pointer;background:#1a1a22;color:#fff;border:none;border-radius:6px">&#128424; Imprimir</button></div>'
     +'</body></html>');
   win.document.close();
+  if(typeof mostrarToast==='function'){
+    if(_res && _res.noEnc && _res.noEnc.length) mostrarToast('Venta registrada en Tienda Física. No encontré en inventario: '+_res.noEnc.join(', ')+' — ajústalos a mano','blue');
+    else mostrarToast('✅ Venta registrada en Tienda Física y stock descontado','green');
+  }
   var nextNum=(folioCounter.ticket||0)+1;
   var nextEl=document.getElementById('tk-folio');
   if(nextEl) nextEl.value='TK-'+String(nextNum).padStart(3,'0');
