@@ -245,7 +245,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v59</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v74</span></p>
   </div>
   <div class="nav">
     <div class="nav-section">Principal</div>
@@ -260,7 +260,7 @@
     <div class="nav-item" onclick="goTo('documentos')"><span class="ico">🧾</span> Tickets & Cotizaciones</div>
     <div class="nav-item" onclick="goTo('bitacora')"><span class="ico">📓</span> Bitácora</div>
     <div class="nav-item" onclick="goTo('clientes')"><span class="ico">🤝</span> Clientes</div>
-    <div class="nav-item" onclick="goTo('ventas-buscar')"><span class="ico">🔎</span> Buscar Ventas</div>
+    <div class="nav-item admin-only" onclick="goTo('ventas-buscar')"><span class="ico">🔎</span> Buscar Ventas</div>
     <div class="nav-item admin-only" onclick="goTo('paqueteria')"><span class="ico">📦</span> Paquetería</div>
 
     <div class="nav-section admin-only">Producto</div>
@@ -711,24 +711,19 @@
     </div>
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><span class="dot"></span>Registrar Venta</div>
-      <div class="grid g3">
+      <div class="grid g2">
         <div class="form-group"><label>Fecha</label><input type="date" id="f-fecha"></div>
         <div class="form-group"><label>Cliente (opcional)</label><input type="text" id="f-cliente" placeholder="Nombre del cliente"></div>
-        <div class="form-group"><label>Modelo/Sombrero</label><input type="text" id="f-modelo" placeholder="ej. Tombstone 1000x Johnson" list="tienda-mod-list">
-          <datalist id="tienda-mod-list"></datalist>
-        </div>
       </div>
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin:8px 0 8px">🛍️ Productos de esta venta</div>
+      <div id="venta-productos"></div>
+      <button onclick="agregarProductoVenta()" style="background:rgba(93,173,226,.15);border:1px solid rgba(93,173,226,.4);color:var(--blue);border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px">+ Agregar otro producto</button>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:14px"><span style="color:var(--text2);font-size:14px">Total:</span> <span id="venta-total" style="font-weight:800;color:var(--accent2);font-size:19px">$0</span></div>
       <div class="grid g4">
-        <div class="form-group"><label>Talla (cm)</label><input type="number" id="f-talla" placeholder="ej. 57"></div>
-        <div class="form-group"><label>Precio Venta</label><input type="number" id="f-precio" placeholder="ej. 1800"></div>
         <div class="form-group"><label>Vendedor</label><input type="text" id="f-vendedor" placeholder="Nombre"></div>
         <div class="form-group"><label>Comisión %</label><input type="number" id="f-comision" placeholder="ej. 5"></div>
-      </div>
-      <div class="grid g2">
-        <div class="form-group"><label>Forma de Pago</label>
-          <select id="f-pago"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>WhatsApp Pay</option></select>
-        </div>
-        <div class="form-group"><label>Notas</label><input type="text" id="f-notas-venta" placeholder="Observaciones opcionales"></div>
+        <div class="form-group"><label>Forma de Pago</label><select id="f-pago"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>WhatsApp Pay</option></select></div>
+        <div class="form-group"><label>Notas</label><input type="text" id="f-notas-venta" placeholder="Opcional"></div>
       </div>
       <button class="btn btn-primary" onclick="saveFisica()">Guardar Venta</button>
     </div>
@@ -1458,6 +1453,8 @@
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-acc')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🪶 Accesorios</span><span id="sec-acc-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-acc" style="display:none;margin-top:12px"><div id="inv-accesorios-list"></div></div></div>
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-kits')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🎁 Kits</span><span id="sec-kits-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-kits" style="display:none;margin-top:12px"><div id="inv-kits-list"></div></div></div>
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-op')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">📦 Operación</span><span id="sec-op-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-op" style="display:none;margin-top:12px"><div id="inv-operacion-list"></div></div></div>
+      <div class="admin-only" style="margin-top:16px;text-align:center"><button onclick="abrirGestionSecciones()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer">⚙️ Gestionar secciones (agregar más)</button></div>
+      <div id="inv-secciones-custom"></div>
     </div>
 
     <!-- AGREGAR tab -->
@@ -1624,13 +1621,13 @@
           </div>
           <div class="form-group"><label>Cliente (opcional)</label><input type="text" id="tk-cliente" placeholder="Nombre del cliente"></div>
           <div class="form-group"><label>Vendedor</label><input type="text" id="tk-vendedor" placeholder="Nombre del vendedor"></div>
+          <div class="form-group" style="margin:2px 0 8px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="tk-personalizada" onchange="actualizarPreviewTicket()" style="width:16px;height:16px;cursor:pointer"> 🖊️ Venta personalizada <span style="color:var(--text2);font-size:11px">(imprime 2 copias para firma)</span></label></div>
           <!-- Productos del ticket -->
           <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;margin:10px 0 6px">Productos</div>
           <div id="tk-items-list"></div>
           <div class="grid g3" style="margin-top:8px">
             <div class="form-group" style="grid-column:1/-1"><label>Modelo</label>
-              <input type="text" id="tk-item-modelo" placeholder="Busca o escribe el modelo" list="tk-mod-list">
-              <datalist id="tk-mod-list"></datalist>
+              <input type="text" id="tk-item-modelo" placeholder="Escribe el modelo (ej. Tombstone 1000x Johnson Negro)">
             </div>
             <div class="form-group"><label>Talla</label>
               <select id="tk-item-talla">
@@ -1698,8 +1695,7 @@
           <div id="cot-items-list"></div>
           <div class="grid g3" style="margin-top:8px">
             <div class="form-group" style="grid-column:1/-1"><label>Modelo</label>
-              <input type="text" id="cot-item-modelo" placeholder="Busca o escribe el modelo" list="cot-mod-list">
-              <datalist id="cot-mod-list"></datalist>
+              <input type="text" id="cot-item-modelo" placeholder="Escribe el modelo (ej. Tombstone 1000x Johnson Negro)">
             </div>
             <div class="form-group"><label>Talla</label>
               <select id="cot-item-talla">
@@ -2216,7 +2212,7 @@ function goTo(page) {
   if(page==='compras') { initCompras(); }
   if(page==='devoluciones') { renderDevoluciones(); }
   if(page==='ventas-diarias') { initVentasDiarias(); }
-  if(page==='tienda') { renderFisica(); }
+  if(page==='tienda') { renderFisica(); renderProductosVenta(); }
   if(page==='empleadas') { initEmpleadas(); }
   if(page==='inventario') { initInventario(); }
   if(page==='documentos') { initDocumentos(); }
@@ -3542,52 +3538,76 @@ function invCatRender(catKey){
   var cat=_INV_CATS[catKey]; if(!cat) return;
   var c=document.getElementById(cat.cont); if(!c) return;
   var data=cat.data;
+  var admin=(typeof _invEsAdmin==='function')?_invEsAdmin():true;
   var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12px;color:var(--text)';
+  var ro='padding:5px 4px;font-size:12px;color:var(--text)';
   var totPz=data.reduce(function(a,x){return a+(x.piezas||0);},0);
-  var totVal=data.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0);
-  var h='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+data.length+' items · '+totPz+' piezas · valor en costo $'+totVal.toLocaleString('es-MX')+'</div>';
-  h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;padding:0 2px"><span>Artículo</span><span style="text-align:center">Piezas</span><span style="text-align:center">Costo c/u</span><span></span></div>';
+  var cols=admin?'1fr 60px 74px 80px 22px':'1fr 60px 90px';
+  var h='';
+  if(admin){ var tv=data.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0); h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+data.length+' items · '+totPz+' piezas · valor en costo $'+tv.toLocaleString('es-MX')+'</div>'; }
+  else h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+data.length+' items · '+totPz+' piezas</div>';
+  h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:5px;padding:0 2px"><span>Artículo</span><span style="text-align:center">Pzs</span>'+(admin?'<span style="text-align:center">Costo</span>':'')+'<span style="text-align:center">P. Tienda</span>'+(admin?'<span></span>':'')+'</div>';
   data.forEach(function(a,i){
-    h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;margin-bottom:5px">'
-      +'<input value="'+_invEsc(a.nombre)+'" onchange="invCatEdNombre(\''+catKey+'\','+i+',this.value)" style="'+inp+'">'
-      +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="invCatEd(\''+catKey+'\','+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
-      +'<input type="number" value="'+(a.costo||0)+'" min="0" placeholder="$" onchange="invCatEd(\''+catKey+'\','+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
-      +'<button onclick="invCatDel(\''+catKey+'\','+i+')" title="Quitar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+    if(admin){
+      h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;margin-bottom:5px">'
+        +'<input value="'+_invEsc(a.nombre)+'" onchange="invCatEdNombre(\''+catKey+'\','+i+',this.value)" style="'+inp+'">'
+        +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="invCatEd(\''+catKey+'\','+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
+        +'<input type="number" value="'+(a.costo||0)+'" min="0" onchange="invCatEd(\''+catKey+'\','+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
+        +'<input type="number" value="'+(a.precioTienda||0)+'" min="0" onchange="invCatEd(\''+catKey+'\','+i+',\'precioTienda\',this.value)" style="'+inp+';text-align:center">'
+        +'<button onclick="invCatDel(\''+catKey+'\','+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+    } else {
+      h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;margin-bottom:5px">'
+        +'<span style="'+ro+'">'+_invEsc(a.nombre)+'</span>'
+        +'<span style="'+ro+';text-align:center">'+(a.piezas||0)+'</span>'
+        +'<span style="'+ro+';text-align:center;color:var(--accent2);font-weight:700">$'+(a.precioTienda||0).toLocaleString('es-MX')+'</span></div>';
+    }
   });
-  h+='<div style="display:flex;gap:6px;margin-top:10px;border-top:1px dashed var(--border);padding-top:10px"><input id="invcat-nuevo-'+catKey+'" placeholder="+ Nuevo '+cat.label+'" style="flex:1;'+inp+'"><button onclick="invCatAdd(\''+catKey+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
+  if(admin) h+='<div style="display:flex;gap:6px;margin-top:10px;border-top:1px dashed var(--border);padding-top:10px"><input id="invcat-nuevo-'+catKey+'" placeholder="+ Nuevo '+cat.label+'" style="flex:1;'+inp+'"><button onclick="invCatAdd(\''+catKey+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
   c.innerHTML=h;
   if(typeof renderInvKpis==='function') renderInvKpis();
 }
 function invCatEd(catKey,i,campo,val){ var cat=_INV_CATS[catKey]; if(cat&&cat.data[i]){ cat.data[i][campo]=parseFloat(val)||0; save(cat.key,cat.data); } }
 function invCatEdNombre(catKey,i,val){ var cat=_INV_CATS[catKey]; if(cat&&cat.data[i]){ cat.data[i].nombre=val; save(cat.key,cat.data); } }
 function invCatDel(catKey,i){ var cat=_INV_CATS[catKey]; if(!cat) return; if(!confirm('¿Quitar este artículo del inventario?')) return; if(!invAutorizado()) return; var _cn=(cat.data[i]||{}).nombre||''; cat.data.splice(i,1); save(cat.key,cat.data); logInventario('Eliminó '+cat.label+': '+_cn); invCatRender(catKey); }
-function invCatAdd(catKey){ var cat=_INV_CATS[catKey]; if(!cat) return; var el=document.getElementById('invcat-nuevo-'+catKey); var n=(el?el.value:'').trim(); if(!n) return; cat.data.push({nombre:n,piezas:0,costo:0}); save(cat.key,cat.data); logInventario('Agregó '+cat.label+': '+n); invCatRender(catKey); if(el) el.value=''; }
+function invCatAdd(catKey){ var cat=_INV_CATS[catKey]; if(!cat) return; var el=document.getElementById('invcat-nuevo-'+catKey); var n=(el?el.value:'').trim(); if(!n) return; cat.data.push({nombre:n,piezas:0,costo:0,precioTienda:0}); save(cat.key,cat.data); logInventario('Agregó '+cat.label+': '+n); invCatRender(catKey); if(el) el.value=''; }
 
 function renderAccesorios(){
   var c=document.getElementById('inv-accesorios-list'); if(!c) return;
+  var admin=(typeof _invEsAdmin==='function')?_invEsAdmin():true;
   var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:12px;color:var(--text)';
+  var ro='padding:5px 4px;font-size:12px;color:var(--text)';
   var grupos={};
   invAccesorios.forEach(function(a,i){ var cat=_invCatAccesorio(a.nombre); if(!grupos[cat])grupos[cat]=[]; grupos[cat].push({a:a,i:i}); });
   var orden=['Plumas','Toquillas','Placas','Pines','Letras','Otros'];
   var cats=orden.filter(function(x){return grupos[x];}).concat(Object.keys(grupos).filter(function(x){return orden.indexOf(x)<0;}));
   var totPz=invAccesorios.reduce(function(a,x){return a+(x.piezas||0);},0);
-  var totVal=invAccesorios.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0);
-  var h='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invAccesorios.length+' accesorios · '+totPz+' piezas · valor en costo $'+totVal.toLocaleString('es-MX')+'</div>';
+  var h='';
+  if(admin){ var tv=invAccesorios.reduce(function(a,x){return a+(x.piezas||0)*(x.costo||0);},0); h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invAccesorios.length+' accesorios · '+totPz+' piezas · valor en costo $'+tv.toLocaleString('es-MX')+'</div>'; }
+  else h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invAccesorios.length+' accesorios · '+totPz+' piezas</div>';
+  var cols=admin?'1fr 60px 74px 80px 22px':'1fr 60px 90px';
   cats.forEach(function(cat){
     var items=grupos[cat];
     var pz=items.reduce(function(a,x){return a+(x.a.piezas||0);},0);
     h+='<div style="font-weight:700;font-size:12px;color:var(--accent2);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--border)">'+cat+' <span style="color:var(--text2);font-weight:400;font-size:11px">('+items.length+' · '+pz+' pzs)</span></div>';
-    h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:4px;padding:0 2px"><span>Accesorio</span><span style="text-align:center">Piezas</span><span style="text-align:center">Costo c/u</span><span></span></div>';
+    h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:4px;padding:0 2px"><span>Accesorio</span><span style="text-align:center">Pzs</span>'+(admin?'<span style="text-align:center">Costo</span>':'')+'<span style="text-align:center">P. Tienda</span>'+(admin?'<span></span>':'')+'</div>';
     items.forEach(function(x){
       var i=x.i, a=x.a;
-      h+='<div style="display:grid;grid-template-columns:1fr 78px 90px 26px;gap:6px;align-items:center;margin-bottom:5px">'
-        +'<input value="'+_invEsc(a.nombre)+'" onchange="accEditarNombre('+i+',this.value)" style="'+inp+'">'
-        +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="accEditar('+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
-        +'<input type="number" value="'+(a.costo||0)+'" min="0" placeholder="$" onchange="accEditar('+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
-        +'<button onclick="accEliminar('+i+')" title="Quitar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+      if(admin){
+        h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;margin-bottom:5px">'
+          +'<input value="'+_invEsc(a.nombre)+'" onchange="accEditarNombre('+i+',this.value)" style="'+inp+'">'
+          +'<input type="number" value="'+(a.piezas||0)+'" min="0" onchange="accEditar('+i+',\'piezas\',this.value)" style="'+inp+';text-align:center">'
+          +'<input type="number" value="'+(a.costo||0)+'" min="0" onchange="accEditar('+i+',\'costo\',this.value)" style="'+inp+';text-align:center">'
+          +'<input type="number" value="'+(a.precioTienda||0)+'" min="0" onchange="accEditar('+i+',\'precioTienda\',this.value)" style="'+inp+';text-align:center">'
+          +'<button onclick="accEliminar('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button></div>';
+      } else {
+        h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;margin-bottom:5px">'
+          +'<span style="'+ro+'">'+_invEsc(a.nombre)+'</span>'
+          +'<span style="'+ro+';text-align:center">'+(a.piezas||0)+'</span>'
+          +'<span style="'+ro+';text-align:center;color:var(--accent2);font-weight:700">$'+(a.precioTienda||0).toLocaleString('es-MX')+'</span></div>';
+      }
     });
   });
-  h+='<div style="display:flex;gap:6px;margin-top:14px;border-top:1px dashed var(--border);padding-top:10px"><input id="acc-nuevo" placeholder="+ Nuevo accesorio" style="flex:1;'+inp+'"><button onclick="accAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
+  if(admin) h+='<div style="display:flex;gap:6px;margin-top:14px;border-top:1px dashed var(--border);padding-top:10px"><input id="acc-nuevo" placeholder="+ Nuevo accesorio" style="flex:1;'+inp+'"><button onclick="accAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;white-space:nowrap">+ Agregar</button></div>';
   c.innerHTML=h;
   if(typeof renderInvKpis==='function') renderInvKpis();
 }
@@ -3595,7 +3615,7 @@ function _accGuardar(){ save('inv_accesorios', invAccesorios); }
 function accEditar(i,campo,val){ if(invAccesorios[i]){ invAccesorios[i][campo]=parseFloat(val)||0; _accGuardar(); } }
 function accEditarNombre(i,val){ if(invAccesorios[i]){ invAccesorios[i].nombre=val; _accGuardar(); } }
 function accEliminar(i){ if(!confirm('¿Quitar este accesorio del inventario?')) return; if(!invAutorizado()) return; var _an=(invAccesorios[i]||{}).nombre||''; invAccesorios.splice(i,1); _accGuardar(); logInventario('Eliminó accesorio: '+_an); renderAccesorios(); }
-function accAgregar(){ var n=(document.getElementById('acc-nuevo')?.value||'').trim(); if(!n) return; invAccesorios.push({nombre:n,piezas:0,costo:0}); _accGuardar(); logInventario('Agregó accesorio: '+n); renderAccesorios(); var el=document.getElementById('acc-nuevo'); if(el) el.value=''; }
+function accAgregar(){ var n=(document.getElementById('acc-nuevo')?.value||'').trim(); if(!n) return; invAccesorios.push({nombre:n,piezas:0,costo:0,precioTienda:0}); _accGuardar(); logInventario('Agregó accesorio: '+n); renderAccesorios(); var el=document.getElementById('acc-nuevo'); if(el) el.value=''; }
 
 // ═══════ REGISTRAR MOVIMIENTO (sombreros) ═══════
 const INV_TIPOS_MOV_DEF = ['Entrada (compra)','Salida (venta)','Ajuste de inventario','Devolución','Traspaso','Merma / Daño'];
@@ -3604,46 +3624,85 @@ try{ var _itm=JSON.parse(localStorage.getItem('inv_tipos_mov')||'null'); if(Arra
 function _movEsEntrada(t){ return /entrada|compra|ingreso/i.test(t||''); }
 function _movEsSalida(t){ return /salida|venta|merma|da(ñ|n)o|baja/i.test(t||''); }
 
+function renderMovItemFields(){
+  var c=document.getElementById('movx-item-fields'); if(!c) return;
+  var tipo=(document.getElementById('movx-articulo')||{}).value||'sombrero';
+  if(tipo==='sombrero'){
+    c.innerHTML='<div style="font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">🎩 Sombrero / Texana</div>'
+      +'<div class="grid g2"><div class="form-group"><label>Marca</label><select id="movx-marca">'+invOpts(invOpciones.marcas)+'</select></div>'
+      +'<div class="form-group"><label>Calidad</label><select id="movx-calidad">'+invOpts(invOpciones.calidades)+'</select></div></div>'
+      +'<div class="grid g2"><div class="form-group"><label>Horma</label><select id="movx-horma">'+invOpts(invOpciones.hormas)+'</select></div>'
+      +'<div class="form-group"><label>Talla</label><select id="movx-talla">'+invTallaOpts()+'</select></div></div>'
+      +'<div class="form-group"><label>Color</label><select id="movx-color">'+invOpts(invOpciones.colores)+'</select></div>';
+  } else {
+    var lista = tipo==='accesorio' ? invAccesorios : (tipo==='kit' ? invKits : invOperacion);
+    var label = tipo==='accesorio' ? '🪶 Accesorio' : (tipo==='kit' ? '🎁 Kit' : '📦 Artículo de operación');
+    var opts = '<option value="">— Selecciona —</option>' + (lista||[]).map(function(it,i){ return '<option value="'+i+'">'+_invEsc(it.nombre)+' ('+(it.piezas||0)+' pzs)</option>'; }).join('');
+    c.innerHTML='<div class="form-group"><label>'+label+'</label><select id="movx-item">'+opts+'</select></div>';
+  }
+}
+function _movListaPorCat(cat){
+  if(cat==='Accesorio') return {lista:(typeof invAccesorios!=='undefined'?invAccesorios:[]), key:'inv_accesorios', render:'acc'};
+  if(cat==='Kit') return {lista:(typeof invKits!=='undefined'?invKits:[]), key:'inv_kits', render:'kits'};
+  if(cat==='Operación') return {lista:(typeof invOperacion!=='undefined'?invOperacion:[]), key:'inv_operacion', render:'operacion'};
+  return null;
+}
+function _movReRender(render){
+  if(render==='acc' && typeof renderAccesorios==='function') renderAccesorios();
+  else if(render==='kits' && typeof invCatRender==='function') invCatRender('kits');
+  else if(render==='operacion' && typeof invCatRender==='function') invCatRender('operacion');
+}
 function renderFormMovimiento(){
   var c=document.getElementById('inv-form-movimiento'); if(!c) return;
   c.innerHTML =
     '<div class="grid g2"><div class="form-group"><label>Tipo de movimiento</label><select id="movx-tipo">'+invTiposMov.map(function(t){return '<option>'+_invEsc(t)+'</option>';}).join('')+'</select></div>'
     +'<div class="form-group"><label>📅 Fecha</label><input type="date" id="movx-fecha"></div></div>'
-    +'<div style="font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">🎩 Artículo — Sombrero / Texana</div>'
-    +'<div class="grid g2"><div class="form-group"><label>Marca</label><select id="movx-marca">'+invOpts(invOpciones.marcas)+'</select></div>'
-    +'<div class="form-group"><label>Calidad</label><select id="movx-calidad">'+invOpts(invOpciones.calidades)+'</select></div></div>'
-    +'<div class="grid g2"><div class="form-group"><label>Horma</label><select id="movx-horma">'+invOpts(invOpciones.hormas)+'</select></div>'
-    +'<div class="form-group"><label>Talla</label><select id="movx-talla">'+invTallaOpts()+'</select></div></div>'
-    +'<div class="grid g2"><div class="form-group"><label>Color</label><select id="movx-color">'+invOpts(invOpciones.colores)+'</select></div>'
-    +'<div class="form-group"><label>Piezas</label><input type="number" id="movx-piezas" value="1" min="1"></div></div>'
-    +'<div class="form-group"><label>Referencia / Notas</label><input type="text" id="movx-ref" placeholder="ej. Pedido Dportenis #1234, ajuste, etc."></div>'
-    +'<button class="btn btn-accent" onclick="registrarMovimientoSombrero()" style="margin-top:6px;width:100%">📋 Registrar Movimiento</button>';
+    +'<div class="form-group"><label>Tipo de artículo</label><select id="movx-articulo" onchange="renderMovItemFields()"><option value="sombrero">🎩 Sombrero / Texana</option><option value="accesorio">🪶 Accesorio</option><option value="kit">🎁 Kit</option><option value="operacion">📦 Operación</option></select></div>'
+    +'<div id="movx-item-fields"></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Piezas</label><input type="number" id="movx-piezas" value="1" min="1"></div>'
+    +'<div class="form-group"><label>Referencia / Notas</label><input type="text" id="movx-ref" placeholder="ej. Pedido #1234, ajuste"></div></div>'
+    +'<button class="btn btn-accent" onclick="registrarMovimiento()" style="margin-top:6px;width:100%">📋 Registrar Movimiento</button>';
+  renderMovItemFields();
 }
-function registrarMovimientoSombrero(){
+function registrarMovimiento(){
   var g=function(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; };
-  var tipo=g('movx-tipo'), marca=g('movx-marca'), calidad=g('movx-calidad'), horma=g('movx-horma'), talla=g('movx-talla'), color=g('movx-color');
-  var piezas=parseInt(g('movx-piezas'))||0, ref=g('movx-ref');
+  var tipo=g('movx-tipo'), articulo=g('movx-articulo')||'sombrero', piezas=parseInt(g('movx-piezas'))||0, ref=g('movx-ref');
   if(!piezas){ alert('Indica cuántas piezas.'); return; }
-  var modelo=[marca,calidad,horma,color].filter(Boolean).join(' ')||'(sin especificar)';
-  var mov={ fecha:g('movx-fecha')||new Date().toISOString().slice(0,10), tipo:tipo, modelo:modelo, talla:talla, qty:piezas, nota:ref, marca:marca, calidad:calidad, horma:horma, color:color };
+  var esEnt=_movEsEntrada(tipo), esSal=_movEsSalida(tipo);
+  var mov;
+  if(articulo==='sombrero'){
+    var marca=g('movx-marca'),calidad=g('movx-calidad'),horma=g('movx-horma'),talla=g('movx-talla'),color=g('movx-color');
+    var modelo=[marca,calidad,horma,color].filter(Boolean).join(' ')||'(sin especificar)';
+    mov={ fecha:g('movx-fecha')||new Date().toISOString().slice(0,10), tipo:tipo, categoria:'Sombrero', modelo:modelo, talla:talla, qty:piezas, nota:ref, marca:marca, calidad:calidad, horma:horma, color:color };
+    try{
+      if((esEnt||esSal) && typeof invSombreros!=='undefined'){
+        var f=invSombreros.find(function(x){ return x.marca===marca&&x.calidad===calidad&&x.horma===horma&&x.talla===talla&&x.color===color; });
+        if(esEnt){ if(f){ f.piezas=(f.piezas||0)+piezas; } else { invSombreros.push({fecha:mov.fecha,marca:marca,calidad:calidad,horma:horma,talla:talla,color:color,piezas:piezas,costo:0,precioTienda:0}); } }
+        else if(esSal && f){ f.piezas=Math.max(0,(f.piezas||0)-piezas); }
+        save('inv_sombreros', invSombreros);
+        if(typeof renderStockSombreros==='function') renderStockSombreros();
+      }
+    }catch(e){}
+  } else {
+    var catLabel = articulo==='accesorio' ? 'Accesorio' : (articulo==='kit' ? 'Kit' : 'Operación');
+    var info=_movListaPorCat(catLabel);
+    var idx=parseInt(g('movx-item'));
+    if(!info || isNaN(idx) || !info.lista[idx]){ alert('Selecciona el artículo.'); return; }
+    var it=info.lista[idx];
+    mov={ fecha:g('movx-fecha')||new Date().toISOString().slice(0,10), tipo:tipo, categoria:catLabel, modelo:it.nombre, talla:'', qty:piezas, nota:ref };
+    try{
+      if(esEnt){ it.piezas=(it.piezas||0)+piezas; save(info.key, info.lista); _movReRender(info.render); }
+      else if(esSal){ it.piezas=Math.max(0,(it.piezas||0)-piezas); save(info.key, info.lista); _movReRender(info.render); }
+    }catch(e){}
+  }
   if(typeof movData!=='undefined'){ movData.unshift(mov); try{ if(typeof saveMov==='function'){ saveMov(); } save('inventario_movimientos', movData); }catch(e){} }
-  // Ajustar stock de sombreros
-  try{
-    var esEnt=_movEsEntrada(tipo), esSal=_movEsSalida(tipo);
-    if((esEnt||esSal) && typeof invSombreros!=='undefined'){
-      var f=invSombreros.find(function(x){ return x.marca===marca&&x.calidad===calidad&&x.horma===horma&&x.talla===talla&&x.color===color; });
-      if(esEnt){ if(f){ f.piezas=(f.piezas||0)+piezas; } else { invSombreros.push({fecha:mov.fecha,marca:marca,calidad:calidad,horma:horma,talla:talla,color:color,piezas:piezas,costo:0}); } }
-      else if(esSal && f){ f.piezas=Math.max(0,(f.piezas||0)-piezas); }
-      save('inv_sombreros', invSombreros);
-      if(typeof renderStockSombreros==='function') renderStockSombreros();
-    }
-  }catch(e){}
   if(typeof mostrarToast==='function') mostrarToast('✅ Movimiento registrado','green');
-  logInventario('Movimiento — '+(mov.tipo||'')+': '+(mov.modelo||'')+(mov.talla?' '+mov.talla+'cm':'')+' ('+mov.qty+' pzs)');
+  if(typeof logInventario==='function') logInventario('Movimiento — '+(mov.tipo||'')+' · '+(mov.categoria||'')+': '+(mov.modelo||'')+(mov.talla?' '+mov.talla+'cm':'')+' ('+piezas+' pzs)');
   if(typeof renderMovimientos==='function'){ try{ renderMovimientos(); }catch(e){} }
   renderMovsRecientes();
   var p=document.getElementById('movx-piezas'); if(p) p.value='1';
   var r=document.getElementById('movx-ref'); if(r) r.value='';
+  renderMovItemFields();
 }
 function renderMovsRecientes(){
   var c=document.getElementById('inv-movs-recientes'); if(!c) return;
@@ -3652,9 +3711,10 @@ function renderMovsRecientes(){
   var h='';
   data.slice(0,15).forEach(function(m,i){
     var sal=_movEsSalida(m.tipo);
+    var catTxt=(m.categoria&&m.categoria!=='Sombrero')?_invEsc(m.categoria)+': ':'';
     h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
       +'<div style="min-width:0;flex:1"><div style="font-size:12px;font-weight:600">'+_invEsc(m.tipo||'')+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_invEsc(m.modelo||'')+(m.talla?' · '+_invEsc(m.talla)+'cm':'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+catTxt+_invEsc(m.modelo||'')+(m.talla?' · '+_invEsc(m.talla)+'cm':'')+'</div>'
       +(m.nota?'<div style="font-size:10px;color:var(--text2);font-style:italic">'+_invEsc(m.nota)+'</div>':'')+'</div>'
       +'<div style="display:flex;align-items:center;gap:10px;white-space:nowrap">'
       +'<div style="font-weight:700;font-size:14px;color:'+(sal?'var(--red)':(_movEsEntrada(m.tipo)?'var(--green)':'var(--text2)'))+'">'+(sal?'−':(_movEsEntrada(m.tipo)?'+':''))+(m.qty||0)+'</div>'
@@ -3669,13 +3729,13 @@ function eliminarMovimiento(i){
   var m=data[i];
   try{
     var esEnt=_movEsEntrada(m.tipo), esSal=_movEsSalida(m.tipo);
-    if((esEnt||esSal) && typeof invSombreros!=='undefined'){
-      var f=invSombreros.find(function(x){ return x.marca===m.marca&&x.calidad===m.calidad&&x.horma===m.horma&&x.talla===m.talla&&x.color===m.color; });
-      if(f){
-        if(esEnt){ f.piezas=Math.max(0,(f.piezas||0)-(m.qty||0)); }
-        else if(esSal){ f.piezas=(f.piezas||0)+(m.qty||0); }
-        save('inv_sombreros', invSombreros);
-        if(typeof renderStockSombreros==='function') renderStockSombreros();
+    if(esEnt||esSal){
+      if((!m.categoria || m.categoria==='Sombrero') && typeof invSombreros!=='undefined'){
+        var f=invSombreros.find(function(x){ return x.marca===m.marca&&x.calidad===m.calidad&&x.horma===m.horma&&x.talla===m.talla&&x.color===m.color; });
+        if(f){ if(esEnt){ f.piezas=Math.max(0,(f.piezas||0)-(m.qty||0)); } else { f.piezas=(f.piezas||0)+(m.qty||0); } save('inv_sombreros', invSombreros); if(typeof renderStockSombreros==='function') renderStockSombreros(); }
+      } else {
+        var info=_movListaPorCat(m.categoria);
+        if(info){ var it=info.lista.find(function(x){ return x.nombre===m.modelo; }); if(it){ if(esEnt){ it.piezas=Math.max(0,(it.piezas||0)-(m.qty||0)); } else { it.piezas=(it.piezas||0)+(m.qty||0); } save(info.key, info.lista); _movReRender(info.render); } }
       }
     }
   }catch(e){}
@@ -3684,7 +3744,7 @@ function eliminarMovimiento(i){
   if(typeof renderMovimientos==='function'){ try{ renderMovimientos(); }catch(e){} }
   renderMovsRecientes();
   if(typeof mostrarToast==='function') mostrarToast('Movimiento borrado','blue');
-  logInventario('Borró movimiento: '+(m.tipo||'')+' '+(m.modelo||''));
+  if(typeof logInventario==='function') logInventario('Borró movimiento: '+(m.tipo||'')+' '+(m.modelo||''));
 }
 // ── Gestionar tipos de movimiento ──
 function abrirGestionTipos(){
@@ -3722,14 +3782,15 @@ function renderFormSombrero(){
     +'<div class="form-group"><label>Color</label><select id="som-color">'+invOpts(invOpciones.colores)+'</select></div></div>'
     +'<div class="grid g2"><div class="form-group"><label>Piezas</label><input type="number" id="som-piezas" value="1" min="0"></div>'
     +'<div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="som-costo" placeholder="ej. 1800"></div></div>'
+    +'<div class="form-group"><label>💵 Precio de tienda (MXN)</label><input type="number" id="som-precio-tienda" placeholder="ej. 2500"></div>'
     +'<button class="btn btn-accent" onclick="guardarSombrero()" style="margin-top:8px;width:100%">💾 Guardar Sombrero en Inventario</button>';
 }
 function guardarSombrero(){
   var g=function(id){ var e=document.getElementById(id); return e?(e.value||'').trim():''; };
-  var item={ fecha:g('som-fecha')||new Date().toISOString().slice(0,10), marca:g('som-marca'), calidad:g('som-calidad'), horma:g('som-horma'), talla:g('som-talla'), color:g('som-color'), piezas:parseInt(g('som-piezas'))||0, costo:parseFloat(g('som-costo'))||0 };
+  var item={ fecha:g('som-fecha')||new Date().toISOString().slice(0,10), marca:g('som-marca'), calidad:g('som-calidad'), horma:g('som-horma'), talla:g('som-talla'), color:g('som-color'), piezas:parseInt(g('som-piezas'))||0, costo:parseFloat(g('som-costo'))||0, precioTienda:parseFloat(g('som-precio-tienda'))||0 };
   if(!item.marca && !item.horma){ alert('Elige al menos la Marca y la Horma del sombrero.'); return; }
   var found=invSombreros.find(function(x){ return x.marca===item.marca&&x.calidad===item.calidad&&x.horma===item.horma&&x.talla===item.talla&&x.color===item.color; });
-  if(found){ found.piezas=(found.piezas||0)+item.piezas; if(item.costo) found.costo=item.costo; found.fecha=item.fecha; }
+  if(found){ found.piezas=(found.piezas||0)+item.piezas; if(item.costo) found.costo=item.costo; if(item.precioTienda) found.precioTienda=item.precioTienda; found.fecha=item.fecha; }
   else { invSombreros.push(item); }
   save('inv_sombreros', invSombreros);
   if(typeof mostrarToast==='function') mostrarToast('✅ Sombrero guardado en inventario','green');
@@ -3737,6 +3798,7 @@ function guardarSombrero(){
   renderStockSombreros();
   var p=document.getElementById('som-piezas'); if(p) p.value='1';
   var co=document.getElementById('som-costo'); if(co) co.value='';
+  var pt=document.getElementById('som-precio-tienda'); if(pt) pt.value='';
 }
 function renderTallasPorPedir(){
   var c=document.getElementById('inv-tallas-pedir'); if(!c) return;
@@ -3804,8 +3866,10 @@ function invEliminarSeleccionados(){
   if(typeof mostrarToast==='function') mostrarToast('Registros eliminados','blue');
   logInventario('Eliminó '+ids.length+' sombrero(s) del inventario');
 }
+function editarSombreroPrecio(i,campo,val){ if(invSombreros[i]){ invSombreros[i][campo]=parseFloat(val)||0; save('inv_sombreros', invSombreros); if(typeof renderInvKpis==='function') renderInvKpis(); } }
 function renderStockSombreros(){
   var t=document.getElementById('inv-stock-sombreros'); if(!t) return;
+  var admin=(typeof _invEsAdmin==='function')?_invEsAdmin():true;
   if(!invSombreros.length){ t.innerHTML='<div style="color:var(--text2);font-size:12px;padding:12px;text-align:center">Aún no hay sombreros en inventario. Llena el formulario y guarda. 🎩</div>'; return; }
   var campo=(_invStockVista==='horma')?'horma':'marca';
   var grupos={};
@@ -3814,31 +3878,43 @@ function renderStockSombreros(){
   var keys=Object.keys(grupos).sort();
   var btn=function(v,txt){ var on=(_invStockVista===v); return '<button onclick="invSetVista(\''+v+'\')" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:'+(on?'var(--accent2)':'transparent')+';color:'+(on?'#0f0f13':'var(--text2)')+';font-weight:700;font-size:12px;cursor:pointer">'+txt+'</button>'; };
   var h='<div style="display:flex;gap:6px;margin-bottom:8px">'+btn('marca','Por Marca')+btn('horma','Por Horma')+'</div>';
-  if(_invSelMode){
-    h+='<div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="invEliminarSeleccionados()" style="flex:1;padding:8px;border-radius:7px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🗑️ Eliminar seleccionados ('+invNumSel()+')</button><button onclick="invToggleSelMode()" style="padding:8px 16px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:12px;cursor:pointer">Cancelar</button></div>';
-  } else {
-    h+='<div style="margin-bottom:10px"><button onclick="invToggleSelMode()" style="width:100%;padding:8px;border-radius:7px;border:1px solid rgba(244,91,105,.4);background:rgba(244,91,105,.12);color:var(--red);font-weight:700;font-size:12px;cursor:pointer">🗑️ Seleccionar para eliminar</button></div>';
+  if(admin){
+    if(_invSelMode){
+      h+='<div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="invEliminarSeleccionados()" style="flex:1;padding:8px;border-radius:7px;border:none;background:var(--red);color:#fff;font-weight:700;font-size:12px;cursor:pointer">🗑️ Eliminar seleccionados ('+invNumSel()+')</button><button onclick="invToggleSelMode()" style="padding:8px 16px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:12px;cursor:pointer">Cancelar</button></div>';
+    } else {
+      h+='<div style="margin-bottom:10px"><button onclick="invToggleSelMode()" style="width:100%;padding:8px;border-radius:7px;border:1px solid rgba(244,91,105,.4);background:rgba(244,91,105,.12);color:var(--red);font-weight:700;font-size:12px;cursor:pointer">🗑️ Seleccionar para eliminar</button></div>';
+    }
   }
+  var selMode = admin && _invSelMode;
+  var priceStyle='width:58px;background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:3px 4px;font-size:11px;color:var(--text);text-align:right';
   h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+invSombreros.length+' registros · '+totPz+' piezas · '+keys.length+' '+(campo==='horma'?'hormas':'marcas')+'</div>';
   keys.forEach(function(key){
     var items=grupos[key];
     var pz=items.reduce(function(a,x){return a+(x.s.piezas||0);},0);
     var gid='grp'+key.replace(/[^a-zA-Z0-9]/g,'');
-    var abierto=_invSelMode;
+    var abierto=selMode;
     h+='<div style="border:1px solid var(--border);border-radius:9px;margin-bottom:8px;overflow:hidden">'
       +'<div onclick="invToggleGrupo(\''+gid+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:var(--surface2);cursor:pointer">'
       +'<span style="font-weight:700;font-size:13px;color:var(--accent2)"><span id="'+gid+'-arrow">'+(abierto?'▾':'▸')+'</span> '+_invEsc(key)+'</span>'
       +'<span style="font-size:11px;color:var(--text2)">'+items.length+' · '+pz+' pzs</span></div>'
-      +'<div id="'+gid+'" style="display:'+(abierto?'block':'none')+';padding:4px 8px;overflow-x:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="color:var(--text2);text-align:left">'+(_invSelMode?'<th style="width:24px"></th>':'')+'<th style="padding:4px 3px">Fecha</th><th>'+(campo==='horma'?'Marca':'Horma')+'</th><th>Calidad</th><th>Talla</th><th>Color</th><th style="text-align:right">Pzs</th><th style="text-align:right">Costo</th></tr></thead><tbody>';
+      +'<div id="'+gid+'" style="display:'+(abierto?'block':'none')+';padding:4px 8px;overflow-x:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="color:var(--text2);text-align:left">'+(selMode?'<th style="width:24px"></th>':'')+'<th style="padding:4px 3px">Fecha</th><th>'+(campo==='horma'?'Marca':'Horma')+'</th><th>Calidad</th><th>Talla</th><th>Color</th><th style="text-align:right">Pzs</th>'+(admin?'<th style="text-align:right">Costo</th>':'')+'<th style="text-align:right">P. Tienda</th></tr></thead><tbody>';
     items.forEach(function(x){
       var s=x.s;
       h+='<tr style="border-bottom:1px solid var(--border)">';
-      if(_invSelMode){ h+='<td style="text-align:center"><input type="checkbox" '+(_invSel[x.i]?'checked':'')+' onchange="invSelToggle('+x.i+')" style="cursor:pointer"></td>'; }
-      h+='<td style="padding:4px 3px;color:var(--text2)">'+_invEsc(s.fecha)+'</td><td>'+(campo==='horma'?_invEsc(s.marca):_invEsc(s.horma))+'</td><td>'+_invEsc(s.calidad)+'</td><td>'+(s.talla?_invEsc(s.talla)+' cm ('+_invTallaPulg(s.talla)+'")':'—')+'</td><td>'+_invEsc(s.color)+'</td><td style="text-align:right;font-weight:700;color:var(--accent2)">'+(s.piezas||0)+'</td><td style="text-align:right">$'+(s.costo||0).toLocaleString('es-MX')+'</td></tr>';
+      if(selMode){ h+='<td style="text-align:center"><input type="checkbox" '+(_invSel[x.i]?'checked':'')+' onchange="invSelToggle('+x.i+')" style="cursor:pointer"></td>'; }
+      h+='<td style="padding:4px 3px;color:var(--text2)">'+_invEsc(s.fecha)+'</td><td>'+(campo==='horma'?_invEsc(s.marca):_invEsc(s.horma))+'</td><td>'+_invEsc(s.calidad)+'</td><td>'+(s.talla?_invEsc(s.talla)+' cm ('+_invTallaPulg(s.talla)+'")':'—')+'</td><td>'+_invEsc(s.color)+'</td><td style="text-align:right;font-weight:700;color:var(--accent2)">'+(s.piezas||0)+'</td>';
+      if(admin){
+        h+='<td style="text-align:right"><input type="number" value="'+(s.costo||0)+'" min="0" onchange="editarSombreroPrecio('+x.i+',\'costo\',this.value)" style="'+priceStyle+'"></td>';
+        h+='<td style="text-align:right"><input type="number" value="'+(s.precioTienda||0)+'" min="0" onchange="editarSombreroPrecio('+x.i+',\'precioTienda\',this.value)" style="'+priceStyle+'"></td>';
+      } else {
+        h+='<td style="text-align:right;color:var(--accent2);font-weight:700">$'+(s.precioTienda||0).toLocaleString('es-MX')+'</td>';
+      }
+      h+='</tr>';
     });
     h+='</tbody></table></div></div>';
   });
   t.innerHTML=h;
+  if(typeof renderInvKpis==='function') renderInvKpis();
 }
 function invToggleGrupo(gid){ var e=document.getElementById(gid); var ar=document.getElementById(gid+'-arrow'); if(e){ var show=(e.style.display==='none'); e.style.display=show?'block':'none'; if(ar) ar.textContent=show?'▾':'▸'; } }
 function eliminarSombrero(i){ if(!confirm('¿Borrar este registro de sombrero?')) return; invSombreros.splice(i,1); save('inv_sombreros', invSombreros); renderStockSombreros(); }
@@ -3874,7 +3950,11 @@ function invEliminarOpc(key,i){ if(invOpciones[key]){ invOpciones[key].splice(i,
 function invAgregarOpc(key){ var v=(document.getElementById('newopc-'+key)?.value||'').trim(); if(!v) return; if(!invOpciones[key]) invOpciones[key]=[]; invOpciones[key].push(v); _invGuardarOpc(); renderGestionOpciones(); }
 
 function initInventario() {
-  try{ renderDeletePassAdmin(); renderFormSombrero(); renderStockSombreros(); renderAccesorios(); invCatRender('kits'); invCatRender('operacion'); renderFormMovimiento(); renderMovsRecientes(); renderTallasPorPedir(); renderInvKpis(); }catch(e){ console.warn(e); }
+  try{ renderDeletePassAdmin(); renderFormSombrero(); renderStockSombreros(); renderAccesorios(); invCatRender('kits'); invCatRender('operacion'); renderFormMovimiento(); renderMovsRecientes(); renderTallasPorPedir(); renderInvKpis(); _invRegistrarSecciones(); renderSeccionesCustom(); }catch(e){ console.warn(e); }
+  try{
+    ['inv-stock','inv-agregar','inv-alertas','inv-proveedores','inv-clientes','inv-movimientos'].forEach(function(t){ var d=document.getElementById(t); if(d) d.style.display=(t==='inv-stock')?'block':'none'; });
+    document.querySelectorAll('#page-inventario .pill').forEach(function(p){ p.classList.remove('active'); var oc=p.getAttribute('onclick')||''; if(oc.indexOf("'inv-stock'")>=0) p.classList.add('active'); });
+  }catch(e){}
   // Populate model datalists
   const mods = MODELOS_ML.map(m=>m.n);
   ['inv-mod-list','inv-mod-list2'].forEach(id=>{
@@ -3933,6 +4013,87 @@ function logInventario(accion){
     if(typeof saveBitacora==='function') saveBitacora(arr);
     if(typeof renderBitacora==='function'){ try{ renderBitacora(); }catch(e){} }
   }catch(e){ console.warn('logInventario',e); }
+}
+
+// ═══════ SECCIONES PERSONALIZADAS DEL INVENTARIO ═══════
+let invSeccionesCustom = [];
+try{ var _scx=JSON.parse(localStorage.getItem('inv_secciones_custom')||'[]'); if(Array.isArray(_scx)) invSeccionesCustom=_scx; }catch(e){}
+var invSecData = {};
+function _invRegistrarSecciones(){
+  try{ var _scx2=JSON.parse(localStorage.getItem('inv_secciones_custom')||'[]'); if(Array.isArray(_scx2)) invSeccionesCustom=_scx2; }catch(e){}
+  invSeccionesCustom.forEach(function(sec){
+    var id=sec.id, ck='sec_'+id;
+    if(!(id in invSecData)){ try{ var d=JSON.parse(localStorage.getItem('inv_sec_'+id)||'[]'); invSecData[id]=Array.isArray(d)?d:[]; }catch(e){ invSecData[id]=[]; } }
+    _INV_CATS[ck]={ get data(){ return invSecData[id]; }, cont:'inv-sec-'+id+'-list', key:'inv_sec_'+id, label:'artículo' };
+  });
+}
+function renderSeccionesCustom(){
+  var cont=document.getElementById('inv-secciones-custom'); if(!cont) return;
+  _invRegistrarSecciones();
+  var admin=(typeof _invEsAdmin==='function')?_invEsAdmin():true;
+  var h='';
+  invSeccionesCustom.forEach(function(sec){
+    var sid='seccs'+sec.id;
+    h+='<div class="card" style="margin-top:14px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +'<div onclick="invToggleSec(\''+sid+'\')" style="cursor:pointer;flex:1;display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:700;font-size:14px;color:var(--accent2)">'+_invEsc(sec.icono||'📦')+' '+_invEsc(sec.titulo)+'</span>'
+      +'<span id="'+sid+'-arrow" style="color:var(--text2);font-size:13px">▸</span></div>'
+      +(admin?'<button onclick="invEliminarSeccion(\''+sec.id+'\')" title="Quitar sección" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">🗑️</button>':'')
+      +'</div>'
+      +'<div id="'+sid+'" style="display:none;margin-top:12px"><div id="inv-sec-'+sec.id+'-list"></div></div></div>';
+  });
+  cont.innerHTML=h;
+  invSeccionesCustom.forEach(function(sec){ try{ invCatRender('sec_'+sec.id); }catch(e){} });
+}
+// ── Modal Gestionar secciones ──
+function abrirGestionSecciones(){
+  var ov=document.createElement('div'); ov.id='gsec-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div id="gsec-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;padding:20px"></div>';
+  document.body.appendChild(ov); renderGestionSecciones();
+}
+function _gsecCerrar(){ var o=document.getElementById('gsec-overlay'); if(o) o.remove(); }
+function renderGestionSecciones(){
+  var box=document.getElementById('gsec-box'); if(!box) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text)';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0;color:var(--accent2);font-size:17px">⚙️ Gestionar Secciones</h2><button onclick="_gsecCerrar()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div>';
+  h+='<p style="color:var(--text2);font-size:11px;margin:0 0 14px">Crea secciones nuevas para el inventario (ej. Botas, Ropa, Cinturones). Cada una funciona con piezas, costo y precio de tienda.</p>';
+  h+='<div style="font-size:11px;color:var(--text2);text-transform:uppercase;margin-bottom:6px">Secciones fijas</div><div style="font-size:12px;color:var(--text2);margin-bottom:12px">🎩 Sombreros · 🪶 Accesorios · 🎁 Kits · 📦 Operación</div>';
+  h+='<div style="font-size:11px;color:var(--text2);text-transform:uppercase;margin-bottom:6px">Tus secciones</div>';
+  if(!invSeccionesCustom.length){ h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Aún no has creado secciones.</div>'; }
+  invSeccionesCustom.forEach(function(sec){
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input value="'+_invEsc(sec.icono||'📦')+'" onchange="invEditarSeccionIcono(\''+sec.id+'\',this.value)" style="width:44px;text-align:center;'+inp+'"><input value="'+_invEsc(sec.titulo)+'" onchange="invEditarSeccionTitulo(\''+sec.id+'\',this.value)" style="flex:1;'+inp+'"><button onclick="invEliminarSeccion(\''+sec.id+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">🗑️</button></div>';
+  });
+  h+='<div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">➕ Nueva sección</div>'
+    +'<div style="display:flex;gap:6px"><input id="nuevaSecIcono" placeholder="📦" value="📦" style="width:44px;text-align:center;'+inp+'"><input id="nuevaSecTitulo" placeholder="Nombre (ej. Botas)" style="flex:1;'+inp+'"><button onclick="invAgregarSeccion()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:700">Crear</button></div></div>';
+  h+='<div style="text-align:right;margin-top:14px"><button onclick="_gsecCerrar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:8px 18px;cursor:pointer;font-weight:700">Listo</button></div>';
+  box.innerHTML=h;
+}
+function _gsecGuardar(){ save('inv_secciones_custom', invSeccionesCustom); }
+function invAgregarSeccion(){
+  var t=(document.getElementById('nuevaSecTitulo')?document.getElementById('nuevaSecTitulo').value:'').trim(); if(!t){ alert('Ponle un nombre a la sección.'); return; }
+  var ic=(document.getElementById('nuevaSecIcono')?document.getElementById('nuevaSecIcono').value:'📦').trim()||'📦';
+  var id='c'+Date.now();
+  invSeccionesCustom.push({id:id,titulo:t,icono:ic}); invSecData[id]=[];
+  _gsecGuardar(); _invRegistrarSecciones(); renderSeccionesCustom(); renderGestionSecciones();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Sección "'+t+'" creada','green');
+  if(typeof logInventario==='function') logInventario('Creó sección de inventario: '+t);
+}
+function invEditarSeccionTitulo(id,v){ var s=invSeccionesCustom.find(function(x){return x.id===id;}); if(s){ s.titulo=v; _gsecGuardar(); renderSeccionesCustom(); } }
+function invEditarSeccionIcono(id,v){ var s=invSeccionesCustom.find(function(x){return x.id===id;}); if(s){ s.icono=v||'📦'; _gsecGuardar(); renderSeccionesCustom(); } }
+function invEliminarSeccion(id){
+  if(!confirm('¿Quitar esta sección y todos sus artículos? No se puede deshacer.')) return;
+  if(typeof invAutorizado==='function' && !invAutorizado()) return;
+  var s=invSeccionesCustom.find(function(x){return x.id===id;});
+  invSeccionesCustom=invSeccionesCustom.filter(function(x){return x.id!==id;});
+  delete invSecData[id]; delete _INV_CATS['sec_'+id];
+  _gsecGuardar(); try{ save('inv_sec_'+id, []); }catch(e){}
+  renderSeccionesCustom();
+  if(document.getElementById('gsec-box')) renderGestionSecciones();
+  if(typeof mostrarToast==='function') mostrarToast('Sección eliminada','blue');
+  if(typeof logInventario==='function' && s) logInventario('Eliminó sección de inventario: '+s.titulo);
 }
 
 function renderInvKpis() {
@@ -4924,21 +5085,47 @@ function exportarCSV(){
 
 // ═══ TIENDA FÍSICA ═══
 function saveFisica() {
-  const precio=parseFloat(document.getElementById('f-precio').value)||0;
-  const comPct=parseFloat(document.getElementById('f-comision').value)||0;
-  const comMonto=precio*comPct/100;
-  const e={
-    fecha:document.getElementById('f-fecha').value,
-    cliente:document.getElementById('f-cliente')?.value||'',
-    modelo:document.getElementById('f-modelo').value,
-    talla:document.getElementById('f-talla').value,
-    precio, vendedor:document.getElementById('f-vendedor').value,
-    comision:comMonto,
-    pago:document.getElementById('f-pago').value,
-    notas:document.getElementById('f-notas-venta')?.value||''
-  };
-  state.fisicaEntries.push(e); save('fisica_entries',state.fisicaEntries); renderFisica();
+  var comPct=parseFloat((document.getElementById('f-comision')||{}).value)||0;
+  var fecha=(document.getElementById('f-fecha')||{}).value||'';
+  var cliente=(document.getElementById('f-cliente')||{}).value||'';
+  var vendedor=(document.getElementById('f-vendedor')||{}).value||'';
+  var pago=(document.getElementById('f-pago')||{}).value||'';
+  var notas=(document.getElementById('f-notas-venta')||{}).value||'';
+  var prods=_ventaProds.filter(function(p){ return (p.modelo&&(''+p.modelo).trim()) || (p.precio>0); });
+  if(!prods.length){ alert('Agrega al menos un producto con su precio.'); return; }
+  var ventaId='v'+Date.now();
+  prods.forEach(function(p){
+    var cant=p.cant||1; var precioLinea=(p.precio||0)*cant;
+    state.fisicaEntries.push({ fecha:fecha, cliente:cliente, modelo:p.modelo||'', talla:p.talla||'', precio:precioLinea, cantidad:cant, precioUnit:p.precio||0, vendedor:vendedor, comision:precioLinea*comPct/100, pago:pago, notas:notas, ventaId:ventaId });
+  });
+  save('fisica_entries',state.fisicaEntries);
+  _ventaProds=[{modelo:'',talla:'',cant:1,precio:0}]; renderProductosVenta();
+  renderFisica();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Venta guardada ('+prods.length+' producto'+(prods.length>1?'s':'')+')','green');
 }
+function _fEsc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+var _ventaProds = [{modelo:'',talla:'',cant:1,precio:0}];
+function renderProductosVenta(){
+  var c=document.getElementById('venta-productos'); if(!c) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;color:var(--text);width:100%;box-sizing:border-box';
+  var lbl='font-size:10px;color:var(--text2);text-transform:uppercase;display:block;margin-bottom:2px';
+  var h='';
+  _ventaProds.forEach(function(p,i){
+    h+='<div style="display:grid;grid-template-columns:1fr 66px 54px 92px 26px;gap:6px;align-items:end;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--border)">'
+      +'<div><label style="'+lbl+'">Modelo</label><input type="text" value="'+_fEsc(p.modelo)+'" oninput="_vpSet('+i+',\'modelo\',this.value)" placeholder="ej. Tombstone 1000x Johnson Negro" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Talla</label><input type="text" value="'+_fEsc(p.talla)+'" oninput="_vpSet('+i+',\'talla\',this.value)" placeholder="57" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Cant.</label><input type="number" value="'+(p.cant||1)+'" min="1" oninput="_vpSet('+i+',\'cant\',this.value)" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Precio c/u</label><input type="number" value="'+(p.precio||'')+'" min="0" oninput="_vpSet('+i+',\'precio\',this.value)" placeholder="1800" style="'+inp+'"></div>'
+      +'<button onclick="quitarProductoVenta('+i+')" title="Quitar producto" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0 0 8px">✕</button>'
+      +'</div>';
+  });
+  c.innerHTML=h;
+  calcTotalVenta();
+}
+function _vpSet(i,campo,val){ if(_ventaProds[i]){ _ventaProds[i][campo]=(campo==='cant'||campo==='precio')?(parseFloat(val)||0):val; calcTotalVenta(); } }
+function agregarProductoVenta(){ _ventaProds.push({modelo:'',talla:'',cant:1,precio:0}); renderProductosVenta(); }
+function quitarProductoVenta(i){ if(_ventaProds.length<=1){ _ventaProds[0]={modelo:'',talla:'',cant:1,precio:0}; } else { _ventaProds.splice(i,1); } renderProductosVenta(); }
+function calcTotalVenta(){ var t=_ventaProds.reduce(function(a,p){return a+(p.cant||0)*(p.precio||0);},0); var e=document.getElementById('venta-total'); if(e) e.textContent=(typeof $==='function')?$(t):('$'+t.toLocaleString('es-MX')); }
 function renderFisica() {
   // populate model datalist
   const dl=document.getElementById('tienda-mod-list');
@@ -5023,6 +5210,10 @@ function initDocumentos() {
   renderItemsList('cot');
   actualizarPreviewTicket();
   actualizarPreviewCot();
+  try{
+    ['tk-fecha','tk-folio','tk-cliente','tk-vendedor','tk-pago','tk-descuento','tk-notas'].forEach(function(id){ var el=document.getElementById(id); if(el && !el._pvHook){ el._pvHook=true; el.addEventListener('input', actualizarPreviewTicket); el.addEventListener('change', actualizarPreviewTicket); } });
+    ['cot-fecha','cot-folio','cot-cliente','cot-tel','cot-direccion','cot-vigencia','cot-condicion','cot-descuento','cot-envio','cot-notas'].forEach(function(id){ var el=document.getElementById(id); if(el && !el._pvHook){ el._pvHook=true; el.addEventListener('input', actualizarPreviewCot); el.addEventListener('change', actualizarPreviewCot); } });
+  }catch(e){}
   renderHistorialDocs();
 }
 
@@ -5113,21 +5304,25 @@ function actualizarPreviewTicket() {
   const items=docItems.ticket;
   const subtotal=items.reduce((a,it)=>a+it.precio*it.qty,0);
   const total=subtotal-descuento;
+  const hora=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const esPers=!!(document.getElementById('tk-personalizada') && document.getElementById('tk-personalizada').checked);
   const sep='─'.repeat(36);
   el.innerHTML=`
   <div style="text-align:center;margin-bottom:12px">
     <img src="${LOGO_B64}" style="width:160px;max-width:100%;margin-bottom:4px" alt="Sombreros Westeros">
-    <div style="font-size:11px;color:#444;margin-top:2px">Morelia, Michoacán · Tel: (443) xxx-xxxx</div>
-    <div style="font-size:10px;color:#666">www.sombrerosawesteros.com.mx</div>
+    <div style="font-size:10px;color:#444;margin-top:2px">Vicente Santa María 893-A, Ventura Puente</div>
+    <div style="font-size:10px;color:#444">58000, Morelia, Michoacán</div>
+    <div style="font-size:10px;color:#444">Tel: 443 490 3551</div>
     <div style="border-top:2px solid #1a1a22;margin:8px 0"></div>
     <div style="font-size:13px;font-weight:700">TICKET DE VENTA</div>
-    <div style="font-size:11px;color:#444">Folio: <b>${folio}</b> &nbsp;·&nbsp; ${fecha}</div>
+    <div style="font-size:11px;color:#444">Folio: <b>${folio}</b> &nbsp;·&nbsp; ${fecha} · ${hora}</div>
   </div>
   <div style="font-size:11px;margin-bottom:8px;color:#333">
     <b>Cliente:</b> ${cliente}<br>
     ${vendedor?`<b>Vendedor:</b> ${vendedor}<br>`:''}
     <b>Forma de pago:</b> ${pago}
   </div>
+  ${esPers?'<div style="background:#fff3cd;border:1px solid #d4a017;color:#7a5c00;font-size:9px;font-weight:700;text-align:center;padding:4px;border-radius:4px;margin-bottom:6px">⚠️ VENTA PERSONALIZADA — SIN CAMBIOS NI DEVOLUCIONES</div>':''}
   <div style="font-size:10px;color:#666;margin-bottom:4px">${sep}</div>
   <table style="width:100%;font-size:10px;color:#222;border-collapse:collapse">
     <tr style="border-bottom:1px solid #ddd;font-weight:700"><td>Descripción</td><td style="text-align:center">T</td><td style="text-align:center">Qty</td><td style="text-align:right">P.U.</td><td style="text-align:right">Subtotal</td></tr>
@@ -5147,7 +5342,9 @@ function actualizarPreviewTicket() {
   </div>
   <div style="font-size:10px;color:#666;margin:8px 0">${sep}</div>
   <div style="text-align:center;font-size:10px;color:#444">${notas}</div>
-  <div style="text-align:center;font-size:9px;color:#aaa;margin-top:4px">Documento generado con ERP Sombreros Westeros</div>`;
+  <div style="font-size:8px;color:#555;margin-top:8px;padding:6px 8px;border:1px dashed #bbb;border-radius:4px;line-height:1.5"><b>POLÍTICAS DE VENTA</b> (conforme a la Ley Federal de Protección al Consumidor):<br>• El cliente revisó y recibió su mercancía completa, en buen estado y a su entera satisfacción.<br>• No hay devoluciones ni reembolsos por cambio de opinión, gusto o preferencia.<br>• Cambios ÚNICAMENTE por talla, dentro de <b>8 días naturales</b>, presentando este ticket, con el producto sin uso, con etiquetas y en su empaque original.<br>• <b>Los artículos PERSONALIZADOS</b> (con nombre, iniciales o cualquier modificación a petición del cliente) <b>NO tienen cambio ni devolución</b>, por ser hechos a la medida y no poder revenderse.<br>• No se aceptan cambios en productos dañados por mal uso, manchados, modificados o alterados por el cliente.<br>• La garantía cubre exclusivamente defectos de fabricación.<br>• Toda aclaración o cambio requiere presentar este ticket.</div>
+  <div style="margin-top:14px;text-align:center"><div style="border-top:1px solid #888;width:65%;margin:0 auto"></div><div style="font-size:8px;color:#777;margin-top:3px">Firma del cliente — Recibí de conformidad</div></div>
+  <div style="text-align:center;font-size:9px;color:#aaa;margin-top:8px">Documento generado con ERP Sombreros Westeros</div>`;
 }
 
 function generarTicket() {
@@ -5155,22 +5352,29 @@ function generarTicket() {
   const folio=nextFolio('ticket');
   document.getElementById('tk-folio').value=folio;
   actualizarPreviewTicket();
-  // Save to historial
   guardarDocumento('ticket');
-  // Print
   const preview=document.getElementById('tk-preview').innerHTML;
-  const win=window.open('','_blank','width=400,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><title>Ticket ${folio}</title>
-  <style>body{font-family:'Courier New',monospace;margin:20px;color:#111;font-size:11px}
-  @media print{body{margin:0}button{display:none}}</style></head>
-  <body>${preview}
-  <div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:13px;cursor:pointer;background:#1a1a22;color:#fff;border:none;border-radius:6px">🖨 Imprimir</button></div>
-  </body></html>`);
+  const esPers = !!(document.getElementById('tk-personalizada') && document.getElementById('tk-personalizada').checked);
+  var cuerpo;
+  if(esPers){
+    var etq=function(txt){ return '<div style="text-align:center;font-weight:700;font-size:10px;border:1px solid #333;padding:3px 0;margin-bottom:6px;letter-spacing:1px">'+txt+'</div>'; };
+    cuerpo = '<div>'+etq('— COPIA CLIENTE —')+preview+'</div>'
+      +'<div class="corte" style="border-top:2px dashed #999;margin:22px 0;text-align:center;font-size:9px;color:#999">&#9986; - - - - - - corte aqu&iacute; - - - - - -</div>'
+      +'<div>'+etq('— COPIA COMERCIO (para archivo firmado) —')+preview+'</div>';
+  } else {
+    cuerpo = preview;
+  }
+  var win=window.open('','_blank','width=400,height=820');
+  win.document.write('<!DOCTYPE html><html><head><title>Ticket '+folio+'</title>'
+    +'<style>body{font-family:\'Courier New\',monospace;margin:20px;color:#111;font-size:11px}'
+    +'@media print{body{margin:0}button{display:none}.corte{page-break-after:always}}</style></head>'
+    +'<body>'+cuerpo
+    +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:13px;cursor:pointer;background:#1a1a22;color:#fff;border:none;border-radius:6px">&#128424; Imprimir</button></div>'
+    +'</body></html>');
   win.document.close();
-  // Reset folio preview
-  const nextNum=(folioCounter.ticket||0)+1;
-  const nextEl=document.getElementById('tk-folio');
-  if(nextEl) nextEl.value=`TK-${String(nextNum).padStart(3,'0')}`;
+  var nextNum=(folioCounter.ticket||0)+1;
+  var nextEl=document.getElementById('tk-folio');
+  if(nextEl) nextEl.value='TK-'+String(nextNum).padStart(3,'0');
 }
 
 // ─── COTIZACIÓN ───
@@ -5345,6 +5549,7 @@ const BACKUP_KEYS = [
   'inv_operacion',
   'inv_tipos_mov',
   'inv_delete_pass',
+  'inv_secciones_custom',
   'bitacora_entries',
   'componentes_custom',
   'daily_entries',
@@ -5640,6 +5845,7 @@ function persistirUsuarios(){
     localStorage.setItem('erp_usuarios_override', JSON.stringify(ov));
     localStorage.setItem('erp_usuarios_extra', JSON.stringify(extra));
   } catch(e){}
+  try { save('erp_usuarios_override', ov); save('erp_usuarios_extra', extra); } catch(e){}
 }
 function refrescarLoginUsuarios(){
   const sel = document.getElementById('login-user-select');
