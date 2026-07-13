@@ -211,11 +211,17 @@
     /* Todo en una sola columna */
     .grid, .g2, .g3, .g4, .g6 { grid-template-columns:1fr !important; gap:10px; }
 
-    /* Barra superior: deja lugar al botón y permite salto de línea */
-    .topbar { padding-left:62px !important; flex-wrap:wrap; gap:6px; row-gap:8px; }
-    .topbar h2 { font-size:14px; }
-    .topbar-right { flex-wrap:wrap; gap:6px; width:100%; justify-content:flex-end; }
-    .topbar-right .btn, .topbar-right button { font-size:11px; padding:5px 9px; }
+    /* Barra superior: crece a lo alto en vez de encimarse sobre la página */
+    .topbar {
+      padding:8px 12px 8px 62px !important;
+      height:auto !important; min-height:52px;
+      flex-wrap:wrap; gap:6px; row-gap:8px; align-items:center;
+    }
+    .topbar h2 { font-size:14px; flex:1; min-width:0; }
+    .topbar-right { flex-wrap:wrap; gap:6px; width:100%; justify-content:flex-start; }
+    .topbar-right .btn, .topbar-right button { font-size:11px; padding:5px 9px; min-height:32px; }
+    .topbar-right .badge { font-size:10px; padding:4px 9px; }
+    #mobile-menu-btn { top:8px !important; }
 
     .page { padding:12px !important; }
     .card { padding:13px !important; border-radius:10px; }
@@ -233,6 +239,12 @@
     .btn, button { min-height:38px; }
     .pill { font-size:11px; padding:7px 11px; }
     .nav-item { padding:12px 16px; font-size:14px; }
+
+    /* Tarjeta de pedido: el folio y el proveedor arriba, los botones abajo */
+    .ped-cab { align-items:flex-start !important; }
+    .ped-acciones { width:100%; justify-content:flex-start !important; margin-top:8px; }
+    .ped-acciones select { flex:1 1 130px; min-width:120px; }
+    .ped-acciones button { min-height:36px; padding:6px 10px !important; font-size:11px !important; }
 
     /* Sin desbordes horizontales */
     body { overflow-x:hidden; }
@@ -302,7 +314,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v137</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v138</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -6235,10 +6247,10 @@ function renderPedidos(){
     var col=_PED_EST_COLOR[p.estado]||'var(--text2)';
     var opts=['Pendiente','En tránsito','Recibida','Cancelada'].map(function(o){ return '<option'+(p.estado===o?' selected':'')+'>'+o+'</option>'; }).join('');
     return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+      +'<div class="ped-cab" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">'
       +(p.folio?'<span style="font-size:10px;font-weight:700;color:var(--accent2);background:rgba(224,168,58,.12);border:1px solid rgba(224,168,58,.3);border-radius:5px;padding:2px 6px;margin-right:6px;letter-spacing:.5px">'+_ncEsc(p.folio)+'</span>':'')
-      +'<span style="font-weight:600">'+_ncEsc(p.prov)+'</span>'
-      +'<div style="display:flex;gap:6px;align-items:center">'
+      +'<span style="font-weight:600;flex:1;min-width:90px">'+_ncEsc(p.prov)+'</span>'
+      +'<div class="ped-acciones" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       +'<select onchange="pedCambiarEstado(\''+p.id+'\',this.value)" style="font-size:10px;padding:2px 6px;border-radius:5px;background:var(--surface2);border:1px solid '+col+';color:'+col+'">'+opts+'</select>'
       +((p.estado==='En tránsito'||p.envio&&p.envio.guia)
           ? '<button onclick="abrirEnvio(\''+p.id+'\')" title="Datos del envío" style="background:rgba(91,138,244,.14);border:1px solid rgba(91,138,244,.4);color:#5b8af4;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;font-weight:700">🚚 Envío</button>'
