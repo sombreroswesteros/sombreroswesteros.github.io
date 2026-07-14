@@ -55,6 +55,37 @@
 
   /* MAIN */
   #main { margin-left:220px; flex:1; min-height:100vh; }
+  /* Paneles de pagos/deudas: rejilla que se acomoda sola.
+     (Antes usaba columnas CSS y un panel largo dejaba un hueco enorme al lado.) */
+  .gf-paneles {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(330px, 1fr));
+    gap:14px;
+    align-items:start;          /* cada panel a su altura, sin estirarse */
+  }
+  .gf-paneles > div { margin-bottom:0 !important; }
+  /* Los paneles con listas largas no crecen sin fin: se les hace scroll adentro */
+  .gf-paneles > div { max-height:440px; overflow-y:auto; }
+  .gf-paneles > div::-webkit-scrollbar { width:6px; }
+  .gf-paneles > div::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  @media (max-width:1100px){ .gf-paneles { grid-template-columns:1fr; } }
+
+  /* Palomear se siente rico: la fila se va */
+  .pg-fila { transition:transform .12s ease, background .12s ease, opacity .18s ease; }
+  .pg-fila:hover { background:#232330 !important; transform:translateX(2px); }
+  .pg-fila:active { transform:scale(.98); }
+  @keyframes pgSale { to { opacity:0; transform:translateX(26px) scale(.96); } }
+  .pg-saliendo { animation:pgSale .2s ease forwards; }
+
+  /* Pestañas de la página de Tienda */
+  .tienda-tab {
+    background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--text2); padding:8px 14px; cursor:pointer;
+    font-size:13px; font-weight:600; transition:all .15s;
+  }
+  .tienda-tab:hover { color:var(--text); }
+  .tienda-tab-on { color:var(--accent2); border-bottom-color:var(--accent2); }
+
   .topbar {
     position:sticky; top:0; z-index:50; background:rgba(15,15,19,0.92);
     backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
@@ -246,6 +277,10 @@
     .ped-acciones select { flex:1 1 130px; min-width:120px; }
     .ped-acciones button { min-height:36px; padding:6px 10px !important; font-size:11px !important; }
 
+    /* Los paneles de gastos, uno debajo de otro en el celular */
+    .gf-paneles { grid-template-columns:1fr !important; }
+    .gf-paneles > div { max-height:none; }
+
     /* Sin desbordes horizontales */
     body { overflow-x:hidden; }
     img { max-width:100%; height:auto; }
@@ -314,7 +349,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v138</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v170</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -335,10 +370,11 @@
 
     <div class="nav-section">Tienda</div>
     <div class="nav-item" onclick="goTo('tienda')"><span class="ico">🏪</span> Tienda Física</div>
+    <div class="nav-item" id="nav-tlinea" onclick="goTo('tlinea')" style="display:none"><span class="ico">💻</span> Tienda en Línea</div>
     <div class="nav-item" onclick="goTo('gastos-tienda')"><span class="ico">🏠</span> Gastos Tienda</div>
     <div class="nav-item" onclick="goTo('documentos')"><span class="ico">🧾</span> Tickets & Cotizaciones</div>
     <div class="nav-item" onclick="goTo('bitacora')"><span class="ico">📓</span> Bitácora</div>
-    <div class="nav-item" onclick="goTo('clientes')"><span class="ico">🤝</span> Clientes</div>
+    <div class="nav-item admin-only" onclick="goTo('clientes')"><span class="ico">🤝</span> Clientes</div>
     <div class="nav-item admin-only" onclick="goTo('paqueteria')"><span class="ico">📦</span> Paquetería</div>
     <div class="nav-item admin-only" onclick="goTo('compras')"><span class="ico">🛒</span> Plan de Compras</div>
 
@@ -348,6 +384,7 @@
     <div class="nav-item admin-only" onclick="goTo('finanzas')"><span class="ico">📋</span> Gastos</div>
     <div class="nav-item admin-only" onclick="goTo('caja')"><span class="ico">🏦</span> Caja Chica</div>
     <div class="nav-item admin-only" onclick="goTo('deudas')"><span class="ico">⚖️</span> Deudas</div>
+    <div class="nav-item admin-only" onclick="goTo('cobrar')"><span class="ico">🤲</span> Me Deben</div>
 
     <div class="nav-section admin-only">Sistema</div>
     <div class="nav-item admin-only" onclick="goTo('admin')"><span class="ico">⚙️</span> Administrador</div>
@@ -360,7 +397,7 @@
     <h2 id="page-title">Dashboard General</h2>
     <div class="topbar-right">
       <span class="badge badge-accent">Jun 2026</span>
-      <span class="badge badge-green">● En línea</span>
+      <span id="cloud-status" class="badge badge-green">● En línea</span>
       <span id="user-badge" style="background:rgba(155,114,244,.15);border:1px solid rgba(155,114,244,.4);color:#9b72f4;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px">👤 <span id="user-name-display">Admin</span></span>
       <button onclick="cerrarSesion()" title="Cerrar sesión" style="background:rgba(244,91,105,.15);border:1px solid rgba(244,91,105,.4);color:var(--red);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">🚪 Salir</button>
       <button onclick="exportarRespaldo()" title="Descargar respaldo de todos tus datos" style="background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4);color:var(--green);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap">⬇ Respaldo</button>
@@ -766,7 +803,28 @@
   </div>
 
   <!-- ═══════════ TIENDA FÍSICA ═══════════ -->
+  <div class="page" id="page-tlinea">
+    <div class="topbar"><h2>💻 Tienda en Línea</h2></div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Ventas en línea de Liz</div>
+      <div id="tl-panel"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-tienda">
+    <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border)">
+      <button id="tab-btn-ventas" onclick="tiendaTab('ventas')" class="tienda-tab tienda-tab-on">🏪 Ventas</button>
+      <button id="tab-btn-meta" onclick="tiendaTab('meta')" class="tienda-tab">🎯 Meta Grupal</button>
+    </div>
+
+    <div id="tienda-meta" style="display:none">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>🎯 Meta Grupal — Liz y Lulú</div>
+        <div id="mg-panel"></div>
+      </div>
+    </div>
+
+    <div id="tienda-ventas">
     <div class="sec-header">
       <div><div class="sec-title">Ventas Tienda Física</div><div class="sec-sub">Registra cada venta presencial y emite tickets</div></div>
       <div style="display:flex;gap:8px">
@@ -798,7 +856,7 @@
       </div>
       <button class="btn btn-primary" onclick="saveFisica()">Guardar Venta</button>
     </div>
-    <div class="card">
+    <div class="card" id="fisica-historial-card">
       <div class="card-title"><span class="dot"></span>Historial de Ventas</div>
       <div class="scroll-x">
         <table class="tbl">
@@ -807,6 +865,7 @@
         </table>
       </div>
     </div>
+    </div><!-- /tienda-ventas -->
   </div>
 
   <!-- ═══════════ PRODUCTOS ═══════════ -->
@@ -1289,13 +1348,26 @@
       <div class="card">
         <div class="card-title"><span class="dot"></span>Distribución de Gastos Fijos</div>
         <div class="chart-wrap chart-wrap-tall"><canvas id="chartGastosDetalle"></canvas></div>
+        <div id="gastos-resumen-cats" style="margin-top:10px"></div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Detalle de Gastos Fijos</div>
-        <div class="scroll-y">
-          <table class="tbl" id="tbl-gastos"></table>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span><span class="dot" style="background:var(--blue)"></span>Detalle de Gastos Fijos</span>
+          <button onclick="abrirGestionGastos()" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:11px;font-weight:700">⚙️ Gestionar</button>
         </div>
+        <div class="scroll-y" id="gastos-lista"></div>
       </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>✅ Pagos del mes — ve palomeando</div>
+      <div id="pagos-atrasados"></div>
+      <div id="pagos-mes"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>📌 Tus pagos y deudas de un vistazo</div>
+      <div id="gastos-paneles" class="gf-paneles"></div>
     </div>
 
     <div class="card">
@@ -1316,6 +1388,44 @@
   </div>
 
   <!-- ═══════════ DEUDAS ═══════════ -->
+  <div class="page" id="page-cobrar">
+    <div class="topbar"><h2>🤲 Me Deben</h2></div>
+
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="card"><div class="kpi-label">TOTAL POR COBRAR</div><div class="kpi-value" id="cob-kpi-total">$0</div><div class="kpi-sub" id="cob-kpi-n">0 personas</div></div>
+      <div class="card"><div class="kpi-label">YA ME PAGARON</div><div class="kpi-value" style="color:var(--green)" id="cob-kpi-cobrado">$0</div><div class="kpi-sub">Abonos recibidos</div></div>
+      <div class="card"><div class="kpi-label">VENCIDO</div><div class="kpi-value" style="color:var(--red)" id="cob-kpi-vencido">$0</div><div class="kpi-sub" id="cob-kpi-vencido-n">Ya pasó la fecha</div></div>
+      <div class="card"><div class="kpi-label">POR VENCER</div><div class="kpi-value" style="color:#e8b84b" id="cob-kpi-pronto">$0</div><div class="kpi-sub">En los próximos 15 días</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>➕ Registrar un préstamo o cuenta por cobrar</div>
+      <div class="grid g3">
+        <div class="form-group"><label>👤 ¿Quién te debe?</label><input id="cob-quien" placeholder="ej. Comadre Rosy"></div>
+        <div class="form-group"><label>💵 Monto (MXN)</label><input type="number" id="cob-monto" placeholder="ej. 5000"></div>
+        <div class="form-group"><label>📅 ¿Cuándo se lo diste?</label><input type="date" id="cob-fecha"></div>
+      </div>
+      <div class="grid g3">
+        <div class="form-group"><label>🗓️ ¿Cuándo te va a pagar?</label><input type="date" id="cob-esperada"></div>
+        <div class="form-group"><label>📱 Teléfono (opcional)</label><input id="cob-tel" placeholder="ej. 4434903551"></div>
+        <div class="form-group"><label>📝 ¿De qué es?</label><input id="cob-nota" placeholder="ej. Le presté para la renta"></div>
+      </div>
+      <button class="btn" onclick="cobGuardar()" style="width:100%;margin-top:6px">💾 Guardar</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span><span class="dot" style="background:var(--accent2)"></span>Lista</span>
+        <select id="cob-filtro" onchange="renderCobrar()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 10px;font-size:12px">
+          <option value="abiertas">Sin pagar</option>
+          <option value="todas">Todas</option>
+          <option value="pagadas">Ya pagadas</option>
+        </select>
+      </div>
+      <div id="cob-lista"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-deudas">
     <div class="grid g3" style="margin-bottom:16px">
       <div class="card"><div class="card-label">Deuda Total Activa</div><div class="card-value red">$81,000</div></div>
@@ -2250,7 +2360,7 @@ const DATA = {
   ]
 };
 
-const GASTOS = [
+const GASTOS_DEF = [
   {cat:'Nómina',items:[
     {n:'Nómina 1',m:4000},{n:'Nómina 2',m:8000},{n:'Nómina 3',m:7600},{n:'Nómina 4',m:4000}
   ]},
@@ -2270,6 +2380,17 @@ const GASTOS = [
     {n:'Comidas',m:10000}
   ]}
 ];
+// Editables y guardados en la nube. Si nunca los has tocado, arrancan con los de arriba.
+let GASTOS = JSON.parse(JSON.stringify(GASTOS_DEF));
+try{ var _gf=JSON.parse(localStorage.getItem('gastos_fijos')||'null'); if(Array.isArray(_gf) && _gf.length) GASTOS=_gf; }catch(e){}
+// Guarda de inmediato, pero espera 400 ms sin teclear para reconstruir
+// la gráfica y la tabla (si no, se redibujarían a cada letra).
+var _gfTimer=null;
+function saveGastosFijos(){
+  save('gastos_fijos', GASTOS);
+  if(_gfTimer) clearTimeout(_gfTimer);
+  _gfTimer=setTimeout(function(){ try{ initFinanzas(); }catch(e){} }, 400);
+}
 
 const EMPLEADOS_DEFAULT = [
   {nombre:'Empleado 1',salario_mensual:4000,frecuencia:'Mensual',area:'Empaque/Envíos'},
@@ -2333,11 +2454,127 @@ let state = {
   activePage: 'dashboard'
 };
 
-function save(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} try { if(window.FB_URL && window.FB_IDTOKEN){ fetch(window.FB_URL+'/'+(window.FB_NODE||'erp')+'/'+key+'.json?auth='+window.FB_IDTOKEN,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val===undefined?null:val)}).catch(function(){}); } } catch(e){} }
+/* ═══════════ GUARDADO CON RESPALDO REAL ═══════════
+   Antes: si la subida a la nube fallaba, el error se ignoraba en silencio y el dato
+   se quedaba SOLO en esta computadora. Ahora se encola y se reintenta hasta lograrlo. */
+var _pendientes = {};
+try { _pendientes = JSON.parse(localStorage.getItem('sync_pendientes')||'{}') || {}; } catch(e){ _pendientes={}; }
+function _guardarPendientes(){ try{ localStorage.setItem('sync_pendientes', JSON.stringify(_pendientes)); }catch(e){} }
+function _numPendientes(){ return Object.keys(_pendientes).length; }
+
+/* save() guarda con JSON.stringify, así que un texto queda con comillas: "2026-07-01".
+   Si lo lees con getItem a secas, te llega la basura con comillas y todo se descuadra.
+   Este lector aguanta los dos formatos. */
+function leer(key, porDefecto){
+  var raw;
+  try{ raw=localStorage.getItem(key); }catch(e){ return porDefecto; }
+  if(raw===null || raw===undefined || raw==='') return porDefecto;
+  try{
+    var v=JSON.parse(raw);
+    return (v===null || v===undefined) ? porDefecto : v;
+  }catch(e){
+    return raw;   // valores viejos, guardados sin JSON
+  }
+}
+function leerNum(key, porDefecto){
+  var v=parseFloat(leer(key, porDefecto));
+  return isNaN(v) ? porDefecto : v;
+}
+
+function save(key, val){
+  // 1) Siempre en esta computadora (esto nunca falla)
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  // 2) A la nube, verificando de verdad que haya llegado
+  _subirClave(key, val===undefined?null:val);
+}
+
+function _subirClave(key, val){
+  if(!window.FB_URL){ return; }
+  if(!window.FB_IDTOKEN){ _encolar(key,val); return; }
+  fetch(window.FB_URL+'/'+(window.FB_NODE||'erp')+'/'+key+'.json?auth='+window.FB_IDTOKEN, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(val)
+  })
+  .then(function(r){
+    if(r.ok){ _desencolar(key); }
+    else { _encolar(key,val); if(r.status===401 || r.status===403){ _renovarToken(); } }
+  })
+  .catch(function(){ _encolar(key,val); });   // sin internet
+}
+function _encolar(key,val){ _pendientes[key]=val; _guardarPendientes(); _pintarEstadoNube(); }
+function _desencolar(key){ if(key in _pendientes){ delete _pendientes[key]; _guardarPendientes(); } _pintarEstadoNube(); }
+
+// Renueva el token vencido. Con freno: máximo una renovación cada 30 s,
+// para no caer en un bucle (renovar → reintentar → falla → renovar…).
+var _renovando=false, _ultimaRenov=0;
+function _renovarToken(cb){
+  var ahora=Date.now();
+  if(_renovando || (ahora-_ultimaRenov)<30000) return;
+  _renovando=true; _ultimaRenov=ahora;
+  var rt=null; try{ rt=localStorage.getItem('fb_refresh_token'); }catch(e){}
+  if(!rt){ _renovando=false; _pintarEstadoNube(); return; }
+  fetch('https://securetoken.googleapis.com/v1/token?key='+window.FB_API_KEY, {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(rt)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    _renovando=false;
+    if(d && d.id_token){
+      window.FB_IDTOKEN=d.id_token;
+      try{ localStorage.setItem('fb_refresh_token', d.refresh_token); }catch(e){}
+      // El reintento lo hace el ciclo cada 30 s. Encadenarlo aquí provocaba un bucle.
+    }
+    _pintarEstadoNube();
+  })
+  .catch(function(){ _renovando=false; _pintarEstadoNube(); });
+}
+
+// Reintenta todo lo que quedó pendiente
+function _reintentarPendientes(){
+  var claves=Object.keys(_pendientes);
+  if(!claves.length){ _pintarEstadoNube(); return; }
+  if(!window.FB_IDTOKEN){ _renovarToken(); _pintarEstadoNube(); return; }
+  claves.forEach(function(k){ _subirClave(k, _pendientes[k]); });
+}
+
+// El indicador dice la VERDAD sobre la nube
+function _pintarEstadoNube(){
+  var el=document.getElementById('cloud-status'); if(!el) return;
+  var n=_numPendientes();
+  // Sin sesión de nube es lo MÁS grave: avisarlo aunque haya pendientes
+  if(!window.FB_IDTOKEN){
+    el.textContent='⚠️ Sin nube'+(n?' · '+n+' sin subir':''); el.title='No hay sesión de nube en este dispositivo. Tus datos solo se guardan aquí.';
+    el.style.cssText='background:rgba(244,91,105,.15);border:1px solid rgba(244,91,105,.45);color:var(--red);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer';
+    el.onclick=function(){ alert('Este dispositivo NO está guardando en la nube.\n\nTus cambios solo viven en esta computadora y nadie más los verá.\n\nCierra sesión y vuelve a entrar con tu correo y contraseña de la nube.'); };
+    return;
+  }
+  if(n>0){
+    el.textContent='⏳ '+n+' sin subir';
+    el.title='Hay '+n+' cambio(s) que aún no llegan a la nube. Se reintentan solos.';
+    el.style.cssText='background:rgba(232,184,75,.15);border:1px solid rgba(232,184,75,.45);color:#e8b84b;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer';
+    el.onclick=function(){ mostrarToast('Reintentando subir '+_numPendientes()+' cambio(s)…','blue'); _reintentarPendientes(); };
+    return;
+  }
+  el.textContent='● En línea';
+  el.title='Todo guardado en la nube.';
+  el.style.cssText='background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.35);color:var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600';
+  el.onclick=null;
+}
+
+// Reintentar solo cada 30 s, y en cuanto vuelva el internet
+setInterval(function(){ if(_numPendientes()) _reintentarPendientes(); }, 30000);
+try{
+  window.addEventListener('online', function(){ _reintentarPendientes(); _pintarEstadoNube(); });
+  window.addEventListener('offline', _pintarEstadoNube);
+  // Avisar si se intenta cerrar la pestaña con cambios sin subir
+  window.addEventListener('beforeunload', function(e){
+    if(_numPendientes()>0){ e.preventDefault(); e.returnValue='Hay cambios que aún no se suben a la nube.'; return e.returnValue; }
+  });
+}catch(e){}
 
 // ═══ NAVIGATION ═══
 // Páginas a las que SÍ pueden entrar los colaboradores (todo lo demás es solo-admin)
-const PAGINAS_COLABORADOR = ['tienda','gastos-tienda','documentos','bitacora','inventario','clientes','ventas-buscar'];
+const PAGINAS_COLABORADOR = ['tienda','gastos-tienda','documentos','bitacora','inventario','ventas-buscar','tlinea'];
 function paginaInicio(){
   return (typeof currentUser!=='undefined' && currentUser && currentUser.rol==='admin') ? 'dashboard' : 'tienda';
 }
@@ -2370,6 +2607,11 @@ function cerrarSidebar(){
 function goTo(page) {
   try{ if(window.innerWidth<=900) cerrarSidebar(); }catch(e){}
   // Restricción de acceso: los colaboradores solo entran a páginas permitidas
+  // La Tienda en Línea es solo de Liz (o Fer)
+  if(page==='tlinea' && typeof _tlEsSuya==='function' && !_tlEsSuya()){
+    if(typeof mostrarToast==='function') mostrarToast('🔒 Esa sección es de Liz','');
+    page = paginaInicio();
+  }
   if(typeof currentUser!=='undefined' && currentUser && currentUser.rol!=='admin' && !PAGINAS_COLABORADOR.includes(page)){
     page = 'tienda';
   }
@@ -2390,6 +2632,9 @@ function goTo(page) {
   if(page==='nomina') { initNomina(); }
   if(page==='finanzas') { setTimeout(initFinanzas,50); }
   if(page==='deudas') { setTimeout(initDeudas,50); }
+  if(page==='cobrar') { setTimeout(initCobrar,50); }
+  if(page==='tienda') { setTimeout(function(){ try{ renderMetaGrupal(); }catch(e){} },60); }
+  if(page==='tlinea') { setTimeout(function(){ try{ renderTiendaLinea(); }catch(e){} },60); }
   if(page==='compras') { initCompras(); }
   if(page==='devoluciones') { renderDevoluciones(); }
   if(page==='ventas-diarias') { initVentasDiarias(); }
@@ -3693,20 +3938,20 @@ let movData = JSON.parse(localStorage.getItem('inventario_movimientos') || '[]')
 let provData = JSON.parse(localStorage.getItem('inventario_proveedores') || '[]');
 let clientesData = JSON.parse(localStorage.getItem('inventario_clientes') || '[]');
 let comprasData = JSON.parse(localStorage.getItem('inventario_compras') || '[]');
-function saveCompras(){ save('inventario_compras', comprasData); try{ localStorage.setItem('inventario_compras', JSON.stringify(comprasData)); }catch(e){} }
+function saveCompras(){ save('inventario_compras', comprasData); try{ save('inventario_compras', comprasData); }catch(e){} }
 var NC_PROV_DEF=['La Herradura','Verfel','Brana','Grecia Quiroz','Gabriel Aguilera','Tejana Marlboro','Deivis'];
 var proveedoresLista = (function(){ try{ var p=JSON.parse(localStorage.getItem('compras_proveedores')||'null'); if(Array.isArray(p)&&p.length) return p; }catch(e){} return NC_PROV_DEF.slice(); })();
-function saveProvLista(){ save('compras_proveedores', proveedoresLista); try{ localStorage.setItem('compras_proveedores', JSON.stringify(proveedoresLista)); }catch(e){} }
+function saveProvLista(){ save('compras_proveedores', proveedoresLista); try{ save('compras_proveedores', proveedoresLista); }catch(e){} }
 var NC_TIPO_DEF=['Sombrero terminado','Paja toquilla','Fieltro','Lana','Toquillas / Listones','Plumas','Cajas / Empaques','Insumos / Operación','Otro'];
 var tiposMaterialLista = (function(){ try{ var t=JSON.parse(localStorage.getItem('compras_tipos_material')||'null'); if(Array.isArray(t)&&t.length) return t; }catch(e){} return NC_TIPO_DEF.slice(); })();
-function saveTiposMaterial(){ save('compras_tipos_material', tiposMaterialLista); try{ localStorage.setItem('compras_tipos_material', JSON.stringify(tiposMaterialLista)); }catch(e){} }
+function saveTiposMaterial(){ save('compras_tipos_material', tiposMaterialLista); try{ save('compras_tipos_material', tiposMaterialLista); }catch(e){} }
 function _ncLineaNueva(){ return {desc:'',cant:1,costoU:0,precioTienda:0,cat:'Operación',tipoSom:'Sombrero',marca:'',calidad:'',horma:'',color:'',tallas:{},aInv:false,ref:null,otro:false}; }
 var ncLineas=[_ncLineaNueva()];
 var ncFotos={nota:'',envio:'',transfer:''};
 var ncEditId=null;
 /* ===== Historial de precios (se alimenta de las notas de compra) ===== */
 var preciosHist = JSON.parse(localStorage.getItem('compras_precios') || '{}');
-function savePreciosHist(){ save('compras_precios', preciosHist); try{ localStorage.setItem('compras_precios', JSON.stringify(preciosHist)); }catch(e){} }
+function savePreciosHist(){ save('compras_precios', preciosHist); try{ save('compras_precios', preciosHist); }catch(e){} }
 function _precioKey(l){
   if(!l) return '';
   if((l.cat||'')==='Sombrero'){
@@ -3782,19 +4027,19 @@ function reconstruirPrecios(){
 }
 function _precioPct(nuevo, viejo){ if(!viejo||!nuevo) return 0; return ((nuevo-viejo)/viejo)*100; }
 let pedidosData = JSON.parse(localStorage.getItem('compras_pedidos') || '[]');
-function savePedidos(){ save('compras_pedidos', pedidosData); try{ localStorage.setItem('compras_pedidos', JSON.stringify(pedidosData)); }catch(e){} }
+function savePedidos(){ save('compras_pedidos', pedidosData); try{ save('compras_pedidos', pedidosData); }catch(e){} }
 function _pedLineaNueva(){ return {desc:'',cant:1,costoU:0,cat:'Sombrero',tipoSom:'Sombrero',marca:'',calidad:'',horma:'',color:'',tallas:{},otro:false,autoCosto:false,cambioPrecio:0,precioAnterior:0}; }
 var pedLineas=[_pedLineaNueva()];
 var pedEditId=null;
 var credConfig = (function(){ try{ var c=JSON.parse(localStorage.getItem('compras_credito_cfg')||'null'); if(c&&c.prov) return c; }catch(e){} return {prov:'La Herradura', ancla:'2026-07-06', dias:14}; })();
-function saveCredConfig(){ save('compras_credito_cfg', credConfig); try{ localStorage.setItem('compras_credito_cfg', JSON.stringify(credConfig)); }catch(e){} }
+function saveCredConfig(){ save('compras_credito_cfg', credConfig); try{ save('compras_credito_cfg', credConfig); }catch(e){} }
 var abonosCredito = JSON.parse(localStorage.getItem('compras_credito_abonos') || '[]');
-function saveAbonos(){ save('compras_credito_abonos', abonosCredito); try{ localStorage.setItem('compras_credito_abonos', JSON.stringify(abonosCredito)); }catch(e){} }
+function saveAbonos(){ save('compras_credito_abonos', abonosCredito); try{ save('compras_credito_abonos', abonosCredito); }catch(e){} }
 
-function saveInv() { localStorage.setItem('inventario_stock', JSON.stringify(invData)); }
-function saveMov() { localStorage.setItem('inventario_movimientos', JSON.stringify(movData)); }
-function saveProv() { localStorage.setItem('inventario_proveedores', JSON.stringify(provData)); }
-function saveCli() { localStorage.setItem('inventario_clientes', JSON.stringify(clientesData)); }
+function saveInv() { save('inventario_stock', invData); }
+function saveMov() { save('inventario_movimientos', movData); }
+function saveProv() { save('inventario_proveedores', provData); }
+function saveCli() { save('inventario_clientes', clientesData); }
 
 // ═══════ INVENTARIO SOMBREROS (estructura real) ═══════
 const INV_TALLAS = [
@@ -3814,7 +4059,7 @@ let invSombreros = [];
 try{ var _is=JSON.parse(localStorage.getItem('inv_sombreros')||'[]'); if(Array.isArray(_is)) invSombreros=_is; }catch(e){}
 
 function _invEsc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
-function invOpts(arr){ return '<option value="">— Selecciona —</option>'+(arr||[]).map(function(x){ return '<option>'+_invEsc(x)+'</option>'; }).join(''); }
+function invOpts(arr, sel){ return '<option value="">— Selecciona —</option>'+(arr||[]).map(function(x){ return '<option'+(String(sel||'')===String(x)?' selected':'')+'>'+_invEsc(x)+'</option>'; }).join(''); }
 function invTallaOpts(){ return '<option value="">— Talla —</option>'+INV_TALLAS.map(function(t){ return '<option value="'+t.cm+'">'+t.cm+' cm ('+t.pulg+'")</option>'; }).join(''); }
 function _invTallaPulg(cm){ var f=INV_TALLAS.find(function(x){return x.cm===cm;}); return f?f.pulg:''; }
 
@@ -4025,11 +4270,11 @@ function renderMovItemFields(){
   var tipo=(document.getElementById('movx-articulo')||{}).value||'sombrero';
   if(tipo==='sombrero'){
     c.innerHTML='<div style="font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">🎩 Sombrero / Texana</div>'
-      +'<div class="grid g2"><div class="form-group"><label>Marca</label><select id="movx-marca">'+invOpts(invOpciones.marcas)+'</select></div>'
-      +'<div class="form-group"><label>Calidad</label><select id="movx-calidad">'+invOpts(invOpciones.calidades)+'</select></div></div>'
-      +'<div class="grid g2"><div class="form-group"><label>Horma</label><select id="movx-horma">'+invOpts(invOpciones.hormas)+'</select></div>'
+      +'<div class="grid g2"><div class="form-group"><label>Marca</label><select id="movx-marca">'+invOpts(invOpciones.marcas,mprev.marca)+'</select></div>'
+      +'<div class="form-group"><label>Calidad</label><select id="movx-calidad">'+invOpts(invOpciones.calidades,mprev.calidad)+'</select></div></div>'
+      +'<div class="grid g2"><div class="form-group"><label>Horma</label><select id="movx-horma">'+invOpts(invOpciones.hormas,mprev.horma)+'</select></div>'
       +'<div class="form-group"><label>Talla</label><select id="movx-talla">'+invTallaOpts()+'</select></div></div>'
-      +'<div class="form-group"><label>Color</label><select id="movx-color">'+invOpts(invOpciones.colores)+'</select></div>';
+      +'<div class="form-group"><label>Color</label><select id="movx-color">'+invOpts(invOpciones.colores,mprev.color)+'</select></div>';
   } else {
     var lista = tipo==='accesorio' ? invAccesorios : (tipo==='kit' ? invKits : invOperacion);
     var label = tipo==='accesorio' ? '🪶 Accesorio' : (tipo==='kit' ? '🎁 Kit' : '📦 Artículo de operación');
@@ -4050,6 +4295,9 @@ function _movReRender(render){
 }
 function renderFormMovimiento(){
   try{ setTimeout(function(){ _fechaHoySiVacio('movx-fecha'); },0); }catch(e){}
+  // Guardar lo que ya tenías elegido para NO perderlo al redibujar
+  var _mg=function(id){ var e=document.getElementById(id); return e?(e.value||''):''; };
+  var mprev={ marca:_mg('movx-marca'), calidad:_mg('movx-calidad'), horma:_mg('movx-horma'), color:_mg('movx-color') };
   var c=document.getElementById('inv-form-movimiento'); if(!c) return;
   c.innerHTML =
     '<div class="grid g2"><div class="form-group"><label>Tipo de movimiento</label><select id="movx-tipo">'+invTiposMov.map(function(t){return '<option>'+_invEsc(t)+'</option>';}).join('')+'</select></div>'
@@ -4168,6 +4416,54 @@ function tipoMovEditar(i,v){ invTiposMov[i]=v; _tiposGuardar(); }
 function tipoMovEliminar(i){ invTiposMov.splice(i,1); _tiposGuardar(); renderGestionTipos(); }
 function tipoMovAgregar(){ var v=(document.getElementById('tipomov-nuevo')?.value||'').trim(); if(!v) return; invTiposMov.push(v); _tiposGuardar(); renderGestionTipos(); }
 
+/* ═══════════ COMPRIMIR FOTOS ═══════════
+   El navegador solo aguanta ~5-10 MB. Una foto de celular en crudo pesa 3-5 MB,
+   así que con dos o tres se llena y se empiezan a perder datos.
+   Aquí se reducen a 1000px y calidad 0.7: una de 3 MB baja a ~120 KB. */
+function _comprimirFoto(file, cb){
+  if(!file){ cb(''); return; }
+  var MAX_LADO=1000, CALIDAD=0.7;
+  var r=new FileReader();
+  r.onerror=function(){ alert('No pude leer esa foto. Intenta con otra.'); cb(''); };
+  r.onload=function(e){
+    var img=new Image();
+    img.onerror=function(){ cb(e.target.result); };   // si no es imagen, se guarda tal cual
+    img.onload=function(){
+      try{
+        var w=img.width, hgt=img.height;
+        if(w>MAX_LADO || hgt>MAX_LADO){
+          if(w>=hgt){ hgt=Math.round(hgt*(MAX_LADO/w)); w=MAX_LADO; }
+          else { w=Math.round(w*(MAX_LADO/hgt)); hgt=MAX_LADO; }
+        }
+        var cv=document.createElement('canvas');
+        cv.width=w; cv.height=hgt;
+        var ctx=cv.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,hgt);   // fondo blanco (los PNG con transparencia salen negros en JPG)
+        ctx.drawImage(img,0,0,w,hgt);
+        var out=cv.toDataURL('image/jpeg', CALIDAD);
+        // Si por lo que sea salió más pesada, se queda la original
+        cb(out.length < e.target.result.length ? out : e.target.result);
+      }catch(err){ cb(e.target.result); }
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+// Cuánto espacio llevas usado en el navegador
+function _espacioUsado(){
+  var bytes=0;
+  try{ for(var k in localStorage){ if(Object.prototype.hasOwnProperty.call(localStorage,k)){ bytes += (localStorage[k]||'').length + k.length; } } }catch(e){}
+  return bytes;
+}
+function _avisarEspacio(){
+  var mb=_espacioUsado()/1048576;
+  if(mb>4){
+    if(typeof mostrarToast==='function') mostrarToast('⚠️ Llevas '+mb.toFixed(1)+' MB guardados. El navegador aguanta ~5 MB. Borra fotos viejas.','red');
+  }
+  return mb;
+}
+
 function _hoyISO(){
   var d=new Date();
   // Ajuste a hora local para que no se vaya un día por la zona horaria
@@ -4204,9 +4500,13 @@ function somRefrescarChips(){
 }
 function renderFormSombrero(){
   var c=document.getElementById('inv-form-sombrero'); if(!c) return;
-  var sel=function(id,arr,key){
+  // Guardar lo que ya tenías elegido para NO perderlo al redibujar
+  var g=function(id){ var e=document.getElementById(id); return e?(e.value||''):''; };
+  var prev={ tipo:g('som-tipo'), marca:g('som-marca'), calidad:g('som-calidad'), horma:g('som-horma'), color:g('som-color'),
+             costo:g('som-costo'), precio:g('som-precio-tienda') };
+  var sel=function(id,arr,key,val){
     return '<div style="display:flex;gap:5px;align-items:center">'
-      +'<select id="'+id+'" onchange="somRefrescarChips()" style="flex:1;min-width:0">'+invOpts(arr)+'</select>'
+      +'<select id="'+id+'" onchange="somRefrescarChips()" style="flex:1;min-width:0">'+invOpts(arr,val)+'</select>'
       +'<button onclick="somGestionOpc(\''+key+'\')" title="Agregar o quitar opciones" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 9px;cursor:pointer;flex-shrink:0">⚙️</button></div>';
   };
   var chips=INV_TALLAS.map(function(t){
@@ -4222,17 +4522,17 @@ function renderFormSombrero(){
     '<div style="background:rgba(91,138,244,.08);border:1px solid rgba(91,138,244,.25);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text2)">'
     +'ℹ️ Alta manual: <b>suma piezas al stock</b> pero <b>no crea nota de compra</b> (no afecta tu cuenta de crédito ni los totales del proveedor). Úsala para ajustes de conteo, muestras o modelos nuevos.</div>'
     +'<div class="grid g2"><div class="form-group"><label>📅 Fecha de ingreso</label><input type="date" id="som-fecha" value="'+_invEsc(somFecha||_hoyISO())+'" onchange="somFecha=this.value||_hoyISO()"></div>'
-    +'<div class="form-group"><label>🎩 Tipo</label><select id="som-tipo" onchange="somRefrescarChips()"><option>Sombrero</option><option>Texana</option></select></div></div>'
-    +'<div class="grid g2"><div class="form-group"><label>Marca</label>'+sel('som-marca',invOpciones.marcas,'marcas')+'</div>'
-    +'<div class="form-group"><label>Calidad</label>'+sel('som-calidad',invOpciones.calidades,'calidades')+'</div></div>'
-    +'<div class="grid g2"><div class="form-group"><label>Horma</label>'+sel('som-horma',invOpciones.hormas,'hormas')+'</div>'
-    +'<div class="form-group"><label>Color</label>'+sel('som-color',invOpciones.colores,'colores')+'</div></div>'
+    +'<div class="form-group"><label>🎩 Tipo</label><select id="som-tipo" onchange="somRefrescarChips()"><option'+(prev.tipo!=='Texana'?' selected':'')+'>Sombrero</option><option'+(prev.tipo==='Texana'?' selected':'')+'>Texana</option></select></div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Marca</label>'+sel('som-marca',invOpciones.marcas,'marcas',prev.marca)+'</div>'
+    +'<div class="form-group"><label>Calidad</label>'+sel('som-calidad',invOpciones.calidades,'calidades',prev.calidad)+'</div></div>'
+    +'<div class="grid g2"><div class="form-group"><label>Horma</label>'+sel('som-horma',invOpciones.hormas,'hormas',prev.horma)+'</div>'
+    +'<div class="form-group"><label>Color</label>'+sel('som-color',invOpciones.colores,'colores',prev.color)+'</div></div>'
     +'<div class="form-group" style="margin-top:6px"><label>📏 Tallas y piezas (escribe cuántas de cada talla)</label>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px;margin-top:5px">'+chips+'</div></div>'
     +'<div class="grid g2" style="margin-top:8px"><div class="form-group"><label>Total piezas</label>'
     +'<div style="padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;font-weight:700;color:var(--accent2)" id="som-total-pz">'+_somTotalPz()+'</div></div>'
-    +'<div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="som-costo" placeholder="ej. 1800"></div></div>'
-    +'<div class="form-group"><label>💵 Precio de tienda (MXN)</label><input type="number" id="som-precio-tienda" placeholder="ej. 2500"></div>'
+    +'<div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="som-costo" value="'+_invEsc(prev.costo)+'" placeholder="ej. 1800"></div></div>'
+    +'<div class="form-group"><label>💵 Precio de tienda (MXN)</label><input type="number" id="som-precio-tienda" value="'+_invEsc(prev.precio)+'" placeholder="ej. 2500"></div>'
     +'<button class="btn btn-accent" onclick="guardarSombrero()" style="margin-top:8px;width:100%">💾 Guardar en Inventario</button>';
   somRefrescarChips();
 }
@@ -4384,8 +4684,8 @@ function renderTallasPorPedir(){
 }
 function _invEsAdmin(){ try{ var s=JSON.parse(localStorage.getItem('erp_session')||'null'); return !!(s && s.rol==='admin'); }catch(e){ return false; } }
 function _invGenPass(){ return String(Math.floor(1000+Math.random()*9000)); }
-function _invGetDeletePass(){ var p=localStorage.getItem('inv_delete_pass'); if(!p){ p=_invGenPass(); try{ localStorage.setItem('inv_delete_pass',p); }catch(e){} try{ save('inv_delete_pass',p); }catch(e){} } return p; }
-function _invRotateDeletePass(){ var np=_invGenPass(); try{ localStorage.setItem('inv_delete_pass',np); }catch(e){} try{ save('inv_delete_pass',np); }catch(e){} if(typeof renderDeletePassAdmin==='function') renderDeletePassAdmin(); }
+function _invGetDeletePass(){ var p=localStorage.getItem('inv_delete_pass'); if(!p){ p=_invGenPass(); try{ save('inv_delete_pass', p); }catch(e){} try{ save('inv_delete_pass',p); }catch(e){} } return p; }
+function _invRotateDeletePass(){ var np=_invGenPass(); try{ save('inv_delete_pass', np); }catch(e){} try{ save('inv_delete_pass',np); }catch(e){} if(typeof renderDeletePassAdmin==='function') renderDeletePassAdmin(); }
 function invAutorizado(){
   if(_invEsAdmin()) return true;
   var actual=_invGetDeletePass();
@@ -4566,7 +4866,30 @@ function renderStockSombreros(){
   t.innerHTML=h;
   if(typeof renderInvKpis==='function') renderInvKpis();
 }
-function invToggleGrupo(gid){ var e=document.getElementById(gid); var ar=document.getElementById(gid+'-arrow'); if(e){ var show=(e.style.display==='none'); e.style.display=show?'block':'none'; if(ar) ar.textContent=show?'▾':'▸'; } }
+function invToggleGrupo(gid){
+  var e=document.getElementById(gid); if(!e) return;
+  var ar=document.getElementById(gid+'-arrow');
+  var show=(e.style.display==='none');
+  e.style.display=show?'block':'none';
+  if(ar) ar.textContent=show?'▾':'▸';
+  // Abre (o cierra) TODO lo que está adentro, para no dar cuatro clics
+  _invCascada(e, show);
+}
+// Aplica el mismo estado a todos los grupos anidados
+function _invCascada(cont, abrir){
+  if(!cont || !cont.querySelectorAll) return;
+  var hijos=cont.querySelectorAll('[id]');
+  for(var i=0;i<hijos.length;i++){
+    var n=hijos[i];
+    if(!n.id || /-arrow$/.test(n.id)) continue;
+    // Solo los contenedores de grupo (los que el árbol crea con display block/none)
+    if(n.style && (n.style.display==='none' || n.style.display==='block')){
+      n.style.display = abrir?'block':'none';
+      var fl=document.getElementById(n.id+'-arrow');
+      if(fl) fl.textContent = abrir?'▾':'▸';
+    }
+  }
+}
 function eliminarSombrero(i){ if(!confirm('¿Borrar este registro de sombrero?')) return; invSombreros.splice(i,1); save('inv_sombreros', invSombreros); renderStockSombreros(); }
 
 // ── Gestionar opciones (marca/calidad/horma/color) ──
@@ -4620,6 +4943,7 @@ function _invGuardarOpc(){
   try{ if(typeof ncLineas!=='undefined' && document.getElementById('nc-lineas')) renderNcLineas(); }catch(e){}    // Nota de compra
   try{ if(typeof pedLineas!=='undefined' && document.getElementById('ped-lineas')) renderPedLineas(); }catch(e){} // Orden de compra / Pedido
   try{ if(typeof renderStockSombreros==='function') renderStockSombreros(); }catch(e){}                           // Stock
+  try{ if(typeof renderFormMovimiento==='function' && document.getElementById('movx-marca')) renderFormMovimiento(); }catch(e){} // Registrar Movimiento
 }
 function invEditarOpc(key,i,v){ if(invOpciones[key]){ invOpciones[key][i]=v; _invGuardarOpc(); } }
 function invEliminarOpc(key,i){ if(invOpciones[key]){ invOpciones[key].splice(i,1); _invGuardarOpc(); renderGestionOpciones(); } }
@@ -5449,20 +5773,7 @@ function ncRecalcTotal(){
 
 function ncCargarFoto(input,slot){
   var f=input.files&&input.files[0]; if(!f) return;
-  var r=new FileReader();
-  r.onload=function(e){
-    var img=new Image();
-    img.onload=function(){
-      var max=1000, w=img.width, h=img.height;
-      if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
-      else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
-      try{ var cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h); ncFotos[slot]=cv.toDataURL('image/jpeg',0.55); }
-      catch(err){ ncFotos[slot]=e.target.result; }
-      renderNcFotosPrev();
-    };
-    img.src=e.target.result;
-  };
-  r.readAsDataURL(f);
+  _comprimirFoto(f, function(d){ ncFotos[slot]=d; renderNcFotosPrev(); _avisarEspacio(); });
 }
 function renderNcFotosPrev(){
   var c=document.getElementById('nc-fotos-prev'); if(!c) return;
@@ -6503,18 +6814,14 @@ function recSet(i,campo,val){
 }
 function recFotoLinea(i,input){
   var f=input.files&&input.files[0]; if(!f) return;
-  if(f.size>2.5*1024*1024){ alert('La foto pesa mucho (máx. 2.5 MB).'); input.value=''; return; }
-  var r=new FileReader();
-  r.onload=function(ev){ if(recepLineas[i]){ recepLineas[i].foto=ev.target.result; renderRecepcion(); } };
-  r.readAsDataURL(f);
+  _comprimirFoto(f, function(d){
+    if(recepLineas[i]){ recepLineas[i].foto=d; renderRecepcion(); _avisarEspacio(); }
+  });
 }
 function recQuitarFoto(i){ if(recepLineas[i]){ recepLineas[i].foto=''; renderRecepcion(); } }
 function recFotoG(campo,input){
   var f=input.files&&input.files[0]; if(!f) return;
-  if(f.size>2.5*1024*1024){ alert('La foto pesa mucho (máx. 2.5 MB).'); input.value=''; return; }
-  var r=new FileReader();
-  r.onload=function(ev){ recepFotos[campo]=ev.target.result; renderRecepcion(); };
-  r.readAsDataURL(f);
+  _comprimirFoto(f, function(d){ recepFotos[campo]=d; renderRecepcion(); _avisarEspacio(); });
 }
 function recQuitarFotoG(campo){ recepFotos[campo]=''; renderRecepcion(); }
 
@@ -6713,10 +7020,11 @@ function envSet(campo,val){
 }
 function envFoto(campo,input){
   var f=input.files&&input.files[0]; if(!f) return;
-  if(f.size>2.5*1024*1024){ alert('La foto pesa mucho (máx. 2.5 MB). Tómala con menos calidad.'); input.value=''; return; }
-  var r=new FileReader();
-  r.onload=function(ev){ var p=_envP(); if(!p) return; if(!p.envio) p.envio={}; p.envio[campo]=ev.target.result; renderEnvio(); };
-  r.readAsDataURL(f);
+  _comprimirFoto(f, function(d){
+    var p=_envP(); if(!p) return;
+    if(!p.envio) p.envio={};
+    p.envio[campo]=d; renderEnvio(); _avisarEspacio();
+  });
 }
 function envQuitarFoto(campo){ var p=_envP(); if(!p||!p.envio) return; p.envio[campo]=''; renderEnvio(); }
 
@@ -7374,22 +7682,1086 @@ function filtrarModelosInv() {
   // datalist handles this natively, no extra logic needed
 }
 
+/* ═══════════ GESTIONAR GASTOS FIJOS ═══════════ */
+/* Cada gasto fijo tiene:
+   - m    : el monto de CADA pago
+   - frec : 'mensual' o 'quincenal' (Aplazo, por ejemplo, cobra cada quincena)
+   - fijo : true = para siempre (renta, nómina) · false = se acaba (deudas)
+   - fin  : fecha del último pago (solo si NO es fijo) */
+
+// Los valores viejos venían como 'AAAA-MM' y no caben en un campo de fecha.
+function _gfNormFin(fin){
+  var s=String(fin||'');
+  if(/^\d{4}-\d{2}$/.test(s)) return s+'-01';   // 2026-08 → 2026-08-01
+  return s;
+}
+function _gfEsFijo(it){
+  if(typeof it.fijo==='boolean') return it.fijo;
+  return !it.fin;   // si nunca le pusiste plazo, es fijo
+}
+var GF_FRECS=['semanal','quincenal','mensual','bimestral','anual'];
+function _gfFrec(it){
+  var f=it.frec;
+  return GF_FRECS.indexOf(f)>=0 ? f : 'mensual';
+}
+// Cuántos pagos caen en un mes.
+// Semanal = 52 semanas ÷ 12 meses = 4.33 (NO 4: hay meses de 5 semanas y se te iría el cálculo).
+// Cuántos pagos caen en un mes según la frecuencia.
+// Bimestral = medio pago al mes (el recibo llega cada 2 meses).
+// Anual = 1/12 (predial, seguros).
+var GF_PAGOS_MES = { semanal:52/12, quincenal:2, mensual:1, bimestral:0.5, anual:1/12 };
+// Cada cuántos días cae un pago (para contar los que FALTAN de verdad)
+var GF_DIAS_PERIODO = { semanal:7, quincenal:365/24, mensual:365/12, bimestral:365/6, anual:365 };
+function _gfPagosPorMes(it){ return GF_PAGOS_MES[_gfFrec(it)] || 1; }
+// Lo que ese gasto te cuesta AL MES
+function _gfMensual(it){
+  return _gfPagosPorMes(it) * (it.m||0);
+}
+function _gfFrecNombre(f){
+  return { semanal:'semana', quincenal:'quincena', mensual:'mes', bimestral:'2 meses', anual:'año' }[f] || 'mes';
+}
+function _gfFrecBoton(f){
+  return { semanal:'Semana', quincenal:'Quincena', mensual:'Mes', bimestral:'Bimestre', anual:'Año' }[f] || 'Mes';
+}
+
+// Acepta 'AAAA-MM' o 'AAAA-MM-DD' (fecha exacta del último pago)
+function _gfDiasRestantes(fin){
+  var p=_gfNormFin(fin).split('-');
+  if(p.length<3) return null;
+  var f=new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((f-hoy)/86400000);
+}
+
+function _gfMesesRestantes(fin){
+  var dias=_gfDiasRestantes(fin);
+  if(dias===null) return null;
+  if(dias<0) return 0;
+  return Math.max(1, Math.ceil(dias/(365/12)));
+}
+// Días que faltan para el último pago (solo si pusiste la fecha exacta)
+function _gfMesNombre(fin){
+  if(!fin) return '';
+  var p=_gfNormFin(fin).split('-');
+  var M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var i=parseInt(p[1],10)-1;
+  var base=(M[i]||'') + ' ' + p[0];
+  return (p.length>=3) ? (parseInt(p[2],10)+' '+base) : base;   // "15 jun 2027"
+}
+// Lo que te FALTA por pagar de un gasto con plazo
+// Lo que te falta pagar = (pagos que faltan) × (lo de cada pago).
+// Antes usaba meses × costo-mensual y no cuadraba con los pagos reales.
+function _gfRestante(it){
+  if(_gfEsFijo(it)) return null;          // los fijos no se acaban
+  var p=_gfPagosRestantes(it);
+  if(p===null) return null;
+  return p * (it.m||0);
+}
+// Cuántos PAGOS te faltan (útil en quincenales: 3 meses = 6 pagos)
+// Los pagos que REALMENTE faltan, contando los días hasta el último pago.
+// (Antes multiplicaba meses × pagos-por-mes y salía de más: si hoy es 14 de julio
+//  y el último pago es el 15, falta UN pago, no dos.)
+function _gfPagosRestantes(it){
+  if(_gfEsFijo(it)) return null;
+  var dias=_gfDiasRestantes(it.fin);
+  if(dias===null) return null;
+  if(dias<0) return 0;                       // ya terminó
+  var periodo=GF_DIAS_PERIODO[_gfFrec(it)] || (365/12);
+  return Math.max(1, Math.ceil(dias/periodo));   // si aún no llega la fecha, queda al menos 1
+}
+function _gfMoney(n){ return '$'+(Number(n)||0).toLocaleString('es-MX',{maximumFractionDigits:0}); }
+function _gfEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Resumen: cuánto te falta por pagar y cuándo se libera cada mensualidad
+function _gfConPlazo(){
+  var out=[];
+  GASTOS.forEach(function(g){ g.items.forEach(function(it){
+    if(!_gfEsFijo(it) && it.fin){
+      var mr=_gfMesesRestantes(it.fin);
+      if(mr>0) out.push({cat:g.cat, n:it.n, m:it.m||0, mens:_gfMensual(it), frec:_gfFrec(it), fin:it.fin, mr:mr, pagos:_gfPagosRestantes(it), resta:_gfRestante(it)});
+    }
+  }); });
+  // Por FECHA exacta, no por meses: varias deudas caen en el mismo mes
+  // y salían desordenadas (el 1 de julio después del 15 de julio).
+  out.sort(function(a,b){
+    var fa=_gfNormFin(a.fin), fb=_gfNormFin(b.fin);
+    if(fa < fb) return -1;
+    if(fa > fb) return 1;
+    return b.mens - a.mens;   // si es el mismo día, primero la más pesada
+  });
+  return out;
+}
+function _gfResumenPlazos(){
+  var L=_gfConPlazo();
+  if(!L.length) return '';
+  var totalResta=L.reduce(function(a,x){return a+x.resta;},0);
+  var mensual=L.reduce(function(a,x){return a+x.mens;},0);
+  var ultima=L[L.length-1];
+  var h='<div style="background:rgba(224,168,58,.07);border:1px solid rgba(224,168,58,.28);border-radius:9px;padding:10px 12px;margin-bottom:14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:6px">⏳ Lo que traes a plazo</div>'
+    +'<div style="font-size:12px;color:var(--text);margin-bottom:8px">Te faltan <b style="color:var(--red)">'+_gfMoney(totalResta)+'</b> por pagar. '
+    +'Son <b>'+_gfMoney(mensual)+'</b> al mes que se van liberando. La última termina en <b>'+_gfMesNombre(ultima.fin)+'</b>.</div>';
+  L.forEach(function(x){
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-top:1px solid rgba(224,168,58,.12)">'
+      +'<span>'+_gfEsc(x.n)+' <span style="color:var(--text2)">('+x.cat+')</span></span>'
+      +'<span style="white-space:nowrap;color:var(--text2)">'+x.mr+' mes(es)'+(x.frec==='quincenal'?' · '+x.pagos+' pagos':'')+' · <b style="color:var(--accent2)">'+_gfMoney(x.resta)+'</b> · hasta '+_gfMesNombre(x.fin)+'</span>'
+      +'</div>';
+  });
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:7px">💡 Cuando termine <b>'+_gfEsc(L[0].n)+'</b> ('+_gfMesNombre(L[0].fin)+') te liberas <b>'+_gfMoney(L[0].mens)+'</b> cada mes.</div>';
+  return h+'</div>';
+}
+
+/* ═══ Meses de 5 semanas: los que te agarran desprevenida ═══
+   El año tiene 52 sábados, no 48. Cuatro meses traen 5 pagos en vez de 4. */
+var GF_DIA_PAGO = leerNum('gf_dia_pago', 6);   // 0=domingo … 6=sábado
+var GF_DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+// Cuántas veces cae el día de pago en ese mes
+function _gfDiasDePagoEnMes(anio, mes){   // mes: 1-12
+  var n=new Date(anio, mes, 0).getDate();   // días del mes
+  var c=0;
+  for(var d=1; d<=n; d++){
+    if(new Date(anio, mes-1, d).getDay()===GF_DIA_PAGO) c++;
+  }
+  return c;
+}
+// Lo que sale CADA día de pago (solo lo semanal)
+function _gfPagoSemanal(){
+  var t=0;
+  GASTOS.forEach(function(g){ g.items.forEach(function(it){
+    if(_gfFrec(it)==='semanal') t+=(it.m||0);
+  }); });
+  return t;
+}
+// Los próximos 12 meses, marcando los de 5 pagos
+function _gfProximosMeses(){
+  var porPago=_gfPagoSemanal();
+  if(!porPago) return [];
+  var hoy=new Date(), out=[];
+  var MM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  for(var i=0;i<12;i++){
+    var d=new Date(hoy.getFullYear(), hoy.getMonth()+i, 1);
+    var n=_gfDiasDePagoEnMes(d.getFullYear(), d.getMonth()+1);
+    out.push({
+      etiqueta: MM[d.getMonth()]+' '+d.getFullYear(),
+      pagos:n,
+      total:n*porPago,
+      extra:(n>=5)?porPago:0,
+      esteMes:(i===0)
+    });
+  }
+  return out;
+}
+function _gfPanelMeses5(){
+  var L=_gfProximosMeses();
+  if(!L.length) return '';
+  var porPago=_gfPagoSemanal();
+  var cinco=L.filter(function(x){ return x.pagos>=5; });
+  var esteMes=L[0];
+
+  var h='<div style="background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.32);border-radius:9px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:12px;font-weight:700;color:#e8b84b;margin-bottom:5px">📅 Meses con 5 '+GF_DIAS[GF_DIA_PAGO]+'s</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Cada '+GF_DIAS[GF_DIA_PAGO]+' pagas <b style="color:var(--text)">'+_gfMoney(porPago)+'</b>. Casi todos los meses son 4, pero <b>4 al año traen 5</b> — y ahí es donde se aprieta el flujo.</div>';
+
+  // Aviso del mes en curso
+  if(esteMes.pagos>=5){
+    h+='<div style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.4);border-radius:7px;padding:8px 10px;margin-bottom:8px">'
+      +'<b style="color:var(--red);font-size:12px">⚠️ ESTE MES ('+esteMes.etiqueta+') tiene 5 '+GF_DIAS[GF_DIA_PAGO]+'s</b>'
+      +'<div style="font-size:11px;color:var(--text);margin-top:2px">Necesitas <b>'+_gfMoney(esteMes.total)+'</b> de nómina, no '+_gfMoney(porPago*4)+'. Aparta <b style="color:var(--red)">'+_gfMoney(porPago)+'</b> extra.</div></div>';
+  } else {
+    var prox=L.find(function(x){ return x.pagos>=5; });
+    if(prox){
+      h+='<div style="font-size:11px;color:var(--text);margin-bottom:8px">✅ '+esteMes.etiqueta+' es normal ('+esteMes.pagos+' pagos = '+_gfMoney(esteMes.total)+').<br>'
+        +'👉 El próximo apretado es <b style="color:#e8b84b">'+prox.etiqueta+'</b>: prepara <b>'+_gfMoney(prox.extra)+'</b> extra.</div>';
+    }
+  }
+
+  // Calendario de 12 meses
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:5px">';
+  L.forEach(function(x){
+    var c5=(x.pagos>=5);
+    h+='<div style="text-align:center;border:1px solid '+(c5?'rgba(232,184,75,.5)':'var(--border)')+';border-radius:6px;padding:5px 3px;'
+      +(c5?'background:rgba(232,184,75,.12)':'')+(x.esteMes?';box-shadow:0 0 0 1px var(--accent2)':'')+'">'
+      +'<div style="font-size:10px;color:'+(c5?'#e8b84b':'var(--text2)')+';font-weight:'+(c5?'700':'400')+'">'+x.etiqueta+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:'+(c5?'var(--red)':'var(--text)')+'">'+x.pagos+'</div>'
+      +'<div style="font-size:9px;color:var(--text2)">'+_gfMoney(x.total)+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+
+  if(cinco.length){
+    h+='<div style="font-size:10px;color:var(--text2);margin-top:8px">💰 En los próximos 12 meses hay <b>'+cinco.length+'</b> mes(es) de 5 pagos: <b style="color:#e8b84b">'
+      + cinco.map(function(x){return x.etiqueta;}).join(', ')
+      +'</b>. En total, <b style="color:var(--red)">'+_gfMoney(cinco.length*porPago)+'</b> extra que conviene ir apartando.</div>';
+  }
+
+  // Cambiar el día de pago
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">'
+    +'<span style="font-size:10px;color:var(--text2)">¿Qué día les pagas?</span>'
+    +'<select onchange="gfSetDiaPago(this.value)" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--text)">';
+  GF_DIAS.forEach(function(d,i){
+    h+='<option value="'+i+'"'+(i===GF_DIA_PAGO?' selected':'')+'>'+d.charAt(0).toUpperCase()+d.slice(1)+'</option>';
+  });
+  h+='</select></div>';
+  return h+'</div>';
+}
+function gfSetDiaPago(v){
+  GF_DIA_PAGO=parseInt(v,10);
+  save('gf_dia_pago', GF_DIA_PAGO);
+  renderGestionGastos();
+}
+
+/* Pagos frecuentes (semanales y quincenales): cuánto sale cada vez */
+function _gfFrecuentes(frec){
+  var out=[];
+  GASTOS.forEach(function(g){ g.items.forEach(function(it){
+    if(_gfFrec(it)===frec && (it.m||0)>0){
+      var mr=_gfEsFijo(it)?null:_gfMesesRestantes(it.fin);
+      out.push({cat:g.cat, n:it.n, m:it.m, mens:_gfMensual(it), fijo:_gfEsFijo(it), mr:mr, pagos:_gfPagosRestantes(it), fin:it.fin, resta:_gfRestante(it)});
+    }
+  }); });
+  // Los que se acaban primero arriba; los fijos al final (nunca se acaban)
+  return out.sort(function(a,b){
+    var af=a.fijo?1:0, bf=b.fijo?1:0;
+    if(af!==bf) return af-bf;
+    if(!a.fijo && !b.fijo){
+      var fa=_gfNormFin(a.fin), fb=_gfNormFin(b.fin);
+      if(fa < fb) return -1;
+      if(fa > fb) return 1;
+    }
+    return b.m - a.m;
+  });
+}
+function _gfPanelFrec(frec, titulo, color, nota){
+  var L=_gfFrecuentes(frec);
+  if(!L.length) return '';
+  var porPago=L.reduce(function(a,x){return a+x.m;},0);
+  var alMes=L.reduce(function(a,x){return a+x.mens;},0);
+  var h='<div style="background:rgba('+color+',.08);border:1px solid rgba('+color+',.3);border-radius:9px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:12px;font-weight:700;color:rgb('+color+');margin-bottom:3px">'+titulo+'</div>'
+    +'<div style="font-size:12px;color:var(--text);margin-bottom:3px">Cada '+_gfFrecNombre(frec)+' se te van <b style="color:var(--red)">'+_gfMoney(porPago)+'</b> en '+L.length+' pago(s).</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:7px">Al mes son <b style="color:var(--accent2)">'+_gfMoney(alMes)+'</b>'+(nota?' · '+nota:'')+'</div>';
+  L.forEach(function(x){
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-top:1px solid rgba('+color+',.14)">'
+      +'<span>'+_gfEsc(x.n)+' <span style="color:var(--text2)">('+x.cat+')</span></span>'
+      +'<span style="white-space:nowrap;color:var(--text2)"><b style="color:var(--text)">'+_gfMoney(x.m)+'</b>/'+_gfFrecNombre(frec)
+        + (x.fijo ? ' · 🔁 fijo' : (x.mr>0 ? ' · faltan '+x.pagos+' pagos' : ' · ✅ terminado'))
+      +'</span></div>';
+  });
+  return h+'</div>';
+}
+function _gfPanelQuincenal(){
+  return _gfPanelFrec('semanal','🗓️ Pagos semanales','62,207,142','se cuentan 4.33 semanas por mes (52 ÷ 12)')
+       + _gfPanelFrec('quincenal','📆 Pagos quincenales','91,138,244','');
+}
+
+/* Calendario: cuándo se libera cada deuda */
+function _gfCalendarioLiberacion(){
+  var L=_gfConPlazo();
+  if(!L.length) return '';
+  var acum=0;
+  var h='<div style="background:rgba(58,190,120,.07);border:1px solid rgba(58,190,120,.28);border-radius:9px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:3px">🗓️ Cuándo acabas de pagar cada deuda</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Conforme se van terminando, se te libera dinero cada mes.</div>';
+  L.forEach(function(x){
+    acum+=x.mens;
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;padding:5px 0;border-top:1px solid rgba(58,190,120,.14)">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="color:var(--text);font-weight:600">'+_gfEsc(x.n)+'</div>'
+        +'<div style="color:var(--text2);font-size:10px">'+x.cat+' · te faltan '+_gfMoney(x.resta)+(x.frec==='quincenal'?' ('+x.pagos+' quincenas)':'')+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;white-space:nowrap">'
+        +'<div style="color:var(--accent2);font-weight:700">'+_gfMesNombre(x.fin)+'</div>'
+        +'<div style="color:var(--green);font-size:10px">+'+_gfMoney(x.mens)+'/mes libre</div>'
+      +'</div></div>';
+  });
+  h+='<div style="border-top:2px solid rgba(58,190,120,.3);margin-top:7px;padding-top:7px;font-size:11px;color:var(--text)">'
+    +'🎉 En <b>'+_gfMesNombre(L[L.length-1].fin)+'</b> terminas todo y te liberas <b style="color:var(--green)">'+_gfMoney(acum)+'</b> cada mes.</div>';
+  return h+'</div>';
+}
+
+function abrirGestionGastos(){
+  var ov=document.createElement('div'); ov.id='gf-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:22px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) _gfCerrar(); };
+  ov.innerHTML='<div id="gf-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:680px;width:100%;padding:20px"></div>';
+  document.body.appendChild(ov);
+  renderGestionGastos();
+}
+function _gfCerrar(){ var o=document.getElementById('gf-overlay'); if(o) o.remove(); }
+
+function renderGestionGastos(){
+  var box=document.getElementById('gf-box'); if(!box) return;
+  var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:13px;color:var(--text)';
+  var total=GASTOS.reduce(function(a,g){ return a+g.items.reduce(function(x,i){return x+_gfMensual(i);},0); },0);
+
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+    +'<h2 style="margin:0;color:var(--accent2);font-size:18px">💸 Gastos fijos</h2>'
+    +'<button onclick="_gfCerrar()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 12px">Son tus gastos de cada mes. Ponle <b>último pago</b> a los que tienen plazo (deudas) para saber cuándo se acaban.</p>'
+    + '<div style="font-size:10px;color:var(--text2);margin-bottom:12px;padding:7px 9px;background:var(--surface2);border-radius:7px">💡 Los avisos de pagos y deudas los ves en la página de Gastos, sin abrir nada.<br>↕️ Usa las flechitas para acomodar tus gastos y categorías por prioridad. La lista de Gastos respeta ese orden.</div>';
+
+  GASTOS.forEach(function(g,ci){
+    var subt=g.items.reduce(function(a,i){return a+_gfMensual(i);},0);
+    h+='<div style="border:1px solid var(--border);border-radius:9px;margin-bottom:9px;overflow:hidden">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 10px;background:var(--surface2)">'
+        +'<div style="display:flex;flex-direction:column;gap:1px">'
+          +'<button onclick="gfMoverCat('+ci+',-1)" title="Subir categoría" '+(ci===0?'disabled':'')+' style="background:transparent;border:1px solid var(--border);color:'+(ci===0?'var(--border)':'var(--accent2)')+';border-radius:4px 4px 0 0;padding:0 5px;cursor:'+(ci===0?'default':'pointer')+';font-size:9px;line-height:1.4">▲</button>'
+          +'<button onclick="gfMoverCat('+ci+',1)" title="Bajar categoría" '+(ci===GASTOS.length-1?'disabled':'')+' style="background:transparent;border:1px solid var(--border);color:'+(ci===GASTOS.length-1?'var(--border)':'var(--accent2)')+';border-radius:0 0 4px 4px;padding:0 5px;cursor:'+(ci===GASTOS.length-1?'default':'pointer')+';font-size:9px;line-height:1.4">▼</button>'
+        +'</div>'
+        +'<input value="'+_gfEsc(g.cat)+'" oninput="gfSetCat('+ci+',this.value)" style="'+inp+';font-weight:700;color:var(--accent2);flex:1;border:none;background:transparent">'
+        +'<span id="gf-sub-'+ci+'" style="font-size:12px;color:var(--text2);white-space:nowrap">'+_gfMoney(subt)+'</span>'
+        +'<button onclick="gfBorrarCat('+ci+')" title="Borrar categoría" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>'
+      +'</div><div style="padding:8px">';
+    g.items.forEach(function(it,ii){
+      var esFijo=_gfEsFijo(it), frec=_gfFrec(it), mens=_gfMensual(it);
+      var info=_gfTextoInfo(it);
+      var bOn='background:var(--accent2);border:1px solid var(--accent2);color:#0f0f13';
+      var bOff='background:transparent;border:1px solid var(--border);color:var(--text2)';
+      h+='<div style="border:1px solid var(--border);border-radius:7px;padding:7px;margin-bottom:6px">'
+        +'<div style="display:grid;grid-template-columns:26px 1fr 110px 30px;gap:6px;align-items:center">'
+        +'<div style="display:flex;flex-direction:column;gap:1px">'
+          +'<button onclick="gfMoverItem('+ci+','+ii+',-1)" title="Subir" '+(ii===0?'disabled':'')+' style="background:var(--surface2);border:1px solid var(--border);color:'+(ii===0?'var(--border)':'var(--text2)')+';border-radius:4px 4px 0 0;padding:1px;cursor:'+(ii===0?'default':'pointer')+';font-size:9px;line-height:1.3">▲</button>'
+          +'<button onclick="gfMoverItem('+ci+','+ii+',1)" title="Bajar" '+(ii===g.items.length-1?'disabled':'')+' style="background:var(--surface2);border:1px solid var(--border);color:'+(ii===g.items.length-1?'var(--border)':'var(--text2)')+';border-radius:0 0 4px 4px;padding:1px;cursor:'+(ii===g.items.length-1?'default':'pointer')+';font-size:9px;line-height:1.3">▼</button>'
+        +'</div>'
+        +'<input value="'+_gfEsc(it.n)+'" oninput="gfSetItem('+ci+','+ii+',\'n\',this.value)" placeholder="Concepto" style="'+inp+';width:100%">'
+        +'<input type="number" min="0" step="0.01" value="'+(it.m||0)+'" oninput="gfSetItem('+ci+','+ii+',\'m\',this.value)" style="'+inp+';width:100%;text-align:right;color:var(--red)">'
+        +'<button onclick="gfBorrarItem('+ci+','+ii+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>'
+        +'</div>'
+        // Mover a otra categoría
+        +'<div style="display:flex;gap:5px;align-items:center;margin-top:5px;padding-left:32px">'
+          +'<span style="font-size:10px;color:var(--text2)">↔️ Mover a:</span>'
+          +'<select onchange="gfCambiarCat('+ci+','+ii+',this.value); this.value=\''+ci+'\';" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-size:10px;color:var(--text2)">'
+            + GASTOS.map(function(gg,gi){ return '<option value="'+gi+'"'+(gi===ci?' selected':'')+'>'+_gfEsc(gg.cat)+'</option>'; }).join('')
+          +'</select>'
+        +'</div>'
+        // Frecuencia del pago
+        +'<div style="display:flex;gap:5px;align-items:center;margin-top:6px;flex-wrap:wrap">'
+          +'<span style="font-size:10px;color:var(--text2)">Cada:</span>'
+          + GF_FRECS.map(function(f){
+              return '<button onclick="gfSetFrec('+ci+','+ii+',\''+f+'\')" style="'+(frec===f?bOn:bOff)+';border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px;font-weight:700">'+_gfFrecBoton(f)+'</button>';
+            }).join('')
+          +'<span id="gf-eq-'+ci+'-'+ii+'" style="font-size:10px;color:var(--accent2)">'+(frec!=='mensual'?'= '+_gfMoney(mens)+'/mes':'')+'</span>'
+          +'<span style="width:10px"></span>'
+          +'<button onclick="gfSetFijo('+ci+','+ii+',true)" style="'+(esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">🔁 Fijo</button>'
+          +'<button onclick="gfSetFijo('+ci+','+ii+',false)" style="'+(!esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">📅 Se acaba</button>'
+        +'</div>'
+        // Fecha de término (solo si NO es fijo)
+        + (esFijo ? '' :
+           '<div style="display:flex;gap:7px;align-items:center;margin-top:6px;flex-wrap:wrap">'
+            +'<label style="font-size:10px;color:var(--text2)">Último pago:</label>'
+            +'<input type="date" value="'+_gfEsc(_gfNormFin(it.fin))+'" onchange="gfSetFin('+ci+','+ii+',this.value)" style="'+inp+';padding:4px 6px;font-size:11px">'
+           +'</div>')
+        +'<div id="gf-info-'+ci+'-'+ii+'" style="margin-top:5px">'+info+'</div>'
+        +'</div>';
+    });
+    h+='<button onclick="gfAgregarItem('+ci+')" style="background:none;border:1px dashed var(--border);color:var(--text2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;width:100%;margin-top:3px">+ Agregar gasto a '+_gfEsc(g.cat)+'</button>'
+      +'</div></div>';
+  });
+
+  h+='<button onclick="gfAgregarCat()" style="background:var(--green);border:none;color:#0f0f13;border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:12px;width:100%;margin-top:4px">+ Nueva categoría</button>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:12px">'
+      +'<span style="font-weight:700;font-size:13px">TOTAL MENSUAL</span>'
+      +'<span id="gf-total" style="font-weight:700;font-size:16px;color:var(--red)">'+_gfMoney(total)+'</span></div>'
+    +'<div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap">'
+      +'<button onclick="gfRestaurar()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:11px">↩️ Volver a los originales</button>'
+      +'<button onclick="_gfCerrar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 22px;cursor:pointer;font-weight:700">Listo</button>'
+    +'</div>';
+  box.innerHTML=h;
+}
+
+function gfSetCat(ci,val){ if(GASTOS[ci]){ GASTOS[ci].cat=val; saveGastosFijos(); } }   // sin redibujar: el cursor se quedaría afuera
+// Refresca solo los totales. NO redibuja el panel: si lo hiciera, el cursor
+// se saldría del campo a cada tecla y solo podrías escribir un dígito.
+// El texto de cada renglón ("= $X/mes", "⏳ 3 meses…"). Se usa al dibujar Y al teclear.
+function _gfTextoInfo(it){
+  var esFijo=_gfEsFijo(it), frec=_gfFrec(it), mens=_gfMensual(it);
+  var mr=esFijo?null:_gfMesesRestantes(it.fin);
+  if(esFijo) return '<span style="font-size:10px;color:var(--green)">🔁 Para siempre · '+_gfMoney(mens)+'/mes</span>';
+  if(mr===null) return '<span style="font-size:10px;color:var(--red)">⚠️ Ponle la fecha del último pago</span>';
+  if(mr<=0) return '<span style="font-size:10px;color:var(--green);font-weight:700">✅ Ya la terminaste</span>';
+  var dias=_gfDiasRestantes(it.fin), pagos=_gfPagosRestantes(it);
+  return '<span style="font-size:10px;color:var(--accent2)">⏳ '+mr+' mes(es)'
+       + (frec!=='mensual'?' · '+pagos+' pagos':'')
+       + (dias!==null?' ('+dias+' días)':'')
+       + ' · faltan <b>'+_gfMoney(_gfRestante(it))+'</b> · termina '+_gfMesNombre(it.fin)+'</span>';
+}
+
+function _gfActualizarTotales(){
+  var total=0;
+  GASTOS.forEach(function(g,ci){
+    var subt=g.items.reduce(function(a,i){ return a+_gfMensual(i); },0);
+    total+=subt;
+    var el=document.getElementById('gf-sub-'+ci);
+    if(el) el.textContent=_gfMoney(subt);
+    // Cada renglón: el "= $X/mes" y la línea de abajo (esto es lo que se quedaba congelado)
+    g.items.forEach(function(it,ii){
+      var eq=document.getElementById('gf-eq-'+ci+'-'+ii);
+      if(eq) eq.innerHTML = (_gfFrec(it)!=='mensual') ? ('= '+_gfMoney(_gfMensual(it))+'/mes') : '';
+      var inf=document.getElementById('gf-info-'+ci+'-'+ii);
+      if(inf) inf.innerHTML = _gfTextoInfo(it);
+    });
+  });
+  var t=document.getElementById('gf-total');
+  if(t) t.textContent=_gfMoney(total);
+}
+function gfSetItem(ci,ii,campo,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  it[campo] = (campo==='m') ? (parseFloat(val)||0) : val;
+  saveGastosFijos();
+  _gfActualizarTotales();
+}
+/* ═══════════ PALOMEAR LOS PAGOS DEL MES ═══════════
+   Cada gasto genera sus pagos del mes según su frecuencia.
+   Se guarda cuáles ya palomeaste, por mes. */
+var pagosCheck = {};
+try{ var _pc=JSON.parse(localStorage.getItem('pagos_check')||'{}'); if(_pc && typeof _pc==='object') pagosCheck=_pc; }catch(e){}
+function savePagosCheck(){ save('pagos_check', pagosCheck); }
+
+var pagosMesVer = null;   // null = mes actual
+function _pgMesActual(){
+  var h=new Date();
+  return h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');
+}
+function _pgMes(){ return pagosMesVer || _pgMesActual(); }
+function _pgMesNombre(mes){
+  var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var p=mes.split('-');
+  return M[parseInt(p[1],10)-1]+' '+p[0];
+}
+function _pgDiaSemana(anio, mes, diaSem){   // todas las fechas de ese día de la semana
+  var out=[], n=new Date(anio, mes, 0).getDate();
+  for(var d=1; d<=n; d++){
+    if(new Date(anio, mes-1, d).getDay()===diaSem) out.push(d);
+  }
+  return out;
+}
+
+// Genera TODOS los pagos que te tocan en ese mes
+function _pgPagosDelMes(mes){
+  var p=mes.split('-'), anio=+p[0], nm=+p[1];
+  var ultimo=new Date(anio, nm, 0).getDate();
+  var out=[];
+
+  GASTOS.forEach(function(g, ci){
+    g.items.forEach(function(it, ii){
+      var frec=_gfFrec(it);
+      var fijo=_gfEsFijo(it);
+      // Si ya terminó de pagarse, no lo listes
+      if(!fijo && it.fin){
+        var f=_gfNormFin(it.fin).slice(0,7);
+        if(f < mes) return;   // el plazo ya venció antes de este mes
+      }
+
+      var fechas=[];
+      if(frec==='semanal'){
+        fechas=_pgDiaSemana(anio, nm, (typeof GF_DIA_PAGO!=='undefined'?GF_DIA_PAGO:6));
+      } else if(frec==='quincenal'){
+        fechas=[15, ultimo];
+      } else if(frec==='mensual'){
+        fechas=[Math.min(1, ultimo)];   // día 1 por defecto
+      } else if(frec==='bimestral'){
+        if(nm % 2 === 1) fechas=[1];    // meses impares (ene, mar, may…)
+      } else if(frec==='anual'){
+        if(nm === 1) fechas=[1];
+      }
+
+      fechas.forEach(function(dia, k){
+        // Si tiene fecha de término, no listes pagos posteriores
+        if(!fijo && it.fin){
+          var fin=_gfNormFin(it.fin);
+          var esta=anio+'-'+String(nm).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+          if(esta > fin) return;
+        }
+        out.push({
+          id: ci+'|'+ii+'|'+k,
+          cat: g.cat,
+          nombre: it.n,
+          monto: it.m||0,
+          frec: frec,
+          dia: dia,
+          fecha: anio+'-'+String(nm).padStart(2,'0')+'-'+String(dia).padStart(2,'0')
+        });
+      });
+    });
+  });
+  return out.sort(function(a,b){ return a.dia-b.dia; });
+}
+
+function _pgPagado(mes, id){ return !!(pagosCheck[mes] && pagosCheck[mes][id]); }
+function pgToggle(id, ev){
+  var mes=_pgMes();
+  if(!pagosCheck[mes]) pagosCheck[mes]={};
+  if(pagosCheck[mes][id]){ delete pagosCheck[mes][id]; }
+  else {
+    var L=_pgPagosDelMes(mes);
+    var x=L.find(function(y){ return y.id===id; });
+    var tarde = x ? (x.fecha < _hoyISO()) : false;
+    pagosCheck[mes][id]={ pagado:true, cuando:_hoyISO(), tarde:tarde };
+    try{ _pgMostrarDeshacer(mes, id, x?x.nombre:''); }catch(e){}
+  }
+  savePagosCheck();
+  try{ renderPagosAtrasados(); }catch(e){}
+  renderPagosMes();
+}
+function pgCambiarMes(dir){
+  var mes=_pgMes(), p=mes.split('-');
+  var d=new Date(+p[0], +p[1]-1+dir, 1);
+  pagosMesVer = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderPagosMes();
+}
+function pgHoy(){ pagosMesVer=null; renderPagosMes(); }
+
+function pgPalomearTodo(){
+  var mes=_pgMes();
+  var L=_pgPagosDelMes(mes);
+  var faltan=L.filter(function(x){ return !_pgPagado(mes, x.id); });
+  if(!faltan.length){ if(typeof mostrarToast==='function') mostrarToast('Ya está todo palomeado 🎉','green'); return; }
+  if(!confirm('¿Marcar como pagados los '+faltan.length+' pago(s) que faltan de '+_pgMesNombre(mes)+'?')) return;
+  if(!pagosCheck[mes]) pagosCheck[mes]={};
+  var hoy=_hoyISO();
+  faltan.forEach(function(x){ pagosCheck[mes][x.id]={pagado:true, cuando:hoy, tarde:(x.fecha<hoy)}; });
+  savePagosCheck();
+  try{ renderPagosAtrasados(); }catch(e){}
+  renderPagosMes();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Todo palomeado','green');
+}
+
+/* PAGOS ATRASADOS: los que ya vencieron y no palomeaste.
+   Se revisan los meses anteriores, no solo el que estas viendo. */
+function _pgAtrasados(){
+  var hoyISO=_hoyISO();
+  var hoy=new Date();
+  var out=[];
+  for(var i=0; i<12; i++){
+    var d=new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
+    var mes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    var L=_pgPagosDelMes(mes);
+    L.forEach(function(x){
+      if(x.fecha < hoyISO && !_pgPagado(mes, x.id)){
+        out.push({mes:mes, id:x.id, nombre:x.nombre, cat:x.cat, monto:x.monto, fecha:x.fecha, frec:x.frec});
+      }
+    });
+  }
+  out.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+  return out;
+}
+function _pgDiasAtraso(fecha){
+  var p=String(fecha).split('-');
+  var f=new Date(+p[0], +p[1]-1, +p[2]);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((hoy-f)/86400000);
+}
+function pgToggleMes(mes, id){
+  if(!pagosCheck[mes]) pagosCheck[mes]={};
+  if(pagosCheck[mes][id]){ delete pagosCheck[mes][id]; }
+  else { pagosCheck[mes][id]={ pagado:true, cuando:_hoyISO(), tarde:true }; }
+  savePagosCheck();
+  renderPagosMes();
+}
+function pgPalomearAtrasados(){
+  var A=_pgAtrasados();
+  if(!A.length) return;
+  var tot=A.reduce(function(a,x){return a+x.monto;},0);
+  if(!confirm('Marcar como pagados los '+A.length+' pago(s) atrasado(s)?\n\nSon '+_gfMoney(tot)+'.\n\nSolo hazlo si de verdad ya los pagaste.')) return;
+  A.forEach(function(x){
+    if(!pagosCheck[x.mes]) pagosCheck[x.mes]={};
+    pagosCheck[x.mes][x.id]={pagado:true, cuando:_hoyISO(), tarde:true};
+  });
+  savePagosCheck();
+  renderPagosMes();
+  if(typeof mostrarToast==='function') mostrarToast('Atrasados al corriente','green');
+}
+function _pgPanelAtrasados(){
+  var A=_pgAtrasados();
+  if(!A.length) return '';
+  var tot=A.reduce(function(a,x){return a+x.monto;},0);
+  var MM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  var h='<div style="background:rgba(244,91,105,.1);border:1px solid rgba(244,91,105,.5);border-radius:9px;padding:11px 13px;margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700;color:var(--red)">&#128308; Traes '+A.length+' pago(s) atrasado(s)</div>'
+        +'<div style="font-size:12px;color:var(--text);margin-top:2px">Suman <b style="color:var(--red)">'+_gfMoney(tot)+'</b> que ya debiste haber pagado.</div>'
+      +'</div>'
+      +'<button onclick="pgPalomearAtrasados()" style="background:var(--red);border:none;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">&#9989; Ya los pagu&eacute;</button>'
+    +'</div>';
+
+  A.forEach(function(x){
+    var dias=_pgDiasAtraso(x.fecha);
+    var p=x.fecha.split('-');
+    var etiqueta=parseInt(p[2],10)+' '+MM[parseInt(p[1],10)-1];
+    var grave = dias>30;
+    h+='<div onclick="pgToggleMes(\'' + x.mes + '\',\'' + x.id + '\')" style="display:flex;align-items:center;gap:9px;padding:7px 9px;margin-bottom:4px;border-radius:7px;cursor:pointer;background:rgba(244,91,105,.06);border:1px solid rgba(244,91,105,.28)">'
+      +'<span style="width:20px;height:20px;border-radius:5px;flex-shrink:0;border:2px solid var(--red);background:transparent"></span>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:12px;color:var(--text)">'+_gfEsc(x.nombre)+' <span style="color:var(--text2);font-size:10px">('+_gfEsc(x.cat)+')</span></div>'
+        +'<div style="font-size:10px;color:'+(grave?'var(--red)':'#e8b84b')+';font-weight:'+(grave?'700':'400')+'">Venc&iacute;a el '+etiqueta+' &middot; <b>'+dias+' d&iacute;a(s) de atraso</b>'+(grave?' &#9888;':'')+'</div>'
+      +'</div>'
+      +'<span style="font-size:13px;font-weight:700;color:var(--red);white-space:nowrap">'+_gfMoney(x.monto)+'</span>'
+    +'</div>';
+  });
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:6px">Dale clic a cada uno para palomearlo, aunque sea de un mes anterior. Este aviso no se va hasta que los marques.</div>';
+  return h+'</div>';
+}
+
+/* ═══ PAGOS ATRASADOS: los que ya pasaron y no palomeaste ═══
+   Busca hacia atrás en los meses anteriores, no solo en el que estás viendo. */
+// Desde qué fecha vale la pena revisar atrasos.
+// Sin esto, el ERP te mostraría "atrasos" de meses en los que ni lo usabas.
+// Desde cuándo cuenta los pagos. Antes de esto, el ERP no existía para ti:
+// no tiene caso reclamarte "atrasos" de meses que nunca palomeaste.
+var PG_DESDE_DEF = '2026-07-01';
+var pagosDesde = leer('pagos_desde', PG_DESDE_DEF) || PG_DESDE_DEF;
+
+function _pgAtrasados(hastaMeses){
+  hastaMeses = hastaMeses || 12;
+  var hoy=_hoyISO();
+  var out=[];
+  var d=new Date();
+  var mesDesde = pagosDesde ? pagosDesde.slice(0,7) : null;
+  for(var i=0; i<hastaMeses; i++){
+    var f=new Date(d.getFullYear(), d.getMonth()-i, 1);
+    var mes=f.getFullYear()+'-'+String(f.getMonth()+1).padStart(2,'0');
+    if(mesDesde && mes < mesDesde) break;   // no me meto a meses anteriores al arranque
+    var L=_pgPagosDelMes(mes);
+    L.forEach(function(x){
+      if(x.fecha >= hoy) return;                     // aún no vence
+      if(pagosDesde && x.fecha < pagosDesde) return; // antes del arranque
+      if(_pgPagado(mes, x.id)) return;               // ya lo palomeaste
+      out.push(Object.assign({}, x, {mes:mes}));
+    });
+  }
+  return out.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+}
+
+// Desde qué día empieza a contarte los pagos (tú lo eliges)
+function pgSetDesde(val){
+  pagosDesde = val || null;
+  save('pagos_desde', pagosDesde);
+  try{ renderPagosAtrasados(); }catch(e){}
+  renderPagosMes();
+  if(typeof mostrarToast==='function'){
+    mostrarToast(pagosDesde ? ('📌 Cuento desde el '+pagosDesde) : 'Cuento todo (3 meses atrás)','green');
+  }
+}
+// Borrón y cuenta nueva: arranca desde el día 1 del mes que estás viendo
+function pgBorronYCuentaNueva(){
+  var mes=_pgMes();
+  var d1=mes+'-01';
+  if(!confirm('Voy a dejar de contarte los atrasos ANTERIORES al '+d1+'.\n\nNO los marco como pagados — el ERP simplemente deja de reclamártelos. Úsalo si son de meses en los que todavía no usabas esta lista.\n\n¿Le seguimos?')) return;
+  pgSetDesde(d1);
+}
+function _pgDiasAtraso(fecha){
+  var p=fecha.split('-');
+  var f=new Date(+p[0], +p[1]-1, +p[2]);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((hoy-f)/86400000);
+}
+// Palomear un atrasado desde el panel (aunque sea de otro mes)
+function pgToggleMes(mes, id){
+  if(!pagosCheck[mes]) pagosCheck[mes]={};
+  if(pagosCheck[mes][id]) delete pagosCheck[mes][id];
+  else {
+    pagosCheck[mes][id]={ pagado:true, cuando:_hoyISO(), tarde:true };
+    var x=_pgPagosDelMes(mes).find(function(y){ return y.id===id; });
+    try{ _pgMostrarDeshacer(mes, id, x?x.nombre:''); }catch(e){}
+  }
+  savePagosCheck();
+  try{ renderPagosAtrasados(); }catch(e){}
+  try{ renderPagosAtrasados(); }catch(e){}
+  try{ renderPagosMes(); }catch(e){}
+}
+function pgPalomearAtrasados(){
+  var L=_pgAtrasados();
+  if(!L.length) return;
+  var tot=L.reduce(function(a,x){return a+x.monto;},0);
+  if(!confirm('¿Marcar como pagados los '+L.length+' pago(s) atrasados?\n\nSon '+_gfMoney(tot)+'.\n\nSolo hazlo si de verdad ya los pagaste.')) return;
+  L.forEach(function(x){
+    if(!pagosCheck[x.mes]) pagosCheck[x.mes]={};
+    pagosCheck[x.mes][x.id]={ pagado:true, cuando:_hoyISO(), tarde:true };
+  });
+  savePagosCheck();
+  renderPagosAtrasados(); renderPagosMes();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Atrasados al corriente','green');
+}
+
+function renderPagosAtrasados(){
+  var c=document.getElementById('pagos-atrasados'); if(!c) return;
+  var L=_pgAtrasados();
+  if(!L.length){ c.innerHTML=''; c.style.display='none'; return; }
+  c.style.display='';
+
+  var tot=L.reduce(function(a,x){return a+x.monto;},0);
+  var peor=L[0];   // el más viejo
+  var diasPeor=_pgDiasAtraso(peor.fecha);
+
+  var h='<div style="background:rgba(244,91,105,.1);border:1px solid rgba(244,91,105,.5);border-radius:10px;padding:12px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+      +'<div><b style="color:var(--red);font-size:15px">🔴 Traes '+L.length+' pago(s) atrasado(s)</b>'
+        +'<div style="font-size:12px;color:var(--text);margin-top:2px">Son <b style="color:var(--red)">'+_gfMoney(tot)+'</b>. El más viejo lleva <b>'+diasPeor+' día(s)</b> sin pagar.</div></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button onclick="pgPalomearAtrasados()" style="background:var(--green);border:none;color:#0f0f13;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">✅ Ya los pagué todos</button>'
+        +'<button onclick="pgBorronYCuentaNueva()" title="Deja de contar los atrasos viejos (no los marca como pagados)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px;white-space:nowrap">🧹 No son míos</button>'
+      +'</div>'
+    +'</div>';
+
+  var MM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  L.forEach(function(x){
+    var dias=_pgDiasAtraso(x.fecha);
+    var p=x.fecha.split('-');
+    var etiqueta=parseInt(p[2],10)+' '+MM[parseInt(p[1],10)-1];
+    h+='<div onclick="pgToggleMes(\''+x.mes+'\',\''+x.id+'\')" style="display:flex;align-items:center;gap:9px;padding:7px 9px;margin-bottom:4px;border-radius:7px;cursor:pointer;background:rgba(244,91,105,.06);border:1px solid rgba(244,91,105,.25)">'
+      +'<span style="width:20px;height:20px;border-radius:5px;flex-shrink:0;border:2px solid var(--red)"></span>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:12px;color:var(--text)">'+_gfEsc(x.nombre)+'</div>'
+        +'<div style="font-size:10px;color:var(--text2)">'+_gfEsc(x.cat)+' · vencía el '+etiqueta+' · <b style="color:var(--red)">'+dias+' día(s) tarde</b></div>'
+      +'</div>'
+      +'<span style="font-size:13px;font-weight:700;color:var(--red);white-space:nowrap">'+_gfMoney(x.monto)+'</span>'
+    +'</div>';
+  });
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:6px">💡 Palomea el que ya hayas pagado. Estos te siguen apareciendo aunque cambies de mes, hasta que los marques.<br>Si son de meses en los que aún no usabas esta lista, dale a <b>🧹 No son míos</b>.</div>';
+  c.innerHTML=h+'</div>';
+}
+
+var pgVerPagados = false;
+var pgUltimo = null;      // lo último que palomeaste, por si fue sin querer
+var pgUndoTimer = null;
+
+// Barrita de "Deshacer" que sale abajo y se va sola
+function _pgMostrarDeshacer(mes, id, nombre){
+  pgUltimo = {mes:mes, id:id, nombre:nombre};
+  var b=document.getElementById('pg-undo');
+  if(!b){
+    b=document.createElement('div');
+    b.id='pg-undo';
+    b.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;'
+      +'background:#1e1e28;border:1px solid var(--green);border-radius:10px;padding:10px 14px;'
+      +'display:flex;align-items:center;gap:12px;box-shadow:0 6px 22px rgba(0,0,0,.5);max-width:92vw';
+    document.body.appendChild(b);
+  }
+  b.innerHTML='<span style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      +'✅ <b>'+_gfEsc(nombre)+'</b> pagado</span>'
+    +'<button onclick="pgDeshacer()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">↩️ Deshacer</button>';
+  b.style.display='flex';
+  if(pgUndoTimer) clearTimeout(pgUndoTimer);
+  pgUndoTimer=setTimeout(function(){ _pgOcultarDeshacer(); }, 6000);
+}
+function _pgOcultarDeshacer(){
+  var b=document.getElementById('pg-undo');
+  if(b) b.style.display='none';
+  pgUltimo=null;
+}
+function pgDeshacer(){
+  if(!pgUltimo) return;
+  var u=pgUltimo;
+  if(pagosCheck[u.mes]) delete pagosCheck[u.mes][u.id];
+  savePagosCheck();
+  _pgOcultarDeshacer();
+  try{ renderPagosAtrasados(); }catch(e){}
+  renderPagosMes();
+  if(typeof mostrarToast==='function') mostrarToast('↩️ Le quité la palomita a '+u.nombre,'');
+}
+function pgTogglePagados(){ pgVerPagados=!pgVerPagados; renderPagosMes(); }
+
+function renderPagosMes(){
+  var c=document.getElementById('pagos-mes'); if(!c) return;
+  var mes=_pgMes();
+  var L=_pgPagosDelMes(mes);
+  var esActual = (mes===_pgMesActual());
+  var hoyISO=_hoyISO();
+
+  var pagados=L.filter(function(x){ return _pgPagado(mes,x.id); });
+  var pendientes=L.filter(function(x){ return !_pgPagado(mes,x.id); });
+  var totalMes=L.reduce(function(a,x){ return a+x.monto; },0);
+  var totalPagado=pagados.reduce(function(a,x){ return a+x.monto; },0);
+  var falta=totalMes-totalPagado;
+  var pct = totalMes>0 ? (totalPagado/totalMes*100) : 0;
+  var todo = L.length>0 && pendientes.length===0;
+
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">'
+    +'<div style="display:flex;gap:4px;align-items:center">'
+      +'<button onclick="pgCambiarMes(-1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;cursor:pointer">‹</button>'
+      +'<b style="font-size:13px;color:var(--accent2);min-width:105px;text-align:center">'+_pgMesNombre(mes)+'</b>'
+      +'<button onclick="pgCambiarMes(1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;cursor:pointer">›</button>'
+      + (esActual?'':'<button onclick="pgHoy()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;text-decoration:underline">hoy</button>')
+    +'</div>'
+    +'<button onclick="pgPalomearTodo()" style="background:var(--surface2);border:1px solid var(--border);color:var(--green);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">✅ Palomear todo</button>'
+  +'</div>';
+
+  // Desde cuándo cuenta los atrasos
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;flex-wrap:wrap;font-size:10px;color:var(--text2)">'
+    +'<span>📌 Cuento tus pagos desde:</span>'
+    +'<input type="date" value="'+(pagosDesde||'')+'" onchange="pgSetDesde(this.value)" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-size:10px;color:var(--accent2)">'
+    +'<span style="color:var(--text2)">· lo anterior no te lo reclamo</span>'
+  +'</div>';
+
+  if(!L.length){
+    c.innerHTML=h+'<div style="color:var(--text2);font-size:12px;padding:16px;text-align:center">No hay pagos este mes.</div>';
+    return;
+  }
+
+  // ── Marcador compacto ──
+  h+='<div style="background:'+(todo?'rgba(58,190,120,.1)':'var(--surface2)')+';border:1px solid '+(todo?'rgba(58,190,120,.4)':'var(--border)')+';border-radius:9px;padding:9px 11px;margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:5px">'
+      +'<span><b style="color:var(--green);font-size:15px">'+pagados.length+'</b><span style="color:var(--text2)">/'+L.length+' pagos</span></span>'
+      +'<span style="color:var(--text2)">te falta <b style="color:var(--red);font-size:14px">'+_gfMoney(falta)+'</b></span>'
+    +'</div>'
+    +'<div style="height:9px;background:#0f0f13;border-radius:5px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+(todo?'var(--green)':'linear-gradient(90deg,var(--accent2),var(--green))')+';transition:width .35s cubic-bezier(.4,0,.2,1)"></div></div>'
+  +'</div>';
+
+  // ── ¡Terminaste! ──
+  if(todo){
+    h+='<div style="text-align:center;padding:22px 12px;background:rgba(58,190,120,.08);border:1px solid rgba(58,190,120,.4);border-radius:10px;margin-bottom:10px">'
+      +'<div style="font-size:38px;line-height:1">🎉</div>'
+      +'<div style="font-size:15px;font-weight:700;color:var(--green);margin-top:5px">¡Todo pagado en '+_pgMesNombre(mes)+'!</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-top:3px">Soltaste '+_gfMoney(totalPagado)+' en '+L.length+' pagos. Ni uno se te pasó. 🤠</div>'
+      +'</div>';
+  }
+
+  // ── PENDIENTES: agrupados por día, en una línea cada uno ──
+  if(pendientes.length){
+    var porDia={};
+    pendientes.forEach(function(x){ (porDia[x.dia]=porDia[x.dia]||[]).push(x); });
+
+    Object.keys(porDia).map(Number).sort(function(a,b){return a-b;}).forEach(function(dia){
+      var items=porDia[dia];
+      var fechaDia=items[0].fecha;
+      var esHoy = fechaDia===hoyISO;
+      var vencido = esActual && fechaDia < hoyISO;
+      var subt=items.reduce(function(a,x){return a+x.monto;},0);
+      var col = esHoy?'var(--accent2)':(vencido?'var(--red)':'var(--text2)');
+
+      h+='<div style="display:flex;align-items:center;gap:6px;margin:9px 0 3px">'
+        +'<span style="font-size:10px;font-weight:700;color:'+col+';background:'+(esHoy?'rgba(232,184,75,.15)':(vencido?'rgba(244,91,105,.13)':'var(--surface2)'))+';border-radius:5px;padding:2px 7px;white-space:nowrap">'
+          + (esHoy?'HOY · ':'') + (vencido?'⚠️ ':'') + 'Día '+dia+'</span>'
+        +'<span style="flex:1;height:1px;background:var(--border)"></span>'
+        +'<span style="font-size:10px;color:var(--text2)">'+_gfMoney(subt)+'</span>'
+      +'</div>';
+
+      items.forEach(function(x){
+        h+='<div onclick="pgToggle(\''+x.id+'\')" class="pg-fila" style="display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:3px;border-radius:7px;cursor:pointer;'
+          +'background:var(--surface2);border:1px solid '+(vencido?'rgba(244,91,105,.3)':'var(--border)')+'">'
+          +'<span style="width:18px;height:18px;border-radius:5px;flex-shrink:0;border:2px solid '+(vencido?'var(--red)':'var(--border)')+'"></span>'
+          +'<span style="flex:1;min-width:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_gfEsc(x.nombre)
+            +'<span style="color:var(--text2);font-size:10px"> · '+_gfEsc(x.cat)+'</span></span>'
+          +'<span style="font-size:12px;font-weight:700;color:var(--red);white-space:nowrap">'+_gfMoney(x.monto)+'</span>'
+        +'</div>';
+      });
+    });
+  }
+
+  // ── PAGADOS: se salen de la lista, guardados abajo ──
+  if(pagados.length){
+    h+='<div onclick="pgTogglePagados()" style="display:flex;align-items:center;gap:7px;margin-top:12px;padding:7px 10px;border-radius:7px;cursor:pointer;background:rgba(58,190,120,.07);border:1px solid rgba(58,190,120,.3)">'
+      +'<span style="font-size:13px">✅</span>'
+      +'<span style="flex:1;font-size:12px;color:var(--green);font-weight:700">Ya pagaste '+pagados.length+'</span>'
+      +'<span style="font-size:12px;color:var(--green);font-weight:700">'+_gfMoney(totalPagado)+'</span>'
+      +'<span style="font-size:10px;color:var(--text2)">'+(pgVerPagados?'▲':'▼')+'</span>'
+    +'</div>';
+
+    if(pgVerPagados){
+      h+='<div style="margin-top:5px;padding-left:6px;border-left:2px solid rgba(58,190,120,.3)">';
+      pagados.forEach(function(x){
+        var info=pagosCheck[mes] && pagosCheck[mes][x.id];
+        h+='<div onclick="pgToggle(\''+x.id+'\')" style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:2px;border-radius:6px;cursor:pointer;opacity:.65">'
+          +'<span style="width:16px;height:16px;border-radius:4px;flex-shrink:0;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;color:#0f0f13;font-weight:700">✓</span>'
+          +'<span style="flex:1;min-width:0;font-size:11px;color:var(--text2);text-decoration:line-through;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_gfEsc(x.nombre)+'</span>'
+          + (info && info.tarde ? '<span style="font-size:9px;color:#e8b84b;white-space:nowrap">⏰ tarde</span>' : '')
+          +'<span style="font-size:11px;color:var(--green);white-space:nowrap">'+_gfMoney(x.monto)+'</span>'
+        +'</div>';
+      });
+      h+='<div style="font-size:10px;color:var(--text2);padding:5px 8px">↩️ ¿Palomeaste uno por error? Dale clic y se le quita.</div></div>';
+    }
+  }
+
+  c.innerHTML=h;
+}
+
+/* ═══ Reordenar y mover gastos ═══ */
+function gfMoverItem(ci,ii,dir){
+  var g=GASTOS[ci]; if(!g) return;
+  var j=ii+dir;
+  if(j<0 || j>=g.items.length) return;
+  var t=g.items[ii]; g.items[ii]=g.items[j]; g.items[j]=t;
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfMoverCat(ci,dir){
+  var j=ci+dir;
+  if(j<0 || j>=GASTOS.length) return;
+  var t=GASTOS[ci]; GASTOS[ci]=GASTOS[j]; GASTOS[j]=t;
+  saveGastosFijos(); renderGestionGastos();
+}
+// Cambiar un gasto de categoría
+function gfCambiarCat(ci,ii,destino){
+  var d=parseInt(destino,10);
+  if(isNaN(d) || d===ci || !GASTOS[ci] || !GASTOS[d]) return;
+  var it=GASTOS[ci].items.splice(ii,1)[0];
+  if(!it) return;
+  GASTOS[d].items.push(it);
+  if(!GASTOS[ci].items.length){
+    if(confirm('"'+GASTOS[ci].cat+'" se quedó vacía. ¿La borro?')) GASTOS.splice(ci,1);
+  }
+  saveGastosFijos(); renderGestionGastos();
+  if(typeof mostrarToast==='function') mostrarToast('↔️ '+it.n+' → '+GASTOS[Math.min(d,GASTOS.length-1)].cat,'green');
+}
+
+function gfSetFrec(ci,ii,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  it.frec = (GF_FRECS.indexOf(val)>=0) ? val : 'mensual';
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfSetFijo(ci,ii,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  it.fijo = !!val;
+  if(it.fijo) delete it.fin;   // un gasto fijo no tiene fecha de término
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfSetFin(ci,ii,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  if(val){ it.fin=val; it.fijo=false; } else delete it.fin;
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfAgregarItem(ci){
+  if(!GASTOS[ci]) return;
+  GASTOS[ci].items.push({n:'Nuevo gasto', m:0, frec:'mensual', fijo:true});
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfBorrarItem(ci,ii){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  if(!confirm('¿Borrar "'+it.n+'" ('+_gfMoney(it.m)+')?')) return;
+  GASTOS[ci].items.splice(ii,1);
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfAgregarCat(){
+  GASTOS.push({cat:'Nueva categoría', items:[{n:'Nuevo gasto', m:0, frec:'mensual', fijo:true}]});
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfBorrarCat(ci){
+  var g=GASTOS[ci]; if(!g) return;
+  var subt=g.items.reduce(function(a,i){return a+(i.m||0);},0);
+  if(!confirm('¿Borrar la categoría "'+g.cat+'" con sus '+g.items.length+' gasto(s) ('+_gfMoney(subt)+')?')) return;
+  GASTOS.splice(ci,1);
+  if(!GASTOS.length) GASTOS.push({cat:'Nueva categoría', items:[{n:'Nuevo gasto', m:0, frec:'mensual', fijo:true}]});
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfRestaurar(){
+  if(!confirm('¿Regresar a los gastos fijos originales?\n\nSe perderán los cambios que hayas hecho aquí.')) return;
+  GASTOS=JSON.parse(JSON.stringify(GASTOS_DEF));
+  saveGastosFijos(); renderGestionGastos();
+}
+
 // ═══ FINANZAS ═══
 function initFinanzas() {
   const allItems=[];
-  GASTOS.forEach(g=>g.items.forEach(i=>allItems.push({cat:g.cat,...i})));
-  const total=allItems.reduce((a,b)=>a+b.m,0);
+  GASTOS.forEach(g=>g.items.forEach(i=>allItems.push({cat:g.cat,...i, mens:_gfMensual(i)})));
+  const total=allItems.reduce((a,b)=>a+b.mens,0);
 
-  const labels=GASTOS.map(g=>g.cat);
-  const vals=GASTOS.map(g=>g.items.reduce((a,b)=>a+b.m,0));
-  makeChart('chartGastosDetalle','doughnut',labels,[{
-    data:vals,backgroundColor:['#c9963a','#5b8af4','#3ecf8e','#9b72f4','#f45b69','#e8b84b'],borderWidth:2,borderColor:'#1a1a22'
-  }],{plugins:{legend:{display:true,position:'right',labels:{color:'#9896a8',font:{size:10},boxWidth:10}}},scales:{x:{display:false},y:{display:false}}});
+  // Barras horizontales ordenadas de mayor a menor: comparar es instantáneo
+  const PALETA=['#f45b69','#c9963a','#9b72f4','#e8b84b','#5b8af4','#3ecf8e','#d4a44c','#6ad3c0','#f08a5d','#b0a8f0'];
+  const cats=GASTOS.map(g=>({cat:g.cat, m:g.items.reduce((a,b)=>a+_gfMensual(b),0)}))
+                   .filter(c=>c.m>0)
+                   .sort((a,b)=>b.m-a.m);
+  makeChart('chartGastosDetalle','bar',
+    cats.map(c=>c.cat),
+    [{ data:cats.map(c=>c.m),
+       backgroundColor:cats.map((_,i)=>PALETA[i%PALETA.length]),
+       borderWidth:0, borderRadius:5, barThickness:22 }],
+    { indexAxis:'y',
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>' '+_gfMoney(c.raw)+'  ('+(c.raw/total*100).toFixed(1)+'%)' } } },
+      scales:{
+        x:{ display:true, grid:{color:'#26262f'},
+            ticks:{ color:'#6b6a78', font:{size:9},
+                    callback:(v)=>'$'+(v>=1000?(v/1000)+'k':v) } },
+        y:{ grid:{display:false}, ticks:{ color:'#e8e6f0', font:{size:11} } }
+      } });
 
-  const tbl=document.getElementById('tbl-gastos');
-  if(tbl) tbl.innerHTML=`<thead><tr><th>Categoría</th><th>Concepto</th><th class="num">Monto</th><th class="num">% del total</th></tr></thead><tbody>`+
-    allItems.map(i=>`<tr><td><span class="tag tag-gold">${i.cat}</span></td><td>${i.n}</td><td class="num" style="color:var(--red)">${$(i.m)}</td><td class="num">${pct(i.m/total*100)}</td></tr>`).join('')+
-    `</tbody><tfoot><tr style="font-weight:700;background:var(--surface2)"><td colspan="2">TOTAL MENSUAL</td><td class="num" style="color:var(--red)">${$(total)}</td><td class="num">100%</td></tr></tfoot>`;
+  try{ renderPagosAtrasados(); }catch(e){}
+  try{ renderPagosMes(); }catch(e){}
+
+  // Los paneles de pagos y deudas, visibles sin tener que abrir nada
+  const paneles=document.getElementById('gastos-paneles');
+  if(paneles){
+    const contenido = _gfPanelMeses5() + _gfPanelQuincenal() + _gfCalendarioLiberacion() + _gfResumenPlazos();
+    paneles.innerHTML = contenido || '<div style="color:var(--text2);font-size:12px;padding:10px;text-align:center">Marca tus gastos como Semana/Quincena o ponles fecha de último pago y aquí verás los avisos.</div>';
+  }
+
+  // Debajo de la gráfica: el desglose con monto y %
+  const resumen=document.getElementById('gastos-resumen-cats');
+  if(resumen){
+    resumen.innerHTML = cats.map((c,i)=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+         <span style="width:10px;height:10px;border-radius:3px;background:${PALETA[i%PALETA.length]};flex-shrink:0"></span>
+         <span style="flex:1;font-size:12px;color:var(--text)">${c.cat}</span>
+         <span style="font-size:12px;font-weight:700;color:var(--text)">${_gfMoney(c.m)}</span>
+         <span style="font-size:11px;color:var(--text2);width:44px;text-align:right">${(c.m/total*100).toFixed(1)}%</span>
+       </div>`).join('')
+     + `<div style="display:flex;align-items:center;gap:8px;padding:8px 0 2px;margin-top:3px;border-top:2px solid var(--accent2)">
+          <span style="flex:1;font-size:12px;font-weight:700;color:var(--accent2)">TOTAL AL MES</span>
+          <span style="font-size:15px;font-weight:700;color:var(--red)">${_gfMoney(total)}</span>
+        </div>`;
+  }
+
+  // ── Lista rediseñada: agrupada por categoría, con los plazos a la vista ──
+  const lista=document.getElementById('gastos-lista');
+  if(lista){
+    const conPlazo=allItems.filter(i=>!_gfEsFijo(i) && _gfMesesRestantes(i.fin)>0);
+    const totalResta=conPlazo.reduce((a,i)=>a+_gfRestante(i),0);
+    const proxima=conPlazo.slice().sort((a,b)=>_gfMesesRestantes(a.fin)-_gfMesesRestantes(b.fin))[0];
+
+    let out='';
+    // Aviso de deudas con plazo
+    if(conPlazo.length){
+      out+=`<div style="background:rgba(224,168,58,.07);border:1px solid rgba(224,168,58,.28);border-radius:9px;padding:9px 11px;margin-bottom:11px">
+        <div style="font-size:11px;color:var(--text2)">Te falta pagar</div>
+        <div style="font-size:19px;font-weight:700;color:var(--accent2);margin:1px 0 3px">${_gfMoney(totalResta)}</div>
+        <div style="font-size:11px;color:var(--text2)">en ${conPlazo.length} gasto(s) con plazo · la próxima en liberarse es <b style="color:var(--green)">${proxima.n}</b> (${_gfMesNombre(proxima.fin)}, te ahorras ${_gfMoney(_gfMensual(proxima))}/mes)</div>
+      </div>`;
+    }
+
+    // Respeta el orden que TÚ le diste en ⚙️ Gestionar (no ordena por monto)
+    const cats2=GASTOS.map(g=>({...g, sub:g.items.reduce((a,b)=>a+_gfMensual(b),0)}))
+                      .filter(g=>g.items.length);
+    cats2.forEach((g,gi)=>{
+      const pctCat=(g.sub/total*100);
+      // El color debe ser el MISMO que en la gráfica (que sí va ordenada por monto)
+      const iChart=cats.findIndex(c=>c.cat===g.cat);
+      const col=PALETA[(iChart>=0?iChart:gi)%PALETA.length];
+      out+=`<div style="margin-bottom:9px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+          <span style="width:9px;height:9px;border-radius:3px;background:${col};flex-shrink:0"></span>
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${g.cat}</span>
+          <span style="flex:1;height:1px;background:var(--border)"></span>
+          <span style="font-size:12px;font-weight:700;color:var(--red)">${_gfMoney(g.sub)}</span>
+          <span style="font-size:10px;color:var(--text2);width:40px;text-align:right">${pctCat.toFixed(1)}%</span>
+        </div>`;
+      g.items.forEach(it=>{
+        const mr=_gfEsFijo(it)?null:_gfMesesRestantes(it.fin);
+        let badge='';
+        if(mr!==null){
+          if(mr<=0) badge=`<span style="font-size:9px;color:var(--green);background:rgba(58,190,120,.12);border-radius:4px;padding:1px 5px">✅ terminado</span>`;
+          else {
+            const urg = mr<=3 ? 'var(--green)' : (mr<=12 ? 'var(--accent2)' : 'var(--text2)');
+            badge=`<span title="Faltan ${_gfMoney(_gfRestante(it))} · termina ${_gfMesNombre(it.fin)}" style="font-size:9px;color:${urg};background:rgba(224,168,58,.10);border-radius:4px;padding:1px 5px;white-space:nowrap">⏳ ${mr}m · ${_gfMoney(_gfRestante(it))}</span>`;
+          }
+        }
+        out+=`<div style="display:flex;align-items:center;gap:7px;padding:4px 0 4px 16px;font-size:12px">
+          <span style="flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.n}</span>
+          ${badge}
+          <span style="color:var(--text);font-weight:600;white-space:nowrap">${$(_gfMensual(it))}${_gfFrec(it)==='quincenal'?'<span style="font-size:9px;color:var(--text2)"> (2×'+$(it.m)+')</span>':''}</span>
+        </div>`;
+      });
+      out+='</div>';
+    });
+
+    out+=`<div style="display:flex;align-items:center;gap:8px;padding:10px 0 2px;border-top:2px solid var(--accent2);margin-top:4px">
+      <span style="flex:1;font-size:13px;font-weight:700;color:var(--accent2)">TOTAL MENSUAL</span>
+      <span style="font-size:17px;font-weight:700;color:var(--red)">${_gfMoney(total)}</span>
+    </div>`;
+    lista.innerHTML=out;
+  }
 
   renderGastos();
 }
@@ -7409,6 +8781,196 @@ function renderGastos() {
 }
 
 // ═══ DEUDAS ═══
+/* ═══════════ ME DEBEN (cuentas por cobrar) ═══════════ */
+var cobrarData = JSON.parse(localStorage.getItem('por_cobrar') || '[]');
+function saveCobrar(){ save('por_cobrar', cobrarData); }
+
+function _cobEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _cobMoney(n){ return '$'+(Number(n)||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function _cobAbonado(d){ return (d.abonos||[]).reduce(function(a,x){ return a+(x.monto||0); },0); }
+function _cobSaldo(d){ return Math.max(0, (d.monto||0) - _cobAbonado(d)); }
+function _cobPagada(d){ return _cobSaldo(d) <= 0.009; }
+function _cobDiasVence(d){
+  if(!d.esperada) return null;
+  var p=String(d.esperada).split('-');
+  if(p.length<3) return null;
+  var f=new Date(+p[0], +p[1]-1, +p[2]);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((f-hoy)/86400000);
+}
+
+function initCobrar(){
+  try{ _fechaHoySiVacio('cob-fecha'); }catch(e){}
+  renderCobrar();
+}
+
+function cobGuardar(){
+  var g=function(id){ var e=document.getElementById(id); return e?e.value.trim():''; };
+  var quien=g('cob-quien'), monto=parseFloat(g('cob-monto'))||0;
+  if(!quien){ alert('¿Quién te debe?'); return; }
+  if(monto<=0){ alert('Pon el monto que te deben.'); return; }
+  cobrarData.unshift({
+    id:'C'+Date.now(),
+    quien:quien, monto:monto,
+    fecha:g('cob-fecha')||_hoyISO(),
+    esperada:g('cob-esperada'),
+    tel:g('cob-tel'), nota:g('cob-nota'),
+    abonos:[]
+  });
+  saveCobrar();
+  ['cob-quien','cob-monto','cob-esperada','cob-tel','cob-nota'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
+  try{ _fechaHoySiVacio('cob-fecha'); }catch(e){}
+  if(typeof logInventario==='function') logInventario('Por cobrar: '+quien+' · '+_cobMoney(monto));
+  if(typeof mostrarToast==='function') mostrarToast('🤲 Guardado','green');
+  renderCobrar();
+}
+
+function renderCobrar(){
+  var c=document.getElementById('cob-lista'); if(!c) return;
+  var filtro=(document.getElementById('cob-filtro')||{}).value||'abiertas';
+
+  var abiertas=cobrarData.filter(function(d){ return !_cobPagada(d); });
+  var pagadas=cobrarData.filter(_cobPagada);
+
+  // KPIs
+  var totalSaldo=abiertas.reduce(function(a,d){ return a+_cobSaldo(d); },0);
+  var totalAbonado=cobrarData.reduce(function(a,d){ return a+_cobAbonado(d); },0);
+  var vencidas=abiertas.filter(function(d){ var n=_cobDiasVence(d); return n!==null && n<0; });
+  var prontas=abiertas.filter(function(d){ var n=_cobDiasVence(d); return n!==null && n>=0 && n<=15; });
+  var set=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+  set('cob-kpi-total', _cobMoney(totalSaldo));
+  set('cob-kpi-n', abiertas.length+' persona(s)');
+  set('cob-kpi-cobrado', _cobMoney(totalAbonado));
+  set('cob-kpi-vencido', _cobMoney(vencidas.reduce(function(a,d){return a+_cobSaldo(d);},0)));
+  set('cob-kpi-vencido-n', vencidas.length ? vencidas.length+' cuenta(s) vencida(s)' : 'Ninguna vencida');
+  set('cob-kpi-pronto', _cobMoney(prontas.reduce(function(a,d){return a+_cobSaldo(d);},0)));
+
+  var lista = filtro==='pagadas' ? pagadas : (filtro==='todas' ? cobrarData : abiertas);
+  // Las más urgentes primero
+  lista=lista.slice().sort(function(a,b){
+    var da=_cobDiasVence(a), db=_cobDiasVence(b);
+    if(da===null && db===null) return 0;
+    if(da===null) return 1;
+    if(db===null) return -1;
+    return da-db;
+  });
+
+  if(!lista.length){
+    c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:16px;text-align:center">'
+      + (filtro==='pagadas' ? 'Nadie te ha terminado de pagar todavía.' : 'Nadie te debe. 🎉')
+      + '</div>';
+    return;
+  }
+
+  var h='';
+  if(vencidas.length && filtro!=='pagadas'){
+    h+='<div style="background:rgba(244,91,105,.08);border:1px solid rgba(244,91,105,.3);border-radius:8px;padding:9px 12px;margin-bottom:11px;font-size:12px">'
+      +'⚠️ <b>'+vencidas.length+' cuenta(s) ya vencieron</b> · '+_cobMoney(vencidas.reduce(function(a,d){return a+_cobSaldo(d);},0))+' que ya te debían haber pagado.</div>';
+  }
+
+  lista.forEach(function(d){
+    var saldo=_cobSaldo(d), abonado=_cobAbonado(d), pagada=_cobPagada(d);
+    var dias=_cobDiasVence(d);
+    var pct = d.monto>0 ? Math.min(100, abonado/d.monto*100) : 0;
+
+    var estado='', col='var(--border)';
+    if(pagada){ estado='<span style="color:var(--green);font-weight:700">✅ Pagado</span>'; col='rgba(58,190,120,.4)'; }
+    else if(dias===null){ estado='<span style="color:var(--text2)">Sin fecha</span>'; }
+    else if(dias<0){ estado='<span style="color:var(--red);font-weight:700">⚠️ Vencida hace '+(-dias)+' día(s)</span>'; col='rgba(244,91,105,.45)'; }
+    else if(dias===0){ estado='<span style="color:#e8b84b;font-weight:700">📌 Te paga HOY</span>'; col='rgba(232,184,75,.45)'; }
+    else if(dias<=15){ estado='<span style="color:#e8b84b">⏳ En '+dias+' día(s)</span>'; col='rgba(232,184,75,.35)'; }
+    else { estado='<span style="color:var(--text2)">En '+dias+' días</span>'; }
+
+    h+='<div style="border:1px solid '+col+';border-radius:9px;padding:11px;margin-bottom:9px;'+(pagada?'opacity:.7':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:150px">'
+          +'<div style="font-size:14px;font-weight:700;color:var(--text)">'+_cobEsc(d.quien)+'</div>'
+          +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(d.nota?_cobEsc(d.nota)+' · ':'')+'Prestado el '+(d.fecha||'—')+'</div>'
+          +'<div style="font-size:11px;margin-top:3px">'+estado+'</div>'
+        +'</div>'
+        +'<div style="text-align:right">'
+          +'<div style="font-size:18px;font-weight:700;color:'+(pagada?'var(--green)':'var(--red)')+'">'+_cobMoney(saldo)+'</div>'
+          +'<div style="font-size:10px;color:var(--text2)">'+(abonado>0?'de '+_cobMoney(d.monto):'te debe')+'</div>'
+        +'</div>'
+      +'</div>';
+
+    // Barra de avance
+    if(abonado>0){
+      h+='<div style="margin-top:8px">'
+        +'<div style="height:6px;background:var(--surface2);border-radius:4px;overflow:hidden">'
+          +'<div style="height:100%;width:'+pct+'%;background:var(--green)"></div></div>'
+        +'<div style="font-size:10px;color:var(--green);margin-top:3px">Ya te abonó '+_cobMoney(abonado)+' ('+pct.toFixed(0)+'%)</div>'
+        +'</div>';
+    }
+
+    // Abonos
+    if((d.abonos||[]).length){
+      h+='<div style="margin-top:7px;padding-left:8px;border-left:2px solid rgba(58,190,120,.3)">';
+      d.abonos.forEach(function(a,ai){
+        h+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);padding:2px 0">'
+          +'<span>'+(a.fecha||'')+(a.nota?' · '+_cobEsc(a.nota):'')+'</span>'
+          +'<span><b style="color:var(--green)">+'+_cobMoney(a.monto)+'</b> <span onclick="cobBorrarAbono(\'' + d.id + '\','+ai+')" style="color:var(--red);cursor:pointer;margin-left:5px">✕</span></span>'
+          +'</div>';
+      });
+      h+='</div>';
+    }
+
+    // Acciones
+    h+='<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center">';
+    if(!pagada){
+      h+='<button onclick="cobAbonar(\''+d.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">💵 Me abonó</button>'
+        +'<button onclick="cobSaldar(\''+d.id+'\')" style="background:var(--surface2);border:1px solid var(--border);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">✅ Me pagó todo</button>';
+      if(d.tel){
+        var msg=encodeURIComponent('Hola '+d.quien+', ¿cómo estás? Te escribo por el préstamo de '+_cobMoney(d.monto)+(d.esperada?' que quedamos para el '+d.esperada:'')+'. ¿Cómo vamos?');
+        h+='<a href="https://wa.me/52'+String(d.tel).replace(/\D/g,'')+'?text='+msg+'" target="_blank" style="background:rgba(58,190,120,.14);border:1px solid rgba(58,190,120,.4);color:var(--green);border-radius:6px;padding:5px 12px;font-size:11px;text-decoration:none">💬 Recordarle</a>';
+      }
+    }
+    h+='<button onclick="cobEliminar(\''+d.id+'\')" style="margin-left:auto;background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">🗑</button>'
+      +'</div></div>';
+  });
+  c.innerHTML=h;
+}
+
+function cobAbonar(id){
+  var d=cobrarData.find(function(x){return x.id===id;}); if(!d) return;
+  var saldo=_cobSaldo(d);
+  var v=prompt('¿Cuánto te abonó '+d.quien+'?\n\nTe debe '+_cobMoney(saldo), '');
+  if(v===null) return;
+  var m=parseFloat(v)||0;
+  if(m<=0){ alert('Pon una cantidad válida.'); return; }
+  if(m>saldo+0.01){
+    if(!confirm('Te está abonando '+_cobMoney(m)+' pero solo te debe '+_cobMoney(saldo)+'.\n\n¿Registrarlo de todos modos?')) return;
+  }
+  if(!d.abonos) d.abonos=[];
+  d.abonos.push({fecha:_hoyISO(), monto:m, nota:''});
+  saveCobrar();
+  if(typeof logInventario==='function') logInventario('Abono de '+d.quien+': '+_cobMoney(m));
+  if(typeof mostrarToast==='function') mostrarToast(_cobPagada(d)?('🎉 '+d.quien+' terminó de pagarte'):('💵 Abono de '+_cobMoney(m)),'green');
+  renderCobrar();
+}
+function cobSaldar(id){
+  var d=cobrarData.find(function(x){return x.id===id;}); if(!d) return;
+  var saldo=_cobSaldo(d);
+  if(!confirm(d.quien+' te pagó los '+_cobMoney(saldo)+' que faltaban?')) return;
+  if(!d.abonos) d.abonos=[];
+  d.abonos.push({fecha:_hoyISO(), monto:saldo, nota:'Liquidó'});
+  saveCobrar();
+  if(typeof mostrarToast==='function') mostrarToast('🎉 '+d.quien+' te pagó todo','green');
+  renderCobrar();
+}
+function cobBorrarAbono(id,ai){
+  var d=cobrarData.find(function(x){return x.id===id;}); if(!d||!d.abonos) return;
+  if(!confirm('¿Borrar este abono de '+_cobMoney(d.abonos[ai].monto)+'?')) return;
+  d.abonos.splice(ai,1);
+  saveCobrar(); renderCobrar();
+}
+function cobEliminar(id){
+  var d=cobrarData.find(function(x){return x.id===id;}); if(!d) return;
+  if(!confirm('¿Borrar el registro de '+d.quien+' ('+_cobMoney(d.monto)+')?\n\nSe borra todo, incluidos los abonos.')) return;
+  cobrarData=cobrarData.filter(function(x){return x.id!==id;});
+  saveCobrar(); renderCobrar();
+}
+
 function initDeudas() {
   renderDeudas();
   const labels=state.deudas.map(d=>d.n);
@@ -8051,6 +9613,503 @@ function exportarCSV(){
   const a=document.createElement('a');a.href=url;a.download='ventas_westeros.csv';a.click();
 }
 
+/* ═══════════ META GRUPAL Y COMISIONES DE LAS COLABORADORAS ═══════════
+   Liz y Lulú:
+   - Bono de $200 al mes CADA UNA si el equipo llega a la meta de sombreros.
+   - 3% de cada venta en tienda, partido a la mitad: 1.5% para cada una. */
+var MG_COLABS = ['Liz','Lulú'];
+var MG_DESDE = '2026-03';   // el registro de comisiones arranca aquí
+var MG_DEF = { meta:60, bono:200, comisionPct:3, usuarios:{}, desde:MG_DESDE };
+var mgCfg = Object.assign({}, MG_DEF);
+try{
+  var _mg=JSON.parse(localStorage.getItem('meta_grupal')||'null');
+  if(_mg) mgCfg=Object.assign({}, MG_DEF, _mg);
+}catch(e){}
+function saveMetaGrupal(){ save('meta_grupal', mgCfg); }
+function _mgEsAdmin(){
+  return (typeof currentUser!=='undefined') && currentUser && currentUser.rol==='admin';
+}
+// ¿Este usuario puede palomear el pago de esta colaboradora?
+// Solo ella misma (o Fer). Así Liz no le puede palomear el pago a Lulú.
+function _mgEsSuya(quien){
+  if(_mgEsAdmin()) return true;
+  if(typeof currentUser==='undefined' || !currentUser) return false;
+  if(!mgCfg.usuarios) return false;
+  return mgCfg.usuarios[quien] === currentUser.id;
+}
+function mgSet(campo, val){
+  if(!_mgEsAdmin()){ alert('Solo Fer puede cambiar la meta, el bono y la comisión.'); renderMetaGrupal(); return; }
+  mgCfg[campo]=parseFloat(val)||0;
+  saveMetaGrupal();
+  renderMetaGrupal();
+}
+// Fer asigna qué usuario es Liz y cuál es Lulú
+function mgSetUsuario(quien, uid){
+  if(!_mgEsAdmin()) return;
+  if(!mgCfg.usuarios) mgCfg.usuarios={};
+  if(uid) mgCfg.usuarios[quien]=uid; else delete mgCfg.usuarios[quien];
+  saveMetaGrupal();
+  renderMetaGrupal();
+}
+
+// Pagos de comisiones: {'2026-07': {'Liz':{pagado:true,cuando:'...'}, 'Lulú':{...}}}
+var mgPagos = {};
+try{ var _mp=JSON.parse(localStorage.getItem('meta_grupal_pagos')||'{}'); if(_mp) mgPagos=_mp; }catch(e){}
+function saveMgPagos(){ save('meta_grupal_pagos', mgPagos); }
+
+var mgMesVer = null;
+function _mgMes(){ return mgMesVer || _pgMesActual(); }
+
+// Las ventas de tienda física de ese mes
+function _mgVentasMes(mes){
+  var L=(typeof state!=='undefined' && state.fisicaEntries) ? state.fisicaEntries : [];
+  return L.filter(function(x){ return (x.fecha||'').slice(0,7)===mes; });
+}
+
+// El cálculo del mes
+function _mgCalculo(mes){
+  var V=_mgVentasMes(mes);
+  var piezas = V.reduce(function(a,x){ return a+(parseInt(x.cantidad,10)||1); }, 0);
+  var vendido = V.reduce(function(a,x){ return a+(parseFloat(x.precio)||0); }, 0);
+
+  var meta = mgCfg.meta||0;
+  var llego = meta>0 && piezas>=meta;
+  var faltan = Math.max(0, meta-piezas);
+  var pct = meta>0 ? Math.min(100, piezas/meta*100) : 0;
+
+  // El 3% del total vendido, partido entre las 2
+  var bolsaComision = vendido * (mgCfg.comisionPct/100);
+  var comisionCadaUna = bolsaComision / MG_COLABS.length;
+  var bonoCadaUna = llego ? (mgCfg.bono||0) : 0;
+  var totalCadaUna = comisionCadaUna + bonoCadaUna;
+
+  // Días del mes / ritmo
+  var p=mes.split('-');
+  var diasMes=new Date(+p[0], +p[1], 0).getDate();
+  var hoy=new Date();
+  var esActual = (_pgMesActual()===mes);
+  var diaHoy = esActual ? hoy.getDate() : diasMes;
+  var diasRestan = Math.max(0, diasMes-diaHoy);
+
+  return {
+    mes:mes, ventas:V, piezas:piezas, vendido:vendido,
+    meta:meta, llego:llego, faltan:faltan, pct:pct,
+    bolsaComision:bolsaComision,
+    comisionCadaUna:comisionCadaUna,
+    bonoCadaUna:bonoCadaUna,
+    totalCadaUna:totalCadaUna,
+    totalPagar: totalCadaUna * MG_COLABS.length,
+    diasMes:diasMes, diasRestan:diasRestan, esActual:esActual,
+    porDia: diasRestan>0 ? (faltan/diasRestan) : 0,
+    ritmo: diaHoy>0 ? (piezas/diaHoy) : 0
+  };
+}
+
+function _mgPagado(mes, quien){ return !!(mgPagos[mes] && mgPagos[mes][quien] && mgPagos[mes][quien].pagado); }
+function mgTogglePago(mes, quien){
+  if(!_mgEsSuya(quien)){
+    alert('Solo '+quien+' (o Fer) puede marcar este pago.');
+    return;
+  }
+  if(!mgPagos[mes]) mgPagos[mes]={};
+  if(_mgPagado(mes,quien)){
+    delete mgPagos[mes][quien];
+  } else {
+    var R=_mgCalculo(mes);
+    mgPagos[mes][quien]={ pagado:true, cuando:_hoyISO(), monto:R.totalCadaUna,
+                          comision:R.comisionCadaUna, bono:R.bonoCadaUna };
+  }
+  saveMgPagos();
+  renderMetaGrupal();
+  if(typeof mostrarToast==='function'){
+    mostrarToast(_mgPagado(mes,quien) ? ('✅ Le pagaste a '+quien) : ('↩️ Le quité la palomita a '+quien), 'green');
+  }
+}
+function _mgDesde(){ return (mgCfg && mgCfg.desde) ? mgCfg.desde : MG_DESDE; }
+function mgCambiarMes(dir){
+  var p=_mgMes().split('-');
+  var d=new Date(+p[0], +p[1]-1+dir, 1);
+  var nuevo = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  if(nuevo < _mgDesde()){
+    if(typeof mostrarToast==='function') mostrarToast('El registro empieza en '+_pgMesNombre(_mgDesde()),'');
+    return;
+  }
+  mgMesVer = nuevo;
+  renderMetaGrupal();
+}
+function mgSetDesde(val){
+  if(!_mgEsAdmin()) return;
+  mgCfg.desde = val || MG_DESDE;
+  saveMetaGrupal();
+  if(_mgMes() < mgCfg.desde) mgMesVer = mgCfg.desde;
+  renderMetaGrupal();
+}
+function mgHoy(){ mgMesVer=null; renderMetaGrupal(); }
+
+function tiendaTab(t){
+  var v=document.getElementById('tienda-ventas'), m=document.getElementById('tienda-meta');
+  var bv=document.getElementById('tab-btn-ventas'), bm=document.getElementById('tab-btn-meta');
+  var esMeta = (t==='meta');
+  if(v) v.style.display = esMeta?'none':'';
+  if(m) m.style.display = esMeta?'':'none';
+  if(bv) bv.className = 'tienda-tab' + (esMeta?'':' tienda-tab-on');
+  if(bm) bm.className = 'tienda-tab' + (esMeta?' tienda-tab-on':'');
+  if(esMeta) renderMetaGrupal();
+}
+
+function renderMetaGrupal(){
+  var c=document.getElementById('mg-panel'); if(!c) return;
+  var mes=_mgMes();
+  var R=_mgCalculo(mes);
+  var esActual=(mes===_pgMesActual());
+  var esAdmin=_mgEsAdmin();
+  var inp='width:60px;background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:3px 6px;color:var(--accent2);text-align:center;font-size:12px;font-weight:700';
+
+  var enTope = (mes <= _mgDesde());
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap">'
+    +'<div style="display:flex;gap:4px;align-items:center">'
+      +'<button onclick="mgCambiarMes(-1)" '+(enTope?'disabled':'')+' title="'+(enTope?'El registro empieza aquí':'Mes anterior')+'" style="background:var(--surface2);border:1px solid var(--border);color:'+(enTope?'var(--border)':'var(--text)')+';border-radius:6px;padding:3px 8px;cursor:'+(enTope?'default':'pointer')+'">‹</button>'
+      +'<b style="font-size:13px;color:var(--accent2);min-width:105px;text-align:center">'+_pgMesNombre(mes)+'</b>'
+      +'<button onclick="mgCambiarMes(1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;cursor:pointer">›</button>'
+      + (esActual?'':'<button onclick="mgHoy()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;text-decoration:underline">hoy</button>')
+    +'</div></div>';
+
+  // Desde cuándo se lleva el registro de comisiones
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;font-size:10px;color:var(--text2)">'
+    +'<span>📌 Registro de comisiones desde:</span>'
+    + (esAdmin
+        ? '<input type="month" value="'+_mgDesde()+'" onchange="mgSetDesde(this.value)" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-size:10px;color:var(--accent2)">'
+        : '<b style="color:var(--accent2)">'+_pgMesNombre(_mgDesde())+'</b>')
+  +'</div>';
+
+  // ── El marcador ──
+  h+='<div style="background:'+(R.llego?'rgba(58,190,120,.1)':'var(--surface2)')+';border:1px solid '+(R.llego?'rgba(58,190,120,.45)':'var(--border)')+';border-radius:11px;padding:14px;margin-bottom:12px;text-align:center">'
+    +'<div style="font-size:11px;color:var(--text2)">SOMBREROS VENDIDOS EN TIENDA</div>'
+    +'<div style="font-size:38px;font-weight:700;line-height:1.1;color:'+(R.llego?'var(--green)':'var(--accent2)')+'">'
+      + R.piezas + '<span style="font-size:20px;color:var(--text2)">/'
+      + (esAdmin
+          ? '<input type="number" min="0" value="'+R.meta+'" onchange="mgSet(\'meta\',this.value)" style="'+inp+';font-size:19px;width:66px">'
+          : '<span style="color:var(--accent2);font-weight:700">'+R.meta+'</span>')
+      + '</span></div>'
+    +'<div style="height:11px;background:#0f0f13;border-radius:6px;overflow:hidden;margin:10px 0 7px">'
+      +'<div style="height:100%;width:'+R.pct+'%;background:'+(R.llego?'var(--green)':'linear-gradient(90deg,var(--accent2),var(--green))')+';transition:width .35s"></div></div>';
+
+  if(R.llego){
+    h+='<div style="font-size:14px;font-weight:700;color:var(--green)">🎉 ¡Meta cumplida! Se ganaron su bono</div>';
+  } else if(R.esActual && R.diasRestan>0){
+    h+='<div style="font-size:12px;color:var(--text)">Faltan <b style="color:var(--accent2)">'+R.faltan+'</b> sombreros · quedan <b>'+R.diasRestan+'</b> días</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-top:3px">Hay que vender <b>'+R.porDia.toFixed(1)+'</b> al día. Van a un ritmo de '+R.ritmo.toFixed(1)+'/día — '
+      + (R.ritmo*R.diasMes>=R.meta ? '<span style="color:var(--green)">así sí llegan 💪</span>' : '<span style="color:var(--red)">hay que apretar</span>')
+      +'</div>';
+  } else {
+    h+='<div style="font-size:12px;color:var(--red)">No se llegó a la meta · faltaron '+R.faltan+' sombreros</div>';
+  }
+  h+='<div style="font-size:11px;color:var(--text2);margin-top:6px">Vendido: <b style="color:var(--text)">'+_gfMoney(R.vendido)+'</b></div>'
+    +'</div>';
+
+  // ── Ajustes (solo Fer los puede mover) ──
+  h+='<div style="display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:11px;color:var(--text2);margin-bottom:12px">';
+  if(esAdmin){
+    h+='<span>🎁 Bono c/u: $<input type="number" min="0" value="'+mgCfg.bono+'" onchange="mgSet(\'bono\',this.value)" style="'+inp+'"></span>'
+      +'<span>💰 Comisión: <input type="number" min="0" step="0.5" value="'+mgCfg.comisionPct+'" onchange="mgSet(\'comisionPct\',this.value)" style="'+inp+'">% del total <span style="color:var(--text2)">(se parte entre las 2 → '+(mgCfg.comisionPct/MG_COLABS.length)+'% c/u)</span></span>';
+  } else {
+    h+='<span>🎁 Bono c/u: <b style="color:var(--green)">'+_gfMoney(mgCfg.bono)+'</b></span>'
+      +'<span>💰 Comisión: <b style="color:var(--accent2)">'+(mgCfg.comisionPct/MG_COLABS.length)+'%</b> para cada una</span>';
+  }
+  h+='</div>';
+
+  // Fer asigna qué usuario es cada colaboradora
+  if(esAdmin){
+    var faltaAsignar = MG_COLABS.some(function(q){ return !(mgCfg.usuarios&&mgCfg.usuarios[q]); });
+    h+='<div style="background:'+(faltaAsignar?'rgba(232,184,75,.08)':'var(--surface2)')+';border:1px solid '+(faltaAsignar?'rgba(232,184,75,.35)':'var(--border)')+';border-radius:8px;padding:9px 11px;margin-bottom:12px">'
+      +'<div style="font-size:11px;color:'+(faltaAsignar?'#e8b84b':'var(--text2)')+';margin-bottom:6px">'
+      + (faltaAsignar ? '⚠️ Asigna qué usuario es cada una — si no, no podrán palomear su propio pago.' : '👤 Quién es quién (solo tú ves esto)')
+      +'</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap">';
+    MG_COLABS.forEach(function(q){
+      h+='<span style="font-size:11px;color:var(--text2)">'+q+': '
+        +'<select onchange="mgSetUsuario(\''+q+'\',this.value)" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-size:11px;color:var(--text)">'
+        +'<option value="">— sin asignar —</option>';
+      (typeof USUARIOS!=='undefined'?USUARIOS:[]).filter(function(u){ return u.rol!=='admin'; }).forEach(function(u){
+        var sel = (mgCfg.usuarios && mgCfg.usuarios[q]===u.id) ? ' selected' : '';
+        h+='<option value="'+u.id+'"'+sel+'>'+_gfEsc(u.nombre)+'</option>';
+      });
+      h+='</select></span>';
+    });
+    h+='</div></div>';
+  }
+
+  // ── Lo que le toca a cada una ──
+  h+='<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:7px">💵 Lo que le toca a cada una</div>';
+
+  MG_COLABS.forEach(function(quien){
+    var pagado=_mgPagado(mes, quien);
+    var suya=_mgEsSuya(quien);
+    var reg = mgPagos[mes] && mgPagos[mes][quien];
+    // Si ya se pagó, respeto el monto de ese día (no se recalcula si entran más ventas)
+    var comision = pagado && reg ? reg.comision : R.comisionCadaUna;
+    var bono     = pagado && reg ? reg.bono     : R.bonoCadaUna;
+    var total    = pagado && reg ? reg.monto    : R.totalCadaUna;
+
+    h+='<div style="border:1px solid '+(pagado?'rgba(58,190,120,.4)':'var(--border)')+';background:'+(pagado?'rgba(58,190,120,.06)':'var(--surface2)')+';border-radius:9px;padding:11px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<div>'
+          +'<div style="font-size:14px;font-weight:700;color:var(--text)">'+quien+(pagado?' <span style="color:var(--green);font-size:11px">✅ pagada</span>':'')+'</div>'
+          +'<div style="font-size:10px;color:var(--text2);margin-top:1px">'
+            + (mgCfg.comisionPct/MG_COLABS.length)+'% de '+_gfMoney(R.vendido)+' = <b style="color:var(--text)">'+_gfMoney(comision)+'</b>'
+            + (bono>0 ? ' &nbsp;+&nbsp; bono <b style="color:var(--green)">'+_gfMoney(bono)+'</b>' : ' &nbsp;+&nbsp; <span style="color:var(--text2)">sin bono (no llegaron a la meta)</span>')
+          +'</div>'
+          + (pagado && reg && reg.cuando ? '<div style="font-size:10px;color:var(--green);margin-top:2px">Pagado el '+reg.cuando+'</div>' : '')
+        +'</div>'
+        +'<div style="text-align:right">'
+          +'<div style="font-size:19px;font-weight:700;color:'+(pagado?'var(--green)':'var(--accent2)')+'">'+_gfMoney(total)+'</div>'
+          + (suya
+              ? '<button onclick="mgTogglePago(\''+mes+'\',\''+quien+'\')" style="margin-top:4px;background:'+(pagado?'var(--surface2)':'var(--green)')+';border:1px solid '+(pagado?'var(--border)':'var(--green)')+';color:'+(pagado?'var(--text2)':'#0f0f13')+';border-radius:6px;padding:4px 13px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">'
+                  + (pagado?'↩️ Deshacer':'Pagado') +'</button>'
+              : '<div style="margin-top:5px;font-size:10px;color:var(--text2);white-space:nowrap">'
+                  + (pagado?'✅ Pagado':'🔒 solo '+quien) +'</div>')
+        +'</div>'
+      +'</div></div>';
+  });
+
+  // ── Total ──
+  var pagadas=MG_COLABS.filter(function(q){ return _mgPagado(mes,q); });
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:9px;border-top:2px solid var(--accent2)">'
+    +'<div><div style="font-size:12px;font-weight:700;color:var(--accent2)">TOTAL A PAGAR</div>'
+      +'<div style="font-size:10px;color:var(--text2)">'+pagadas.length+' de '+MG_COLABS.length+' ya cobraron</div></div>'
+    +'<div style="font-size:20px;font-weight:700;color:var(--red)">'+_gfMoney(R.totalPagar)+'</div>'
+  +'</div>';
+
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:9px">💡 La comisión se calcula sobre TODO lo vendido en tienda física ese mes, sin importar quién atendió. Al marcar <b>Pagado</b>, el monto se congela — si entran más ventas después, no le cambia lo que ya cobró.'
+    + (esAdmin ? '' : '<br>🔒 La meta, el bono y la comisión solo los puede cambiar Fer. Tú solo puedes marcar tu propio pago.')
+    +'</div>';
+
+  c.innerHTML=h;
+}
+
+/* ═══════════ TIENDA EN LÍNEA (ventas de Liz) ═══════════
+   Comisión = (precio del producto − envío) × 3% */
+var TL_DUENA = 'Liz';
+var tlData = [];
+try{ tlData = JSON.parse(localStorage.getItem('tienda_linea')||'[]') || []; }catch(e){}
+function saveTL(){ save('tienda_linea', tlData); }
+
+var TL_PCT_DEF = 3;
+var tlPct = leerNum('tl_pct', TL_PCT_DEF);
+function tlSetPct(v){
+  if(!_mgEsAdmin()){ alert('Solo Fer puede cambiar el porcentaje de comisión.'); renderTiendaLinea(); return; }
+  tlPct=parseFloat(v)||0;
+  save('tl_pct', tlPct);
+  renderTiendaLinea();
+}
+
+// ¿Quién puede usar esta sección? Liz (la asignada) o Fer.
+function _tlEsSuya(){
+  if(_mgEsAdmin()) return true;
+  if(typeof currentUser==='undefined' || !currentUser) return false;
+  return (mgCfg.usuarios && mgCfg.usuarios[TL_DUENA]) === currentUser.id;
+}
+
+// La comisión de UNA venta: (precio − envío) × %
+function _tlComision(v){
+  var base = Math.max(0, (parseFloat(v.precio)||0) - (parseFloat(v.envio)||0));
+  return base * (tlPct/100);
+}
+function _tlBase(v){
+  return Math.max(0, (parseFloat(v.precio)||0) - (parseFloat(v.envio)||0));
+}
+
+var tlMesVer = null;
+function _tlMes(){ return tlMesVer || _pgMesActual(); }
+function tlCambiarMes(dir){
+  var p=_tlMes().split('-');
+  var d=new Date(+p[0], +p[1]-1+dir, 1);
+  tlMesVer = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderTiendaLinea();
+}
+function tlHoy(){ tlMesVer=null; renderTiendaLinea(); }
+function _tlVentasMes(mes){
+  return tlData.filter(function(v){ return (v.fecha||'').slice(0,7)===mes; });
+}
+
+function tlGuardar(){
+  if(!_tlEsSuya()){ alert('Esta sección es de '+TL_DUENA+'.'); return; }
+  var g=function(id){ var e=document.getElementById(id); return e?String(e.value).trim():''; };
+  var pedido=g('tl-pedido'), producto=g('tl-producto');
+  var precio=parseFloat(g('tl-precio'))||0;
+  var envio=parseFloat(g('tl-envio'))||0;
+  var pago=g('tl-pago'), fecha=g('tl-fecha')||_hoyISO();
+
+  if(!pedido){ alert('Pon el número de pedido.'); return; }
+  if(!producto){ alert('Pon el producto.'); return; }
+  if(precio<=0){ alert('Pon el precio del producto.'); return; }
+  if(envio>precio){
+    if(!confirm('El envío ('+_gfMoney(envio)+') es mayor que el precio ('+_gfMoney(precio)+').\n\nLa comisión quedaría en $0. ¿Está bien?')) return;
+  }
+  if(tlData.some(function(v){ return v.pedido===pedido; })){
+    if(!confirm('Ya hay un pedido con el número "'+pedido+'".\n\n¿Lo registro de todos modos?')) return;
+  }
+
+  tlData.unshift({
+    id:'TL'+Date.now(),
+    fecha:fecha, pedido:pedido, producto:producto,
+    precio:precio, envio:envio, pago:pago
+  });
+  saveTL();
+  ['tl-pedido','tl-producto','tl-precio','tl-envio'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
+  if(typeof mostrarToast==='function') mostrarToast('✅ Pedido '+pedido+' registrado','green');
+  renderTiendaLinea();
+}
+function tlEliminar(id){
+  if(!_tlEsSuya()) return;
+  var v=tlData.find(function(x){ return x.id===id; }); if(!v) return;
+  if(_tlPagado(v.fecha.slice(0,7))){ alert('Ese mes ya está pagado. Pídele a Fer que lo deshaga primero.'); return; }
+  if(!confirm('¿Borrar el pedido '+v.pedido+'?')) return;
+  tlData=tlData.filter(function(x){ return x.id!==id; });
+  saveTL(); renderTiendaLinea();
+}
+
+/* Pago de la comisión del mes */
+var tlPagos = {};
+try{ var _tlp=JSON.parse(localStorage.getItem('tienda_linea_pagos')||'{}'); if(_tlp) tlPagos=_tlp; }catch(e){}
+function saveTlPagos(){ save('tienda_linea_pagos', tlPagos); }
+function _tlPagado(mes){ return !!(tlPagos[mes] && tlPagos[mes].pagado); }
+function tlTogglePago(mes){
+  if(!_tlEsSuya()){ alert('Esta sección es de '+TL_DUENA+'.'); return; }
+  if(_tlPagado(mes)){
+    delete tlPagos[mes];
+  } else {
+    var V=_tlVentasMes(mes);
+    var com=V.reduce(function(a,v){ return a+_tlComision(v); },0);
+    tlPagos[mes]={ pagado:true, cuando:_hoyISO(), monto:com, pedidos:V.length };
+  }
+  saveTlPagos();
+  renderTiendaLinea();
+  if(typeof mostrarToast==='function'){
+    mostrarToast(_tlPagado(mes)?'✅ Comisión marcada como pagada':'↩️ Le quité la palomita','green');
+  }
+}
+
+function renderTiendaLinea(){
+  var c=document.getElementById('tl-panel'); if(!c) return;
+  var mes=_tlMes();
+  var V=_tlVentasMes(mes);
+  var esActual=(mes===_pgMesActual());
+  var esAdmin=_mgEsAdmin();
+  var pagado=_tlPagado(mes);
+  var reg=tlPagos[mes];
+
+  var totalVendido=V.reduce(function(a,v){ return a+(parseFloat(v.precio)||0); },0);
+  var totalEnvios=V.reduce(function(a,v){ return a+(parseFloat(v.envio)||0); },0);
+  var totalBase=V.reduce(function(a,v){ return a+_tlBase(v); },0);
+  var totalCom=V.reduce(function(a,v){ return a+_tlComision(v); },0);
+  var comMostrar = pagado && reg ? reg.monto : totalCom;
+
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap">'
+    +'<div style="display:flex;gap:4px;align-items:center">'
+      +'<button onclick="tlCambiarMes(-1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;cursor:pointer">‹</button>'
+      +'<b style="font-size:13px;color:var(--accent2);min-width:105px;text-align:center">'+_pgMesNombre(mes)+'</b>'
+      +'<button onclick="tlCambiarMes(1)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;cursor:pointer">›</button>'
+      + (esActual?'':'<button onclick="tlHoy()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;text-decoration:underline">hoy</button>')
+    +'</div></div>';
+
+  // ── El resumen ──
+  h+='<div style="background:'+(pagado?'rgba(58,190,120,.1)':'var(--surface2)')+';border:1px solid '+(pagado?'rgba(58,190,120,.45)':'var(--border)')+';border-radius:11px;padding:14px;margin-bottom:12px">'
+    +'<div style="text-align:center;margin-bottom:10px">'
+      +'<div style="font-size:11px;color:var(--text2)">TU COMISIÓN DE '+_pgMesNombre(mes).toUpperCase()+'</div>'
+      +'<div style="font-size:34px;font-weight:700;line-height:1.15;color:'+(pagado?'var(--green)':'var(--accent2)')+'">'+_gfMoney(comMostrar)+'</div>'
+      +'<div style="font-size:11px;color:var(--text2)">'+V.length+' pedido(s)</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr auto;gap:5px;font-size:12px;border-top:1px solid var(--border);padding-top:9px">'
+      +'<span style="color:var(--text2)">Vendido</span><span style="text-align:right">'+_gfMoney(totalVendido)+'</span>'
+      +'<span style="color:var(--text2)">Menos envíos</span><span style="text-align:right;color:var(--red)">−'+_gfMoney(totalEnvios)+'</span>'
+      +'<span style="color:var(--text2);border-top:1px solid var(--border);padding-top:5px">Base para tu comisión</span>'
+        +'<span style="text-align:right;border-top:1px solid var(--border);padding-top:5px">'+_gfMoney(totalBase)+'</span>'
+      +'<span style="font-weight:700">Tu '
+        + (esAdmin
+            ? '<input type="number" min="0" step="0.5" value="'+tlPct+'" onchange="tlSetPct(this.value)" style="width:52px;background:#0f0f13;border:1px solid var(--border);border-radius:4px;padding:1px 4px;color:var(--accent2);text-align:center;font-size:12px;font-weight:700">%'
+            : '<span style="color:var(--accent2)">'+tlPct+'%</span>')
+        +'</span>'
+      +'<span style="text-align:right;font-weight:700;color:var(--green);font-size:15px">'+_gfMoney(totalCom)+'</span>'
+    +'</div>';
+
+  // Pago
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">'
+    + (pagado
+        ? '<div style="font-size:11px;color:var(--green)">✅ <b>Pagada</b> el '+(reg&&reg.cuando?reg.cuando:'—')+'<br><span style="color:var(--text2)">Se pagaron '+_gfMoney(reg?reg.monto:0)+' por '+(reg?reg.pedidos:0)+' pedido(s)</span></div>'
+        : '<div style="font-size:11px;color:var(--text2)">Sin pagar todavía</div>')
+    + (_tlEsSuya()
+        ? '<button onclick="tlTogglePago(\''+mes+'\')" style="background:'+(pagado?'var(--surface2)':'var(--green)')+';border:1px solid '+(pagado?'var(--border)':'var(--green)')+';color:'+(pagado?'var(--text2)':'#0f0f13')+';border-radius:7px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">'
+            + (pagado?'↩️ Deshacer':'Pagado') +'</button>'
+        : '')
+  +'</div></div>';
+
+  if(pagado){
+    h+='<div style="font-size:10px;color:#e8b84b;background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.3);border-radius:7px;padding:7px 10px;margin-bottom:11px">🔒 Este mes ya está pagado. El monto quedó congelado; si registras más pedidos, no cambia lo que ya cobraste.</div>';
+  }
+
+  // ── Registrar pedido ──
+  if(_tlEsSuya() && !pagado){
+    h+='<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:9px">➕ Registrar un pedido</div>'
+      +'<div class="grid g3">'
+        +'<div class="form-group"><label>📅 Fecha</label><input type="date" id="tl-fecha" value="'+_hoyISO()+'"></div>'
+        +'<div class="form-group"><label>🔢 Nº de pedido</label><input id="tl-pedido" placeholder="ej. 2000012345"></div>'
+        +'<div class="form-group"><label>🎩 Producto</label><input id="tl-producto" placeholder="ej. Tombstone Johnson 58"></div>'
+      +'</div>'
+      +'<div class="grid g3">'
+        +'<div class="form-group"><label>💵 Precio del producto</label><input type="number" step="0.01" id="tl-precio" placeholder="ej. 900"></div>'
+        +'<div class="form-group"><label>📦 Envío</label><input type="number" step="0.01" id="tl-envio" placeholder="ej. 150"></div>'
+        +'<div class="form-group"><label>💳 Forma de pago</label><select id="tl-pago"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Mercado Pago</option><option>Contra entrega</option><option>Otro</option></select></div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--text2);margin-bottom:8px">Tu comisión = (precio − envío) × '+tlPct+'%</div>'
+      +'<button class="btn" onclick="tlGuardar()" style="width:100%">💾 Guardar pedido</button>'
+    +'</div>';
+  }
+
+  // ── La lista ──
+  h+='<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:7px">📋 Pedidos de '+_pgMesNombre(mes)+'</div>';
+  if(!V.length){
+    h+='<div style="color:var(--text2);font-size:12px;padding:16px;text-align:center">Sin pedidos este mes.</div>';
+  } else {
+    h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">'
+      +'<thead><tr style="color:var(--text2);font-size:10px;text-transform:uppercase">'
+        +'<th style="text-align:left;padding:6px 5px">Fecha</th>'
+        +'<th style="text-align:left;padding:6px 5px">Pedido</th>'
+        +'<th style="text-align:left;padding:6px 5px">Producto</th>'
+        +'<th style="text-align:right;padding:6px 5px">Precio</th>'
+        +'<th style="text-align:right;padding:6px 5px">Envío</th>'
+        +'<th style="text-align:right;padding:6px 5px">Base</th>'
+        +'<th style="text-align:right;padding:6px 5px">Tu '+tlPct+'%</th>'
+        +'<th style="text-align:left;padding:6px 5px">Pago</th>'
+        + (_tlEsSuya()&&!pagado?'<th style="width:26px"></th>':'')
+      +'</tr></thead><tbody>';
+    V.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).forEach(function(v){
+      h+='<tr style="border-top:1px solid var(--border)">'
+        +'<td style="padding:7px 5px;color:var(--text2);white-space:nowrap">'+(v.fecha||'')+'</td>'
+        +'<td style="padding:7px 5px;color:var(--text);font-weight:600;white-space:nowrap">'+_gfEsc(v.pedido)+'</td>'
+        +'<td style="padding:7px 5px;color:var(--text2)">'+_gfEsc(v.producto)+'</td>'
+        +'<td style="padding:7px 5px;text-align:right">'+_gfMoney(v.precio)+'</td>'
+        +'<td style="padding:7px 5px;text-align:right;color:var(--red)">'+(v.envio>0?'−'+_gfMoney(v.envio):'—')+'</td>'
+        +'<td style="padding:7px 5px;text-align:right;color:var(--text2)">'+_gfMoney(_tlBase(v))+'</td>'
+        +'<td style="padding:7px 5px;text-align:right;font-weight:700;color:var(--green)">'+_gfMoney(_tlComision(v))+'</td>'
+        +'<td style="padding:7px 5px;color:var(--text2);font-size:11px">'+_gfEsc(v.pago||'')+'</td>'
+        + (_tlEsSuya()&&!pagado ? '<td style="padding:7px 5px"><span onclick="tlEliminar(\''+v.id+'\')" style="color:var(--red);cursor:pointer">✕</span></td>' : '')
+      +'</tr>';
+    });
+    h+='<tr style="border-top:2px solid var(--accent2);font-weight:700">'
+      +'<td colspan="3" style="padding:8px 5px;color:var(--accent2)">TOTAL</td>'
+      +'<td style="padding:8px 5px;text-align:right">'+_gfMoney(totalVendido)+'</td>'
+      +'<td style="padding:8px 5px;text-align:right;color:var(--red)">−'+_gfMoney(totalEnvios)+'</td>'
+      +'<td style="padding:8px 5px;text-align:right">'+_gfMoney(totalBase)+'</td>'
+      +'<td style="padding:8px 5px;text-align:right;color:var(--green);font-size:14px">'+_gfMoney(totalCom)+'</td>'
+      +'<td'+(_tlEsSuya()&&!pagado?' colspan="2"':'')+'></td>'
+      +'</tr></tbody></table></div>';
+  }
+
+  c.innerHTML=h;
+}
+
 // ═══ TIENDA FÍSICA ═══
 function saveFisica() {
   var comPct=parseFloat((document.getElementById('f-comision')||{}).value)||0;
@@ -8149,8 +10208,8 @@ let docItems = { ticket:[], cot:[] };
 let docsHistorial = JSON.parse(localStorage.getItem('docs_historial')||'[]');
 let folioCounter = JSON.parse(localStorage.getItem('docs_folio')||'{"ticket":0,"cot":0}');
 
-function saveDocsHistorial() { localStorage.setItem('docs_historial',JSON.stringify(docsHistorial)); }
-function saveFolioCounter() { localStorage.setItem('docs_folio',JSON.stringify(folioCounter)); }
+function saveDocsHistorial() { save('docs_historial', docsHistorial); }
+function saveFolioCounter() { save('docs_folio', folioCounter); }
 
 function nextFolio(tipo) {
   folioCounter[tipo]=(folioCounter[tipo]||0)+1;
@@ -8584,6 +10643,8 @@ const BACKUP_KEYS = [
   'inventario_clientes',
   'docs_historial',
   'docs_folio', 'gastos_tienda_entries', 'shopify_data', 'shopify_data_v2', 'shopify_canales',
+  // — agregadas: faltaban en el respaldo —
+  'admin_datos_fiscales', 'caja_chica_config', 'caja_chica_movs', 'compras_credito_abonos', 'compras_credito_cfg', 'compras_devoluciones', 'compras_folio_siglas', 'compras_pedidos', 'compras_precios', 'compras_proveedores', 'compras_tipos_material', 'envios_paqueteria', 'erp_pin_borrado', 'erp_usuarios_extra', 'erp_usuarios_override', 'facturar_concepto', 'facturar_emisor_sel', 'facturar_receptor', 'inv_dormido_meses', 'inv_grupos_acc', 'inv_prioridad_hormas', 'inventario_compras', 'shop_prod_costos', 'gastos_fijos', 'gf_dia_pago', 'por_cobrar', 'pagos_check', 'meta_colchon_pct', 'canal_cfg', 'pagos_desde', 'meta_grupal', 'meta_grupal_pagos', 'tienda_linea', 'tienda_linea_pagos', 'tl_pct'
 ];
 
 function exportarRespaldo() {
@@ -8788,7 +10849,16 @@ function verificarPin() {
   }
 }
 
+// El menú de Tienda en Línea solo se le enseña a Liz y a Fer
+function _tlAplicarMenu(){
+  var n=document.getElementById('nav-tlinea');
+  if(!n) return;
+  var puede = (typeof _tlEsSuya==='function') && _tlEsSuya();
+  n.style.display = puede ? '' : 'none';
+}
+
 function aplicarRol(u) {
+  try{ _tlAplicarMenu(); }catch(e){}
   // Ocultar elementos solo-admin para colaboradoras
   const adminEls = document.querySelectorAll('.admin-only');
   adminEls.forEach(el => {
@@ -8857,8 +10927,8 @@ function persistirUsuarios(){
   // Extra completos
   const extra = USUARIOS.filter(u=>!USUARIOS_BASE_IDS.includes(u.id)).map(u=>({id:u.id,nombre:u.nombre,pin:u.pin,rol:'empleada'}));
   try {
-    localStorage.setItem('erp_usuarios_override', JSON.stringify(ov));
-    localStorage.setItem('erp_usuarios_extra', JSON.stringify(extra));
+    save('erp_usuarios_override', ov);
+    save('erp_usuarios_extra', extra);
   } catch(e){}
   try { save('erp_usuarios_override', ov); save('erp_usuarios_extra', extra); } catch(e){}
 }
@@ -8998,7 +11068,7 @@ function guardarDatosFiscales(){
       out[k][c]=v;
     });
   });
-  try { localStorage.setItem('admin_datos_fiscales', JSON.stringify(out)); } catch(e){}
+  try { save('admin_datos_fiscales', out); } catch(e){}
   const msg=document.getElementById('admin-fiscal-msg');
   if(msg){ msg.textContent='✅ Datos fiscales guardados.'; setTimeout(()=>{ if(msg) msg.textContent=''; }, 2800); }
   mostrarToast('✅ Datos fiscales guardados', 'green');
@@ -9046,7 +11116,7 @@ function guardarPinBorrado(){
   const v=(document.getElementById('pinborrado-input')?.value||'').trim();
   const msg=document.getElementById('pinborrado-msg');
   if(!/^[0-9]{4,6}$/.test(v)){ if(msg){ msg.style.color='var(--red)'; msg.textContent='El PIN debe ser de 4 a 6 dígitos.'; } return; }
-  try{ localStorage.setItem('erp_pin_borrado', v); }catch(e){}
+  try{ save('erp_pin_borrado', v); }catch(e){}
   renderAdminPinBorrado();
   mostrarToast('✅ PIN de autorización actualizado', 'green');
 }
@@ -9282,14 +11352,428 @@ function _ventasPorMesCombinado(){
 }
 function metaSet(){ const v=parseFloat((document.getElementById('meta-input')||{}).value)||0; metaMensual=Math.max(0,v); localStorage.setItem('meta_mensual_v1',String(metaMensual)); renderMetas(); mostrarToast('Meta guardada','green'); }
 
+/* ═══════════ META REAL: ¿cuántos sombreros para no perder? ═══════════ */
+
+// Lo que necesitas al mes: gastos fijos + colchón de ahorro
+var metaColchonPct = leerNum('meta_colchon_pct', 15);
+
+function _metaGastosFijos(){
+  try{ return GASTOS.reduce(function(a,g){ return a+g.items.reduce(function(x,i){ return x+_gfMensual(i); },0); },0); }
+  catch(e){ return 0; }
+}
+
+/* ═══ Lo que cada canal te quita de verdad ═══
+   Ajusta estos números con tus estados de cuenta reales. */
+var CANAL_DEF = {
+  ml:      { nombre:'Mercado Libre', comision:13,  fijo:0,  envio:0, extra:0 },
+  shopify: { nombre:'Shopify',       comision:3.5, fijo:3,  envio:0, extra:0 },
+  fisica:  { nombre:'Tienda física', comision:0,   fijo:0,  envio:0, extra:3 }   // extra 3% = comisión de tus colaboradoras
+};
+var canalCfg = JSON.parse(JSON.stringify(CANAL_DEF));
+try{
+  var _cc=JSON.parse(localStorage.getItem('canal_cfg')||'null');
+  if(_cc && typeof _cc==='object'){
+    Object.keys(CANAL_DEF).forEach(function(k){ if(_cc[k]) canalCfg[k]=Object.assign({}, CANAL_DEF[k], _cc[k]); });
+  }
+}catch(e){}
+function saveCanalCfg(){ save('canal_cfg', canalCfg); }
+function canalSet(k, campo, val){
+  if(!canalCfg[k]) return;
+  canalCfg[k][campo]=parseFloat(val)||0;
+  saveCanalCfg();
+  renderMetaReal();
+}
+
+// Lo que TE QUEDA de un sombrero vendido en ese canal
+function _canalNeto(k, precio, costo){
+  var c=canalCfg[k] || CANAL_DEF.fisica;
+  var comision = precio * (c.comision/100);
+  var extra    = precio * (c.extra/100);
+  return precio - costo - comision - (c.fijo||0) - (c.envio||0) - extra;
+}
+function _canalDesglose(k, precio, costo){
+  var c=canalCfg[k] || CANAL_DEF.fisica;
+  return {
+    nombre:c.nombre,
+    precio:precio, costo:costo,
+    comision: precio*(c.comision/100),
+    fijo: c.fijo||0,
+    envio: c.envio||0,
+    extra: precio*(c.extra/100),
+    neto: _canalNeto(k, precio, costo)
+  };
+}
+
+// Margen REAL por sombrero, sacado de tu inventario (precio de tienda − costo)
+function _metaMargen(){
+  var lista=(typeof invSombreros!=='undefined'?invSombreros:[]) ;
+  var vals=lista.filter(function(s){ return (s.precioTienda||0)>0 && (s.costo||0)>0; })
+                .map(function(s){ return {precio:s.precioTienda, costo:s.costo, margen:s.precioTienda-s.costo}; });
+  if(!vals.length) return null;
+  // Promedio ponderado por piezas: los que más tienes pesan más
+  var pzs=0, sumM=0, sumP=0, sumC=0;
+  lista.forEach(function(s){
+    if(!((s.precioTienda||0)>0 && (s.costo||0)>0)) return;
+    var q=Math.max(1, s.piezas||0);
+    pzs+=q; sumM+=(s.precioTienda-s.costo)*q; sumP+=s.precioTienda*q; sumC+=s.costo*q;
+  });
+  if(!pzs) return null;
+  var precio=sumP/pzs, costo=sumC/pzs;
+  return {
+    margen: sumM/pzs,          // bruto (sin descontar nada)
+    precio: precio,
+    costo:  costo,
+    pctMargen: sumP>0 ? (sumM/sumP*100) : 0,
+    modelos: vals.length,
+    piezas: pzs,
+    // Lo que REALMENTE te queda en cada canal
+    neto: {
+      ml:      _canalNeto('ml', precio, costo),
+      shopify: _canalNeto('shopify', precio, costo),
+      fisica:  _canalNeto('fisica', precio, costo)
+    },
+    desglose: {
+      ml:      _canalDesglose('ml', precio, costo),
+      shopify: _canalDesglose('shopify', precio, costo),
+      fisica:  _canalDesglose('fisica', precio, costo)
+    }
+  };
+}
+
+// Ventas de ESTE mes, canal por canal
+function _metaVentasMes(mes){
+  var out={ml:0, shopify:0, fisica:0, total:0};
+  try{
+    (typeof ventasData!=='undefined'?ventasData:[])
+      .filter(function(v){ return !v._dev && v.tipo!=='Devolución' && (v.fecha||'').slice(0,7)===mes; })
+      .forEach(function(v){ out.ml += (parseFloat(v.precio)||0)*(v.qty||1); });
+  }catch(e){}
+  try{
+    var ped=(typeof shopifyData!=='undefined'&&shopifyData.pedidos)?shopifyData.pedidos:[];
+    ped.filter(function(p){ return p.status==='paid' && (p.fecha||'').slice(0,7)===mes; })
+       .forEach(function(p){ out.shopify += parseFloat(p.total)||0; });
+  }catch(e){}
+  try{
+    (typeof state!=='undefined'&&state.fisicaEntries?state.fisicaEntries:[])
+      .filter(function(x){ return (x.fecha||'').slice(0,7)===mes; })
+      .forEach(function(x){ out.fisica += parseFloat(x.precio)||0; });
+  }catch(e){}
+  out.total = out.ml + out.shopify + out.fisica;
+  return out;
+}
+
+// Cómo has vendido históricamente (por si este mes aún no hay ventas)
+function _metaMezclaHistorica(){
+  var t={ml:0, shopify:0, fisica:0};
+  try{ (typeof ventasData!=='undefined'?ventasData:[]).filter(function(v){return !v._dev && v.tipo!=='Devolución';})
+      .forEach(function(v){ t.ml += (parseFloat(v.precio)||0)*(v.qty||1); }); }catch(e){}
+  try{ var ped=(typeof shopifyData!=='undefined'&&shopifyData.pedidos)?shopifyData.pedidos:[];
+      ped.filter(function(p){return p.status==='paid';}).forEach(function(p){ t.shopify += parseFloat(p.total)||0; }); }catch(e){}
+  try{ (typeof state!=='undefined'&&state.fisicaEntries?state.fisicaEntries:[])
+      .forEach(function(x){ t.fisica += parseFloat(x.precio)||0; }); }catch(e){}
+  var tot=t.ml+t.shopify+t.fisica;
+  if(tot<=0) return null;
+  return { ml:t.ml/tot, shopify:t.shopify/tot, fisica:t.fisica/tot };
+}
+
+// El cálculo completo
+function _metaCalculo(mes){
+  var gastos=_metaGastosFijos();
+  var colchon=gastos*(metaColchonPct/100);
+  var necesitas=gastos+colchon;
+  var mg=_metaMargen();
+  var v=_metaVentasMes(mes);
+
+  if(!mg) return {sinDatos:true, gastos:gastos, colchon:colchon, necesitas:necesitas, ventas:v};
+
+  // ── Tu MEZCLA de canales (cómo vendes de verdad) ──
+  var mezcla;
+  if(v.total>0){
+    mezcla={ ml:v.ml/v.total, shopify:v.shopify/v.total, fisica:v.fisica/v.total };
+  } else {
+    // Sin ventas aún: uso el histórico; si tampoco hay, reparto parejo
+    var hist=_metaMezclaHistorica();
+    mezcla = hist || { ml:1/3, shopify:1/3, fisica:1/3 };
+  }
+  // Lo que te queda por sombrero, ponderado por cómo vendes
+  var netoMezcla = mezcla.ml*mg.neto.ml + mezcla.shopify*mg.neto.shopify + mezcla.fisica*mg.neto.fisica;
+
+  if(netoMezcla<=0){
+    return { perdida:true, gastos:gastos, colchon:colchon, necesitas:necesitas,
+             margen:mg, ventas:v, mezcla:mezcla, netoMezcla:netoMezcla };
+  }
+
+  // Sombreros que necesitas VENDER para cubrir todo (con el neto REAL)
+  var sombreros=Math.ceil(necesitas / netoMezcla);
+  var facturacion=sombreros*mg.precio;
+
+  // ¿Cómo vas? — ganancia neta real, canal por canal
+  var gananciaHecha = 0;
+  if(mg.precio>0){
+    gananciaHecha = (v.ml/mg.precio)*mg.neto.ml
+                  + (v.shopify/mg.precio)*mg.neto.shopify
+                  + (v.fisica/mg.precio)*mg.neto.fisica;
+  }
+  var sombrerosVendidos = mg.precio>0 ? (v.total/mg.precio) : 0;
+  var faltanSombreros = Math.max(0, sombreros - sombrerosVendidos);
+  var pctAvance = necesitas>0 ? (gananciaHecha/necesitas*100) : 0;
+
+  // Días del mes y ritmo
+  var hoy=new Date();
+  var p=mes.split('-');
+  var diasMes=new Date(+p[0], +p[1], 0).getDate();
+  var esMesActual = (hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0'))===mes;
+  var diaHoy = esMesActual ? hoy.getDate() : diasMes;
+  var diasRestan = Math.max(0, diasMes-diaHoy);
+
+  return {
+    gastos:gastos, colchon:colchon, necesitas:necesitas,
+    margen:mg, ventas:v,
+    mezcla:mezcla, netoMezcla:netoMezcla,
+    sombreros:sombreros, facturacion:facturacion,
+    gananciaHecha:gananciaHecha,
+    sombrerosVendidos:sombrerosVendidos,
+    faltanSombreros:faltanSombreros,
+    pctAvance:pctAvance,
+    diasMes:diasMes, diaHoy:diaHoy, diasRestan:diasRestan,
+    esMesActual:esMesActual,
+    porDia: diasRestan>0 ? (faltanSombreros/diasRestan) : 0,
+    ritmoActual: diaHoy>0 ? (sombrerosVendidos/diaHoy) : 0
+  };
+}
+function metaSetColchon(v){
+  metaColchonPct=parseFloat(v)||0;
+  save('meta_colchon_pct', metaColchonPct);
+  renderMetas();
+}
+
 function initMetas(){
   const div=document.getElementById('page-metas'); if(!div) return;
   div.innerHTML='<div class="card" style="margin-bottom:16px"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>META MENSUAL DE VENTAS</div>'
     + '<p style="color:var(--text2);font-size:12px;margin:6px 0 10px">Pon tu meta del mes (sumando todos los canales). La barra te muestra cómo vas.</p>'
     + '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label style="font-size:10px;color:var(--text2)">Meta (MXN)</label><br><input type="number" id="meta-input" value="'+(metaMensual||'')+'" placeholder="ej. 150000" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:15px;font-weight:700;width:170px;margin-top:3px"></div>'
     + '<button class="btn btn-accent btn-sm" onclick="metaSet()">💾 Guardar meta</button></div>'
-    + '<div id="meta-progreso" style="margin-top:14px"></div></div><div id="metas-resultados"></div>';
+    + '<div id="meta-progreso" style="margin-top:14px"></div></div>'
+    + '<div id="meta-real"></div><div id="meta-avance"></div><div id="metas-resultados"></div>';
   renderMetas();
+  renderMetaReal();
+}
+
+function _mtM(n){ return '$'+(Number(n)||0).toLocaleString('es-MX',{maximumFractionDigits:0}); }
+
+function renderMetaReal(){
+  var c=document.getElementById('meta-real'); if(!c) return;
+  var hoy=new Date();
+  var mes=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  var R=_metaCalculo(mes);
+
+  if(R.perdida){
+    c.innerHTML='<div style="background:rgba(244,91,105,.1);border:1px solid rgba(244,91,105,.45);border-radius:9px;padding:14px">'
+      +'<b style="color:var(--red);font-size:15px">🚨 Con estos números PIERDES dinero en cada venta</b>'
+      +'<div style="font-size:12px;color:var(--text);margin-top:6px">Después de comisiones, envíos y costos, cada sombrero te deja <b style="color:var(--red)">'+_mtM(R.netoMezcla)+'</b>. '
+      +'Vender más solo te haría perder más. <b>No hay meta que te salve</b> — hay que subir precios o bajar costos primero.</div></div>';
+    return;
+  }
+  if(R.sinDatos){
+    c.innerHTML='<div style="background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.3);border-radius:9px;padding:14px">'
+      +'<b style="color:#e8b84b">⚠️ Me faltan datos para calcular tu meta</b>'
+      +'<div style="font-size:12px;color:var(--text);margin-top:5px">Necesitas gastos fijos capturados <b>y</b> sombreros en el inventario con <b>costo</b> y <b>precio de tienda</b>. '
+      +'Sin eso no sé cuánto ganas por sombrero y cualquier número que te dé sería inventado.</div></div>';
+    return;
+  }
+
+  var m=R.margen;
+  var h='';
+
+  // ── 1. Cuánto necesitas ──
+  h+='<div class="card" style="margin-bottom:14px">'
+    +'<div class="card-title"><span class="dot" style="background:var(--red)"></span>1️⃣ ¿Cuánto necesitas al mes?</div>'
+    +'<div style="display:grid;grid-template-columns:1fr auto;gap:6px;font-size:13px">'
+      +'<span style="color:var(--text2)">Tus gastos fijos (negocio + personales)</span><span style="text-align:right">'+_mtM(R.gastos)+'</span>'
+      +'<span style="color:var(--text2)">Colchón de ahorro (<input type="number" min="0" max="100" value="'+metaColchonPct+'" onchange="metaSetColchon(this.value)" style="width:48px;background:#0f0f13;border:1px solid var(--border);border-radius:4px;padding:1px 4px;color:var(--accent2);text-align:center">%)</span>'
+      +'<span style="text-align:right;color:var(--green)">'+_mtM(R.colchon)+'</span>'
+      +'<span style="font-weight:700;border-top:1px solid var(--border);padding-top:6px">NECESITAS GANAR</span>'
+      +'<span style="text-align:right;font-weight:700;color:var(--red);border-top:1px solid var(--border);padding-top:6px;font-size:16px">'+_mtM(R.necesitas)+'</span>'
+    +'</div></div>';
+
+  // ── 2. Lo que REALMENTE te queda por sombrero ──
+  var inp='width:52px;background:#0f0f13;border:1px solid var(--border);border-radius:4px;padding:2px 4px;color:var(--accent2);text-align:center;font-size:11px';
+  h+='<div class="card" style="margin-bottom:14px">'
+    +'<div class="card-title"><span class="dot" style="background:var(--green)"></span>2️⃣ ¿Cuánto te queda de verdad por sombrero?</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:9px">Sombrero promedio de tu inventario ('+m.modelos+' modelos, '+m.piezas+' piezas): se vende en <b>'+_mtM(m.precio)+'</b> y te cuesta <b>'+_mtM(m.costo)+'</b>. Pero cada canal te quita lo suyo:</div>';
+
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">'
+    +'<thead><tr style="color:var(--text2);font-size:10px;text-transform:uppercase">'
+      +'<th style="text-align:left;padding:5px 4px">Canal</th>'
+      +'<th style="text-align:right;padding:5px 4px">Comisión</th>'
+      +'<th style="text-align:right;padding:5px 4px">Fijo</th>'
+      +'<th style="text-align:right;padding:5px 4px">Envío</th>'
+      +'<th style="text-align:right;padding:5px 4px">Extra</th>'
+      +'<th style="text-align:right;padding:5px 4px">Te queda</th></tr></thead><tbody>';
+
+  ['ml','shopify','fisica'].forEach(function(k){
+    var d=m.desglose[k], cfg=canalCfg[k];
+    var col = d.neto>0 ? 'var(--green)' : 'var(--red)';
+    h+='<tr style="border-top:1px solid var(--border)">'
+      +'<td style="padding:6px 4px;color:var(--text)">'+d.nombre+'</td>'
+      +'<td style="padding:6px 4px;text-align:right"><input type="number" step="0.1" min="0" value="'+cfg.comision+'" onchange="canalSet(\''+k+'\',\'comision\',this.value)" style="'+inp+'">%<div style="font-size:9px;color:var(--text2)">−'+_mtM(d.comision)+'</div></td>'
+      +'<td style="padding:6px 4px;text-align:right">$<input type="number" step="1" min="0" value="'+cfg.fijo+'" onchange="canalSet(\''+k+'\',\'fijo\',this.value)" style="'+inp+'"></td>'
+      +'<td style="padding:6px 4px;text-align:right">$<input type="number" step="1" min="0" value="'+cfg.envio+'" onchange="canalSet(\''+k+'\',\'envio\',this.value)" style="'+inp+'"></td>'
+      +'<td style="padding:6px 4px;text-align:right"><input type="number" step="0.1" min="0" value="'+cfg.extra+'" onchange="canalSet(\''+k+'\',\'extra\',this.value)" style="'+inp+'">%<div style="font-size:9px;color:var(--text2)">'+(d.extra>0?'−'+_mtM(d.extra):'—')+'</div></td>'
+      +'<td style="padding:6px 4px;text-align:right;font-weight:700;color:'+col+';font-size:14px">'+_mtM(d.neto)+'</td>'
+      +'</tr>';
+  });
+  h+='</tbody></table></div>';
+
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:8px;line-height:1.5">'
+    +'<b>Comisión</b>: lo que te cobra la plataforma. <b>Fijo</b>: cargo por venta. <b>Envío</b>: lo que TÚ absorbes (0 si lo paga el cliente). <b>Extra</b>: el 3% de comisión de Liz y Lulú en tienda física.<br>'
+    +'⚠️ <b>Ajústalos con tus estados de cuenta reales</b> — los que puse son aproximados.'
+    +'</div>';
+
+  // Ponderado por tu mezcla
+  var mz=R.mezcla;
+  h+='<div style="background:var(--surface2);border-radius:8px;padding:10px;margin-top:10px">'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:5px">Como vendes <b>'+(mz.ml*100).toFixed(0)+'%</b> en ML, <b>'+(mz.shopify*100).toFixed(0)+'%</b> en Shopify y <b>'+(mz.fisica*100).toFixed(0)+'%</b> en tienda:</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-size:13px;font-weight:700">TE QUEDA EN PROMEDIO</span>'
+      +'<span style="font-size:20px;font-weight:700;color:var(--green)">'+_mtM(R.netoMezcla)+'</span>'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--text2);margin-top:3px">por cada sombrero · el margen bruto era '+_mtM(m.margen)+', o sea que las comisiones te comen <b style="color:var(--red)">'+_mtM(m.margen-R.netoMezcla)+'</b></div>'
+    +'</div>';
+  h+='</div>';
+
+  // ── 3. La meta ──
+  h+='<div class="card" style="margin-bottom:14px;border:1px solid var(--accent2)">'
+    +'<div class="card-title"><span class="dot" style="background:var(--accent2)"></span>3️⃣ Tu meta del mes</div>'
+    +'<div style="text-align:center;padding:10px 0">'
+      +'<div style="font-size:42px;font-weight:700;color:var(--accent2);line-height:1">'+R.sombreros+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);margin-top:2px">sombreros al mes</div>'
+      +'<div style="font-size:12px;color:var(--text);margin-top:8px">Son <b>'+_mtM(R.facturacion)+'</b> de venta · <b>'+(R.sombreros/R.diasMes).toFixed(1)+'</b> sombreros al día</div>'
+    +'</div>'
+    // Si vendiera solo por un canal
+    +'<div style="border-top:1px solid var(--border);padding-top:9px;margin-top:4px">'
+      +'<div style="font-size:11px;color:var(--text2);margin-bottom:6px">Si vendieras <b>todo</b> por un solo canal:</div>';
+  ['fisica','shopify','ml'].forEach(function(k){
+    var neto=m.neto[k];
+    if(neto<=0){
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>'+m.desglose[k].nombre+'</span><span style="color:var(--red)">pierdes dinero ⚠️</span></div>';
+    } else {
+      var n=Math.ceil(R.necesitas/neto);
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">'
+        +'<span>'+m.desglose[k].nombre+'</span>'
+        +'<span><b style="color:'+(k==='fisica'?'var(--green)':'var(--text)')+'">'+n+'</b> sombreros <span style="color:var(--text2);font-size:10px">('+_mtM(neto)+' c/u)</span></span></div>';
+    }
+  });
+  h+='<div style="font-size:10px;color:var(--text2);margin-top:6px">💡 Por eso la tienda física es tu mejor canal: nadie te quita comisión.</div>'
+    +'</div></div>';
+
+  c.innerHTML=h;
+  renderMetaAvance(R);
+}
+
+function renderMetaAvance(R){
+  var c=document.getElementById('meta-avance'); if(!c) return;
+  var v=R.ventas, m=R.margen;
+  var llega = R.gananciaHecha >= R.necesitas;
+  var pct = Math.min(100, R.pctAvance);
+
+  var h='<div class="card" style="margin-bottom:14px">'
+    +'<div class="card-title"><span class="dot" style="background:'+(llega?'var(--green)':'#e8b84b')+'"></span>4️⃣ ¿Cómo vas este mes?</div>';
+
+  // Canales
+  var canal=function(nom, monto, color){
+    var p = v.total>0 ? (monto/v.total*100) : 0;
+    return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">'
+      +'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+color+';margin-right:6px"></span>'+nom+'</span>'
+      +'<span><b>'+_mtM(monto)+'</b> <span style="color:var(--text2);font-size:10px">'+p.toFixed(0)+'%</span></span></div>';
+  };
+  h+=canal('Mercado Libre', v.ml, '#f2c94c')
+   + canal('Shopify', v.shopify, '#5b8af4')
+   + canal('Tienda física + WhatsApp', v.fisica, '#3ecf8e')
+   + '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:7px 0">'
+     +'<span>Vendido este mes</span><span>'+_mtM(v.total)+'</span></div>';
+
+  // Barra
+  h+='<div style="margin-top:8px">'
+    +'<div style="height:16px;background:var(--surface2);border-radius:8px;overflow:hidden;position:relative">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+(llega?'var(--green)':(pct>60?'#e8b84b':'var(--red)'))+';transition:width .3s"></div>'
+      +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;text-shadow:0 0 3px #000">'+R.pctAvance.toFixed(0)+'% de tu meta</div>'
+    +'</div></div>';
+
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;font-size:12px">'
+    +'<div style="background:var(--surface2);border-radius:7px;padding:8px"><div style="color:var(--text2);font-size:10px">GANANCIA ESTIMADA</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+_mtM(R.gananciaHecha)+'</div><div style="color:var(--text2);font-size:10px">de '+_mtM(R.necesitas)+' que necesitas</div></div>'
+    +'<div style="background:var(--surface2);border-radius:7px;padding:8px"><div style="color:var(--text2);font-size:10px">SOMBREROS VENDIDOS</div><div style="font-size:16px;font-weight:700;color:var(--accent2)">'+Math.round(R.sombrerosVendidos)+'</div><div style="color:var(--text2);font-size:10px">de '+R.sombreros+' de tu meta</div></div>'
+    +'</div>';
+
+  // ── EL VEREDICTO ──
+  h+='<div style="margin-top:14px;padding:12px;border-radius:9px;background:'+(llega?'rgba(58,190,120,.09)':'rgba(244,91,105,.08)')+';border:1px solid '+(llega?'rgba(58,190,120,.35)':'rgba(244,91,105,.32)')+'">';
+
+  if(llega){
+    var sobra=R.gananciaHecha-R.necesitas;
+    h+='<b style="color:var(--green);font-size:14px">🎉 Ya llegaste a tu meta</b>'
+      +'<div style="font-size:12px;color:var(--text);margin-top:5px">Cubriste tus gastos, tu colchón de ahorro, y te sobran <b style="color:var(--green)">'+_mtM(sobra)+'</b>. '
+      +'Todo lo que vendas de aquí al fin de mes es ganancia limpia.</div>';
+  } else {
+    var faltaDinero=R.necesitas-R.gananciaHecha;
+    var faltanS=Math.ceil(R.faltanSombreros);
+    h+='<b style="color:var(--red);font-size:14px">📊 Te faltan '+faltanS+' sombrero(s)</b>'
+      +'<div style="font-size:12px;color:var(--text);margin-top:5px">Para cubrir tus gastos te falta ganar <b style="color:var(--red)">'+_mtM(faltaDinero)+'</b>.</div>';
+
+    if(R.esMesActual && R.diasRestan>0){
+      var porDia=R.porDia;
+      var ritmo=R.ritmoActual;
+      var proyeccion=ritmo*R.diasMes;
+      h+='<div style="font-size:12px;color:var(--text);margin-top:8px;padding-top:8px;border-top:1px solid rgba(244,91,105,.2)">'
+        +'Quedan <b>'+R.diasRestan+' días</b>. Necesitas vender <b style="color:var(--accent2);font-size:14px">'+porDia.toFixed(1)+' sombreros al día</b>.'
+        +'</div>';
+      h+='<div style="font-size:11px;color:var(--text2);margin-top:5px">Vas a un ritmo de <b>'+ritmo.toFixed(1)+'/día</b>. '
+        + (proyeccion>=R.sombreros
+            ? '<span style="color:var(--green)">A ese paso <b>sí llegas</b> (terminarías con ~'+Math.round(proyeccion)+').</span>'
+            : '<span style="color:var(--red)">A ese paso terminarías con ~'+Math.round(proyeccion)+' y <b>no alcanzas</b>. Hay que apretar.</span>')
+        +'</div>';
+    } else if(!R.esMesActual){
+      h+='<div style="font-size:11px;color:var(--text2);margin-top:6px">Este mes ya cerró.</div>';
+    } else {
+      h+='<div style="font-size:12px;color:var(--red);margin-top:6px">⚠️ Ya es el último día del mes.</div>';
+    }
+  }
+  h+='</div>';
+
+  // ── CONSEJOS CON NÚMEROS ──
+  if(!llega){
+    h+='<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:7px">💡 Cómo cerrar la brecha</div>';
+    var faltaDinero2=R.necesitas-R.gananciaHecha;
+    var tips=[];
+
+    // 1. Subir precio
+    var subir=Math.ceil(faltaDinero2 / Math.max(1, R.sombrerosVendidos||R.sombreros));
+    if(R.sombrerosVendidos>3){
+      tips.push(['💰 Sube el precio', 'Si le subieras <b>'+_mtM(subir)+'</b> a cada sombrero, con las mismas ventas ya la librabas. Es un '+(subir/m.precio*100).toFixed(0)+'% más caro. <b>Ojo:</b> en ML y Shopify la comisión también sube, así que necesitas subirle un poco más.']);
+    }
+    // 2. Bajar costo
+    var bajarCosto=Math.ceil(faltaDinero2 / Math.max(1, R.sombrerosVendidos||R.sombreros));
+    tips.push(['🤝 Negocia con el proveedor', 'Bajar <b>'+_mtM(bajarCosto)+'</b> el costo de cada sombrero tiene el mismo efecto que subir el precio, y el cliente ni se entera. Con La Herradura, pide descuento por volumen.']);
+    // 3. Canal más débil
+    var canales=[{n:'Mercado Libre',v:v.ml},{n:'Shopify',v:v.shopify},{n:'tienda física',v:v.fisica}].sort(function(a,b){return a.v-b.v;});
+    if(v.total>0 && canales[0].v < v.total*0.15){
+      tips.push(['📉 Tu canal flojo es '+canales[0].n, 'Solo trae el <b>'+(canales[0].v/v.total*100).toFixed(0)+'%</b> de tus ventas ('+_mtM(canales[0].v)+'). Si lo pusieras al nivel de '+canales[2].n+', tu problema se acabaría.']);
+    }
+    // 4. Bajar gastos
+    tips.push(['✂️ Recorta gastos', 'Cada <b>'+_mtM(m.margen)+'</b> que le bajes a tus gastos fijos es <b>un sombrero menos</b> que tienes que vender. Revisa tus deudas: las que se acaban pronto te van a liberar flujo.']);
+    // 5. Vender más caro (mix)
+    tips.push(['🏪 Empuja la tienda física', 'Ahí te quedas con <b>'+_mtM(m.neto.fisica)+'</b> por sombrero, contra <b>'+_mtM(m.neto.ml)+'</b> en Mercado Libre. Cada venta que mueves de ML a la tienda te deja <b style="color:var(--green)">'+_mtM(m.neto.fisica-m.neto.ml)+'</b> extra.']);
+    tips.push(['🎩 Vende los caros', 'No todos los sombreros dejan igual. Revisa "Costos y Margen" y empuja los que te dejan más de '+_mtM(m.margen)+' de margen bruto.']);
+
+    tips.forEach(function(t){
+      h+='<div style="background:var(--surface2);border-radius:7px;padding:9px 11px;margin-bottom:6px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+t[0]+'</div>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+t[1]+'</div></div>';
+    });
+    h+='</div>';
+  }
+
+  h+='</div>';
+  c.innerHTML=h;
 }
 
 function renderMetas(){
@@ -9338,7 +11822,7 @@ function renderMetas(){
 
 /* ───────── 2) ALERTAS DE INVENTARIO LIGADAS A VENTAS ───────── */
 let invDormidoMeses = parseInt(localStorage.getItem('inv_dormido_meses')||'3')||3;
-function invDormidoSet(v){ invDormidoMeses=parseInt(v)||3; localStorage.setItem('inv_dormido_meses',String(invDormidoMeses)); renderAlertasVentas(); }
+function invDormidoSet(v){ invDormidoMeses=parseInt(v)||3; save('inv_dormido_meses', String(invDormidoMeses)); renderAlertasVentas(); }
 function _ventasPorModelo(){
   const list=[];
   (typeof ventasData!=='undefined'?ventasData:[]).filter(v=>!v._dev && v.tipo!=='Devolución').forEach(v=>list.push({norm:_normMod(v.modelo),model:v.modelo,units:(v.qty||1),date:(v.fecha||'').slice(0,10)}));
@@ -10442,7 +12926,7 @@ function renderFactEmisor(){
     html += '<div style="background:rgba(244,193,91,.12);border:1px solid rgba(244,193,91,.35);border-radius:8px;padding:9px 11px;font-size:11px;color:var(--text2);margin-top:4px">⚠️ Falta capturar: '+faltan.join(' y ')+'. Complétalo en <b onclick="goTo(\'admin\')" style="color:var(--accent2);cursor:pointer;text-decoration:underline">Administrador → Datos fiscales</b>.</div>';
   }
   cont.innerHTML=html;
-  try{ localStorage.setItem('facturar_emisor_sel', key); }catch(e){}
+  try{ save('facturar_emisor_sel', key); }catch(e){}
 }
 
 function renderFactReceptor(){
@@ -10474,7 +12958,7 @@ function guardarFactDatos(silent){
   ['rfc','nombre','regimen','cp','uso'].forEach(k=>{ const el=document.getElementById('fact-rec-'+k); if(el) rec[k]=el.value; });
   const con={};
   ['desc','cantidad','valor','claveprod','claveunidad','forma','metodo'].forEach(k=>{ const el=document.getElementById('fact-con-'+k); if(el) con[k]=el.value; });
-  try{ localStorage.setItem('facturar_receptor', JSON.stringify(rec)); localStorage.setItem('facturar_concepto', JSON.stringify(con)); }catch(e){}
+  try{ save('facturar_receptor', rec); save('facturar_concepto', con); }catch(e){}
   if(!silent) mostrarToast('💾 Datos de facturación guardados', 'green');
 }
 
@@ -10535,7 +13019,7 @@ function loadBitacora(){
   try { return JSON.parse(localStorage.getItem('bitacora_entries')||'[]'); } catch(e){ return []; }
 }
 function saveBitacora(arr){
-  try { localStorage.setItem('bitacora_entries', JSON.stringify(arr)); } catch(e){}
+  try { save('bitacora_entries', arr); } catch(e){}
   try { save('bitacora_entries', arr); } catch(e){}
 }
 function escapeHTML(s){
@@ -10689,7 +13173,7 @@ function loadGastosTienda() {
   try { gastosTiendaEntries = JSON.parse(localStorage.getItem('gastos_tienda_entries')||'[]'); } catch(e){ gastosTiendaEntries=[]; }
 }
 function saveGastosTienda() {
-  localStorage.setItem('gastos_tienda_entries', JSON.stringify(gastosTiendaEntries));
+  save('gastos_tienda_entries', gastosTiendaEntries);
 }
 
 function initGastosTienda() {
@@ -11404,7 +13888,7 @@ function loadShopCostos(){
   try { return JSON.parse(localStorage.getItem('shop_prod_costos')||'{}'); } catch(e){ return {}; }
 }
 function saveShopCostos(obj){
-  try { localStorage.setItem('shop_prod_costos', JSON.stringify(obj)); } catch(e){}
+  try { save('shop_prod_costos', obj); } catch(e){}
 }
 function updateProdUtil(i, campo, valor){
   if(typeof CATALOGO==='undefined' || !CATALOGO[i]) return;
@@ -11778,6 +14262,9 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
   // Cargar nombres/PINs personalizados de usuarios
   cargarUsuariosGuardados();
+
+  // El indicador de nube debe decir la verdad desde el arranque
+  try{ _pintarEstadoNube(); if(_numPendientes()) _reintentarPendientes(); }catch(e){}
 
   // Migración inicial: si la nube está vacía, subir los datos actuales una sola vez
   if(window.__FB_STATUS === 'empty' && window.FB_URL){
