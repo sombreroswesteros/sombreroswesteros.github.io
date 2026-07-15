@@ -78,6 +78,15 @@
   .pg-saliendo { animation:pgSale .2s ease forwards; }
 
   /* Pestañas de la página de Tienda */
+  /* Préstamo vs. dinero por recibir */
+  .cob-tipo {
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--text2); border-radius:8px; padding:7px 14px;
+    cursor:pointer; font-size:12px; font-weight:600; transition:all .15s;
+  }
+  .cob-tipo:hover { color:var(--text); }
+  .cob-tipo-on { background:var(--accent2); border-color:var(--accent2); color:#0f0f13; }
+
   .tienda-tab {
     background:none; border:none; border-bottom:2px solid transparent;
     color:var(--text2); padding:8px 14px; cursor:pointer;
@@ -349,7 +358,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v170</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v175</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -1337,37 +1346,69 @@
 
   <!-- ═══════════ FINANZAS Y GASTOS ═══════════ -->
   <div class="page" id="page-finanzas">
+    <!-- 1) Los 4 números que importan -->
     <div class="grid g4" style="margin-bottom:16px">
-      <div class="card"><div class="card-label">Mes Más Bajo</div><div class="card-value blue">Jun 2025</div><div class="card-sub">$74,387 neto</div></div>
-      <div class="card"><div class="card-label">Mes Más Alto</div><div class="card-value green">Dic 2025</div><div class="card-sub">$526,454 neto</div></div>
-      <div class="card"><div class="card-label">Gasto Fijo Mensual</div><div class="card-value red">$108,400</div><div class="card-sub">Sin gastos variables extra</div></div>
-      <div class="card"><div class="card-label">Promedio Mensual Neto</div><div class="card-value accent">$279,282</div><div class="card-sub">Promedio 13 meses</div></div>
-    </div>
-
-    <div class="grid g2" style="margin-bottom:16px">
       <div class="card">
-        <div class="card-title"><span class="dot"></span>Distribución de Gastos Fijos</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="chartGastosDetalle"></canvas></div>
-        <div id="gastos-resumen-cats" style="margin-top:10px"></div>
+        <div class="card-label">ESTE MES</div>
+        <div class="card-value red" id="kb-mes">$0</div>
+        <div class="card-sub" id="kb-mes-sub">en gastos fijos</div>
       </div>
       <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-          <span><span class="dot" style="background:var(--blue)"></span>Detalle de Gastos Fijos</span>
-          <button onclick="abrirGestionGastos()" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:11px;font-weight:700">⚙️ Gestionar</button>
+        <div class="card-label">YA PAGUÉ</div>
+        <div class="card-value green" id="kb-pagado">$0</div>
+        <div class="card-sub" id="kb-pagado-sub">0 de 0 pagos</div>
+      </div>
+      <div class="card">
+        <div class="card-label">ME FALTA</div>
+        <div class="card-value" style="color:var(--accent2)" id="kb-falta">$0</div>
+        <div class="card-sub" id="kb-falta-sub">sin atrasos</div>
+      </div>
+      <div class="card" onclick="goTo('cobrar')" style="cursor:pointer">
+        <div class="card-label">ME DEBEN</div>
+        <div class="card-value blue" id="kb-deben">$0</div>
+        <div class="card-sub" id="kb-deben-sub">nadie te debe</div>
+      </div>
+    </div>
+
+    <!-- 2) Lo urgente (izquierda) junto a lo que se viene (derecha) -->
+    <div class="grid g2" style="margin-bottom:16px;align-items:start">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>✅ Pagos del mes — ve palomeando</div>
+        <div id="pagos-atrasados"></div>
+        <div id="pagos-mes"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>🔔 Ojo con esto</div>
+        <div id="finanzas-avisos"></div>
+      </div>
+    </div>
+
+    <!-- 3) El detalle de los gastos fijos -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span><span class="dot" style="background:var(--red)"></span>💸 Gastos fijos</span>
+        <button onclick="abrirGestionGastos()" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:11px;font-weight:700">⚙️ Gestionar</button>
+      </div>
+      <div class="grid g2" style="align-items:start">
+        <div>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="chartGastosDetalle"></canvas></div>
+          <div id="gastos-resumen-cats" style="margin-top:10px"></div>
         </div>
         <div class="scroll-y" id="gastos-lista"></div>
       </div>
     </div>
 
+    <!-- 4) El resto: deudas, alertas y el histórico -->
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot" style="background:var(--green)"></span>✅ Pagos del mes — ve palomeando</div>
-      <div id="pagos-atrasados"></div>
-      <div id="pagos-mes"></div>
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>📉 Deudas y alertas</div>
+      <div id="gastos-paneles" class="gf-paneles"></div>
     </div>
 
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>📌 Tus pagos y deudas de un vistazo</div>
-      <div id="gastos-paneles" class="gf-paneles"></div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="card"><div class="card-label">Mes Más Bajo</div><div class="card-value blue">Jun 2025</div><div class="card-sub">$74,387 neto</div></div>
+      <div class="card"><div class="card-label">Mes Más Alto</div><div class="card-value green">Dic 2025</div><div class="card-sub">$526,454 neto</div></div>
+      <div class="card"><div class="card-label">Gasto Fijo Mensual</div><div class="card-value red">$108,400</div><div class="card-sub">Sin gastos variables extra</div></div>
+      <div class="card"><div class="card-label">Promedio Mensual Neto</div><div class="card-value accent">$279,282</div><div class="card-sub">Promedio 13 meses</div></div>
     </div>
 
     <div class="card">
@@ -1400,14 +1441,18 @@
 
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><span class="dot" style="background:var(--green)"></span>➕ Registrar un préstamo o cuenta por cobrar</div>
-      <div class="grid g3">
-        <div class="form-group"><label>👤 ¿Quién te debe?</label><input id="cob-quien" placeholder="ej. Comadre Rosy"></div>
-        <div class="form-group"><label>💵 Monto (MXN)</label><input type="number" id="cob-monto" placeholder="ej. 5000"></div>
-        <div class="form-group"><label>📅 ¿Cuándo se lo diste?</label><input type="date" id="cob-fecha"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button id="cob-tipo-prestamo" onclick="cobSetTipo('prestamo')" class="cob-tipo cob-tipo-on">💸 Le presté</button>
+        <button id="cob-tipo-recibir" onclick="cobSetTipo('recibir')" class="cob-tipo">🎁 Me lo van a dar</button>
       </div>
       <div class="grid g3">
-        <div class="form-group"><label>🗓️ ¿Cuándo te va a pagar?</label><input type="date" id="cob-esperada"></div>
-        <div class="form-group"><label>📱 Teléfono (opcional)</label><input id="cob-tel" placeholder="ej. 4434903551"></div>
+        <div class="form-group"><label id="cob-lbl-quien">👤 ¿Quién te debe?</label><input id="cob-quien" placeholder="ej. Comadre Rosy"></div>
+        <div class="form-group"><label>💵 Monto (MXN)</label><input type="number" id="cob-monto" placeholder="ej. 5000"></div>
+        <div class="form-group"><label id="cob-lbl-esperada">🗓️ ¿Cuándo te va a pagar?</label><input type="date" id="cob-esperada"></div>
+      </div>
+      <div class="grid g3">
+        <div class="form-group" id="cob-grp-fecha"><label id="cob-lbl-fecha">📅 ¿Cuándo se lo diste?</label><input type="date" id="cob-fecha"></div>
+        <div class="form-group" id="cob-grp-tel"><label>📱 Teléfono (opcional)</label><input id="cob-tel" placeholder="ej. 4434903551"></div>
         <div class="form-group"><label>📝 ¿De qué es?</label><input id="cob-nota" placeholder="ej. Le presté para la renta"></div>
       </div>
       <button class="btn" onclick="cobGuardar()" style="width:100%;margin-top:6px">💾 Guardar</button>
@@ -2589,7 +2634,8 @@ const pageTitles = {
   rentabilidad:'Rentabilidad por Canal', metas:'Metas y Temporada', clientes:'Registro de Clientes', paqueteria:'Paquetería y Envíos',
   deudas:'Deudas y Flujos', compras:'Plan de Compras',
   admin:'Administrador', bitacora:'Bitácora del Equipo',
-  caja:'Caja Chica', 'ventas-buscar':'Buscar Ventas por Modelo'
+  caja:'Caja Chica', 'ventas-buscar':'Buscar Ventas por Modelo',
+  cobrar:'🤲 Me Deben'
 };
 
 function toggleSidebar(){
@@ -7696,10 +7742,11 @@ function _gfNormFin(fin){
   return s;
 }
 function _gfEsFijo(it){
+  if(it.frec==='unico') return false;   // un pago único nunca es "para siempre"
   if(typeof it.fijo==='boolean') return it.fijo;
   return !it.fin;   // si nunca le pusiste plazo, es fijo
 }
-var GF_FRECS=['semanal','quincenal','mensual','bimestral','anual'];
+var GF_FRECS=['semanal','catorcenal','quincenal','mensual','bimestral','anual','unico'];
 function _gfFrec(it){
   var f=it.frec;
   return GF_FRECS.indexOf(f)>=0 ? f : 'mensual';
@@ -7709,19 +7756,27 @@ function _gfFrec(it){
 // Cuántos pagos caen en un mes según la frecuencia.
 // Bimestral = medio pago al mes (el recibo llega cada 2 meses).
 // Anual = 1/12 (predial, seguros).
-var GF_PAGOS_MES = { semanal:52/12, quincenal:2, mensual:1, bimestral:0.5, anual:1/12 };
+// 'unico' cuenta 0 al mes: es un pago de una sola vez, no un gasto fijo recurrente.
+// Aun así SÍ aparece en la lista de pagos del mes que le toque.
+// Catorcenal = cada 14 días → 26 pagos al año (NO 24 como la quincenal).
+// Se ancla a la fecha del PRIMER pago, no a días fijos del mes.
+var GF_PAGOS_MES = { semanal:52/12, catorcenal:26/12, quincenal:2, mensual:1, bimestral:0.5, anual:1/12, unico:0 };
 // Cada cuántos días cae un pago (para contar los que FALTAN de verdad)
-var GF_DIAS_PERIODO = { semanal:7, quincenal:365/24, mensual:365/12, bimestral:365/6, anual:365 };
-function _gfPagosPorMes(it){ return GF_PAGOS_MES[_gfFrec(it)] || 1; }
+var GF_DIAS_PERIODO = { semanal:7, catorcenal:14, quincenal:365/24, mensual:365/12, bimestral:365/6, anual:365, unico:1 };
+function _gfPagosPorMes(it){
+  var p=GF_PAGOS_MES[_gfFrec(it)];
+  // OJO: no usar "|| 1" — el pago único vale 0 y "0 || 1" daría 1 en JavaScript.
+  return (p===undefined || p===null) ? 1 : p;
+}
 // Lo que ese gasto te cuesta AL MES
 function _gfMensual(it){
   return _gfPagosPorMes(it) * (it.m||0);
 }
 function _gfFrecNombre(f){
-  return { semanal:'semana', quincenal:'quincena', mensual:'mes', bimestral:'2 meses', anual:'año' }[f] || 'mes';
+  return { semanal:'semana', catorcenal:'14 días', quincenal:'quincena', mensual:'mes', bimestral:'2 meses', anual:'año', unico:'una vez' }[f] || 'mes';
 }
 function _gfFrecBoton(f){
-  return { semanal:'Semana', quincenal:'Quincena', mensual:'Mes', bimestral:'Bimestre', anual:'Año' }[f] || 'Mes';
+  return { semanal:'Semana', catorcenal:'14 días', quincenal:'Quincena', mensual:'Mes', bimestral:'Bimestre', anual:'Año', unico:'1 sola vez' }[f] || 'Mes';
 }
 
 // Acepta 'AAAA-MM' o 'AAAA-MM-DD' (fecha exacta del último pago)
@@ -7765,9 +7820,27 @@ function _gfPagosRestantes(it){
   if(_gfEsFijo(it)) return null;
   var dias=_gfDiasRestantes(it.fin);
   if(dias===null) return null;
-  if(dias<0) return 0;                       // ya terminó
+  if(dias<0) return 0;                       // ya pasó
+  if(_gfFrec(it)==='unico') return 1;        // un pago único es… uno
+
+  // Catorcenal: los cuento uno por uno desde el primer pago. Sin estimaciones.
+  if(_gfFrec(it)==='catorcenal' && it.inicio){
+    var p=_gfNormFin(it.inicio).split('-');
+    if(p.length===3){
+      var d=new Date(+p[0], +p[1]-1, +p[2]);
+      var f=_gfNormFin(it.fin).split('-');
+      var fin=new Date(+f[0], +f[1]-1, +f[2]);
+      var hoy=new Date(); hoy.setHours(0,0,0,0);
+      var n=0, guarda=0;
+      while(d <= fin && guarda++ < 500){
+        if(d >= hoy) n++;
+        d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+14);
+      }
+      return n;
+    }
+  }
   var periodo=GF_DIAS_PERIODO[_gfFrec(it)] || (365/12);
-  return Math.max(1, Math.ceil(dias/periodo));   // si aún no llega la fecha, queda al menos 1
+  return Math.max(1, Math.ceil(dias/periodo));
 }
 function _gfMoney(n){ return '$'+(Number(n)||0).toLocaleString('es-MX',{maximumFractionDigits:0}); }
 function _gfEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -7815,6 +7888,41 @@ function _gfResumenPlazos(){
    El año tiene 52 sábados, no 48. Cuatro meses traen 5 pagos en vez de 4. */
 var GF_DIA_PAGO = leerNum('gf_dia_pago', 6);   // 0=domingo … 6=sábado
 var GF_DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+/* El día de pago de CADA gasto. Si no le pones nada, usa el default. */
+function _gfDiaSem(it){
+  var d=(it.diaSem===undefined || it.diaSem===null || it.diaSem==='') ? GF_DIA_PAGO : parseInt(it.diaSem,10);
+  return isNaN(d) ? GF_DIA_PAGO : Math.max(0, Math.min(6, d));
+}
+function _gfDia1(it, ultimo){
+  var d=parseInt(it.dia, 10);
+  if(isNaN(d)) d = (_gfFrec(it)==='quincenal') ? 15 : 1;
+  return Math.max(1, Math.min(ultimo, d));
+}
+function _gfDia2(it, ultimo){
+  var d=parseInt(it.dia2, 10);
+  if(isNaN(d)) d = ultimo;              // por default, el último día del mes
+  return Math.max(1, Math.min(ultimo, d));
+}
+function _gfMesAnual(it){
+  var m=parseInt(it.mesAnual, 10);
+  return (isNaN(m) || m<1 || m>12) ? 1 : m;
+}
+
+/* Cada 14 días a partir del primer pago. Devuelve los días que caen en ese mes. */
+function _gfFechasCatorcenal(it, anio, nm){
+  var ini=_gfNormFin(it.inicio||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(ini)) return [];   // sin primer pago, no puedo calcular
+  var p=ini.split('-');
+  var d=new Date(+p[0], +p[1]-1, +p[2]);
+  var fin = new Date(anio, nm, 0);          // último día del mes que pido
+  var out=[], guarda=0;
+  while(d <= fin && guarda++ < 500){
+    if(d.getFullYear()===anio && (d.getMonth()+1)===nm) out.push(d.getDate());
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+14);
+  }
+  return out;
+}
 
 // Cuántas veces cae el día de pago en ese mes
 function _gfDiasDePagoEnMes(anio, mes){   // mes: 1-12
@@ -8042,12 +8150,15 @@ function renderGestionGastos(){
               return '<button onclick="gfSetFrec('+ci+','+ii+',\''+f+'\')" style="'+(frec===f?bOn:bOff)+';border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px;font-weight:700">'+_gfFrecBoton(f)+'</button>';
             }).join('')
           +'<span id="gf-eq-'+ci+'-'+ii+'" style="font-size:10px;color:var(--accent2)">'+(frec!=='mensual'?'= '+_gfMoney(mens)+'/mes':'')+'</span>'
-          +'<span style="width:10px"></span>'
-          +'<button onclick="gfSetFijo('+ci+','+ii+',true)" style="'+(esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">🔁 Fijo</button>'
-          +'<button onclick="gfSetFijo('+ci+','+ii+',false)" style="'+(!esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">📅 Se acaba</button>'
+          + (frec==='unico' ? '' :
+              '<span style="width:10px"></span>'
+              +'<button onclick="gfSetFijo('+ci+','+ii+',true)" style="'+(esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">🔁 Fijo</button>'
+              +'<button onclick="gfSetFijo('+ci+','+ii+',false)" style="'+(!esFijo?bOn:bOff)+';border-radius:5px;padding:3px 9px;cursor:pointer;font-size:10px;font-weight:700">📅 Se acaba</button>')
         +'</div>'
+        // ¿Qué día se paga?
+        + _gfSelectorDia(ci, ii, it, frec)
         // Fecha de término (solo si NO es fijo)
-        + (esFijo ? '' :
+        + (esFijo || frec==='unico' ? '' :
            '<div style="display:flex;gap:7px;align-items:center;margin-top:6px;flex-wrap:wrap">'
             +'<label style="font-size:10px;color:var(--text2)">Último pago:</label>'
             +'<input type="date" value="'+_gfEsc(_gfNormFin(it.fin))+'" onchange="gfSetFin('+ci+','+ii+',this.value)" style="'+inp+';padding:4px 6px;font-size:11px">'
@@ -8076,6 +8187,13 @@ function gfSetCat(ci,val){ if(GASTOS[ci]){ GASTOS[ci].cat=val; saveGastosFijos()
 // El texto de cada renglón ("= $X/mes", "⏳ 3 meses…"). Se usa al dibujar Y al teclear.
 function _gfTextoInfo(it){
   var esFijo=_gfEsFijo(it), frec=_gfFrec(it), mens=_gfMensual(it);
+  if(frec==='unico'){
+    if(!it.fin) return '<span style="font-size:10px;color:var(--red)">⚠️ Ponle la fecha del pago</span>';
+    var dU=_gfDiasRestantes(it.fin);
+    if(dU<0) return '<span style="font-size:10px;color:var(--green);font-weight:700">✅ Ya lo pagaste ('+_gfMesNombre(it.fin)+')</span>';
+    if(dU===0) return '<span style="font-size:10px;color:var(--accent2);font-weight:700">📌 Se paga HOY · '+_gfMoney(it.m)+'</span>';
+    return '<span style="font-size:10px;color:var(--accent2)">1️⃣ Pago único de <b>'+_gfMoney(it.m)+'</b> · el '+_gfMesNombre(it.fin)+' (en '+dU+' días)<br><span style="color:var(--text2)">No cuenta en tu gasto fijo mensual, pero sí aparece en los pagos de ese mes.</span></span>';
+  }
   var mr=esFijo?null:_gfMesesRestantes(it.fin);
   if(esFijo) return '<span style="font-size:10px;color:var(--green)">🔁 Para siempre · '+_gfMoney(mens)+'/mes</span>';
   if(mr===null) return '<span style="font-size:10px;color:var(--red)">⚠️ Ponle la fecha del último pago</span>';
@@ -8155,20 +8273,27 @@ function _pgPagosDelMes(mes){
 
       var fechas=[];
       if(frec==='semanal'){
-        fechas=_pgDiaSemana(anio, nm, (typeof GF_DIA_PAGO!=='undefined'?GF_DIA_PAGO:6));
+        fechas=_pgDiaSemana(anio, nm, _gfDiaSem(it));
       } else if(frec==='quincenal'){
-        fechas=[15, ultimo];
+        var d1=_gfDia1(it, ultimo), d2=_gfDia2(it, ultimo);
+        fechas = (d1===d2) ? [d1] : [d1, d2].sort(function(a,b){return a-b;});
       } else if(frec==='mensual'){
-        fechas=[Math.min(1, ultimo)];   // día 1 por defecto
+        fechas=[_gfDia1(it, ultimo)];
       } else if(frec==='bimestral'){
-        if(nm % 2 === 1) fechas=[1];    // meses impares (ene, mar, may…)
+        if(nm % 2 === 1) fechas=[_gfDia1(it, ultimo)];   // meses impares
       } else if(frec==='anual'){
-        if(nm === 1) fechas=[1];
+        if(nm === _gfMesAnual(it)) fechas=[_gfDia1(it, ultimo)];
+      } else if(frec==='catorcenal'){
+        fechas=_gfFechasCatorcenal(it, anio, nm);
+      } else if(frec==='unico'){
+        // Solo en el mes de su fecha
+        var f=_gfNormFin(it.fin||'');
+        if(f && f.slice(0,7) === mes) fechas=[parseInt(f.slice(8,10),10)];
       }
 
       fechas.forEach(function(dia, k){
         // Si tiene fecha de término, no listes pagos posteriores
-        if(!fijo && it.fin){
+        if(!fijo && it.fin && frec!=='unico'){
           var fin=_gfNormFin(it.fin);
           var esta=anio+'-'+String(nm).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
           if(esta > fin) return;
@@ -8202,6 +8327,7 @@ function pgToggle(id, ev){
   }
   savePagosCheck();
   try{ renderPagosAtrasados(); }catch(e){}
+  try{ renderKPIsFinanzas(); }catch(e){}
   renderPagosMes();
 }
 function pgCambiarMes(dir){
@@ -8371,6 +8497,8 @@ function pgToggleMes(mes, id){
   try{ renderPagosAtrasados(); }catch(e){}
   try{ renderPagosAtrasados(); }catch(e){}
   try{ renderPagosMes(); }catch(e){}
+  try{ renderKPIsFinanzas(); }catch(e){}
+  try{ renderAvisosFinanzas(); }catch(e){}
 }
 function pgPalomearAtrasados(){
   var L=_pgAtrasados();
@@ -8463,6 +8591,94 @@ function pgDeshacer(){
   if(typeof mostrarToast==='function') mostrarToast('↩️ Le quité la palomita a '+u.nombre,'');
 }
 function pgTogglePagados(){ pgVerPagados=!pgVerPagados; renderPagosMes(); }
+
+/* ═══ Los 4 números de arriba ═══ */
+function renderKPIsFinanzas(){
+  var set=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+  var mes=_pgMesActual();
+  var L=_pgPagosDelMes(mes);
+  var pagados=L.filter(function(x){ return _pgPagado(mes,x.id); });
+  var totalMes=L.reduce(function(a,x){ return a+x.monto; },0);
+  var totalPagado=pagados.reduce(function(a,x){ return a+x.monto; },0);
+  var falta=totalMes-totalPagado;
+  var atr=_pgAtrasados();
+  var totAtr=atr.reduce(function(a,x){ return a+x.monto; },0);
+
+  set('kb-mes', _gfMoney(totalMes));
+  set('kb-mes-sub', L.length+' pagos en '+_pgMesNombre(mes));
+  set('kb-pagado', _gfMoney(totalPagado));
+  set('kb-pagado-sub', pagados.length+' de '+L.length+' pagos');
+  set('kb-falta', _gfMoney(falta));
+  set('kb-falta-sub', atr.length ? ('⚠️ '+atr.length+' atrasado(s) · '+_gfMoney(totAtr)) : '✅ sin atrasos');
+  var eF=document.getElementById('kb-falta');
+  if(eF) eF.style.color = atr.length ? 'var(--red)' : 'var(--accent2)';
+
+  // Me deben
+  try{
+    var abiertas=(typeof cobrarData!=='undefined'?cobrarData:[]).filter(function(d){ return !_cobPagada(d); });
+    var saldo=abiertas.reduce(function(a,d){ return a+_cobSaldo(d); },0);
+    var venc=abiertas.filter(function(d){ var n=_cobDiasVence(d); return n!==null && n<0; });
+    set('kb-deben', _gfMoney(saldo));
+    set('kb-deben-sub', abiertas.length
+      ? (abiertas.length+' persona(s)' + (venc.length?' · ⚠️ '+venc.length+' vencida(s)':''))
+      : 'nadie te debe');
+  }catch(e){}
+}
+
+/* ═══ 🔔 Ojo con esto: lo que se te viene, en corto ═══ */
+function renderAvisosFinanzas(){
+  var c=document.getElementById('finanzas-avisos'); if(!c) return;
+  var avisos=[];
+
+  // Meses de 5 días de pago
+  try{
+    var M=_gfProximosMeses();
+    var porPago=_gfPagoSemanal();
+    if(M.length && porPago>0){
+      var esteMes=M[0];
+      if(esteMes.pagos>=5){
+        avisos.push({ico:'📅', tit:'Este mes tiene 5 '+GF_DIAS[GF_DIA_PAGO]+'s', val:'Aparta '+_gfMoney(porPago)+' extra', col:'var(--red)'});
+      } else {
+        var prox=M.find(function(x){ return x.pagos>=5; });
+        if(prox) avisos.push({ico:'📅', tit:prox.etiqueta+' trae 5 '+GF_DIAS[GF_DIA_PAGO]+'s', val:'Prepara '+_gfMoney(prox.extra)+' extra', col:'#e8b84b'});
+      }
+    }
+  }catch(e){}
+
+  // Lo que sale cada semana / quincena
+  try{
+    var sem=_gfFrecuentes('semanal').reduce(function(a,x){ return a+x.m; },0);
+    if(sem>0) avisos.push({ico:'🗓️', tit:'Cada '+GF_DIAS[GF_DIA_PAGO], val:_gfMoney(sem), col:'var(--green)'});
+    var qui=_gfFrecuentes('quincenal').reduce(function(a,x){ return a+x.m; },0);
+    if(qui>0) avisos.push({ico:'📆', tit:'Cada quincena', val:_gfMoney(qui), col:'#5b8af4'});
+  }catch(e){}
+
+  // La próxima deuda que se libera
+  try{
+    var D=_gfConPlazo();
+    if(D.length){
+      var d=D[0];
+      avisos.push({ico:'🎉', tit:'Se libera '+_gfEsc(d.n)+' el '+_gfMesNombre(d.fin), val:'+'+_gfMoney(d.mens)+'/mes', col:'var(--green)'});
+      var totalResta=D.reduce(function(a,x){ return a+x.resta; },0);
+      avisos.push({ico:'⏳', tit:'Traes '+D.length+' deuda(s) a plazo', val:_gfMoney(totalResta)+' por pagar', col:'var(--accent2)'});
+    }
+  }catch(e){}
+
+  if(!avisos.length){
+    c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:14px;text-align:center">Todo tranquilo por aquí. 😌</div>';
+    return;
+  }
+
+  c.innerHTML = avisos.map(function(a){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:6px;background:var(--surface2);border-radius:8px;border-left:3px solid '+a.col+'">'
+      +'<span style="font-size:17px">'+a.ico+'</span>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.tit+'</div>'
+        +'<div style="font-size:14px;font-weight:700;color:'+a.col+'">'+a.val+'</div>'
+      +'</div></div>';
+  }).join('')
+  + '<div style="font-size:10px;color:var(--text2);margin-top:4px;text-align:center">El detalle completo, más abajo 👇</div>';
+}
 
 function renderPagosMes(){
   var c=document.getElementById('pagos-mes'); if(!c) return;
@@ -8612,6 +8828,104 @@ function gfSetFrec(ci,ii,val){
   it.frec = (GF_FRECS.indexOf(val)>=0) ? val : 'mensual';
   saveGastosFijos(); renderGestionGastos();
 }
+/* El selector del día de pago, distinto según la frecuencia */
+function _gfSelectorDia(ci, ii, it, frec){
+  var s='background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 5px;font-size:10px;color:var(--accent2)';
+  var lbl='font-size:10px;color:var(--text2)';
+  var dias31=function(sel){
+    var o='';
+    for(var d=1; d<=31; d++) o+='<option value="'+d+'"'+(d===sel?' selected':'')+'>'+d+'</option>';
+    return o;
+  };
+  var h='<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">';
+
+  if(frec==='semanal'){
+    h+='<span style="'+lbl+'">📆 ¿Qué día?</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'diaSem\',this.value)" style="'+s+'">';
+    GF_DIAS.forEach(function(d,i){
+      h+='<option value="'+i+'"'+(i===_gfDiaSem(it)?' selected':'')+'>'+d.charAt(0).toUpperCase()+d.slice(1)+'</option>';
+    });
+    h+='</select>';
+  }
+  else if(frec==='quincenal'){
+    h+='<span style="'+lbl+'">📆 Días:</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'dia\',this.value)" style="'+s+'">'+dias31(_gfDia1(it,31))+'</select>'
+      +'<span style="'+lbl+'">y</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'dia2\',this.value)" style="'+s+'">'+dias31(_gfDia2(it,31))+'</select>'
+      +'<span style="font-size:9px;color:var(--text2)">(si pones 31 y el mes es más corto, cae el último día)</span>';
+  }
+  else if(frec==='mensual' || frec==='bimestral'){
+    h+='<span style="'+lbl+'">📆 ¿Qué día del mes?</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'dia\',this.value)" style="'+s+'">'+dias31(_gfDia1(it,31))+'</select>';
+    if(frec==='bimestral') h+='<span style="font-size:9px;color:var(--text2)">(ene, mar, may, jul, sep, nov)</span>';
+  }
+  else if(frec==='anual'){
+    var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    h+='<span style="'+lbl+'">📆 ¿Cuándo?</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'dia\',this.value)" style="'+s+'">'+dias31(_gfDia1(it,31))+'</select>'
+      +'<span style="'+lbl+'">de</span>'
+      +'<select onchange="gfSetDia('+ci+','+ii+',\'mesAnual\',this.value)" style="'+s+'">';
+    M.forEach(function(m,i){
+      h+='<option value="'+(i+1)+'"'+((i+1)===_gfMesAnual(it)?' selected':'')+'>'+m+'</option>';
+    });
+    h+='</select>';
+  }
+  else if(frec==='catorcenal'){
+    h+='<span style="'+lbl+'">📅 ¿Cuándo fue el PRIMER pago?</span>'
+      +'<input type="date" value="'+_gfEsc(_gfNormFin(it.inicio||''))+'" onchange="gfSetInicio('+ci+','+ii+',this.value)" style="'+s+';padding:3px 6px">'
+      + (it.inicio ? '' : '<span style="font-size:10px;color:var(--red)">⚠️ Sin esto no puedo calcular las fechas</span>');
+    // Vista previa: las próximas fechas de verdad
+    if(it.inicio){
+      var prox=_gfProximasCatorcenales(it, 6);
+      if(prox.length){
+        h+='<div style="width:100%;margin-top:5px;font-size:10px;color:var(--text2)">Cae los: <b style="color:var(--accent2)">'
+          + prox.join(' · ')
+          + (prox.length>=6 ? ' …' : '')
+          +'</b></div>';
+      }
+    }
+  }
+  else if(frec==='unico'){
+    h+='<span style="'+lbl+'">📅 ¿Qué día lo pagas?</span>'
+      +'<input type="date" value="'+_gfEsc(_gfNormFin(it.fin))+'" onchange="gfSetFin('+ci+','+ii+',this.value)" style="'+s+';padding:3px 6px">'
+      + (it.fin ? '' : '<span style="font-size:10px;color:var(--red)">⚠️ Ponle fecha</span>');
+  }
+  return h+'</div>';
+}
+
+// Las próximas N fechas de una catorcenal, para que las veas antes de guardar
+function _gfProximasCatorcenales(it, n){
+  var ini=_gfNormFin(it.inicio||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(ini)) return [];
+  var MM=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var p=ini.split('-');
+  var d=new Date(+p[0], +p[1]-1, +p[2]);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var fin=null;
+  if(it.fin){
+    var f=_gfNormFin(it.fin).split('-');
+    if(f.length===3) fin=new Date(+f[0], +f[1]-1, +f[2]);
+  }
+  var out=[], guarda=0;
+  while(out.length < (n||6) && guarda++ < 500){
+    if(fin && d > fin) break;
+    if(d >= hoy) out.push(d.getDate()+' '+MM[d.getMonth()]);
+    d=new Date(d.getFullYear(), d.getMonth(), d.getDate()+14);
+  }
+  return out;
+}
+
+function gfSetInicio(ci,ii,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  if(val) it.inicio=val; else delete it.inicio;
+  saveGastosFijos(); renderGestionGastos();
+}
+function gfSetDia(ci,ii,campo,val){
+  var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
+  if(val==='' || val===null) delete it[campo];
+  else it[campo]=parseInt(val,10);
+  saveGastosFijos(); renderGestionGastos();
+}
 function gfSetFijo(ci,ii,val){
   var it=GASTOS[ci] && GASTOS[ci].items[ii]; if(!it) return;
   it.fijo = !!val;
@@ -8680,6 +8994,8 @@ function initFinanzas() {
 
   try{ renderPagosAtrasados(); }catch(e){}
   try{ renderPagosMes(); }catch(e){}
+  try{ renderKPIsFinanzas(); }catch(e){}
+  try{ renderAvisosFinanzas(); }catch(e){}
 
   // Los paneles de pagos y deudas, visibles sin tener que abrir nada
   const paneles=document.getElementById('gastos-paneles');
@@ -8799,8 +9115,31 @@ function _cobDiasVence(d){
   return Math.round((f-hoy)/86400000);
 }
 
+var cobTipo='prestamo';   // 'prestamo' = le presté · 'recibir' = tanda, reembolso, etc.
+function cobSetTipo(t){
+  cobTipo = (t==='recibir') ? 'recibir' : 'prestamo';
+  var esRec = (cobTipo==='recibir');
+  var set=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
+  var ph=function(id,txt){ var e=document.getElementById(id); if(e) e.placeholder=txt; };
+
+  set('cob-lbl-quien',    esRec ? '👤 ¿Quién te lo va a dar?' : '👤 ¿Quién te debe?');
+  set('cob-lbl-esperada', esRec ? '🗓️ ¿Cuándo te lo entregan?' : '🗓️ ¿Cuándo te va a pagar?');
+  ph('cob-quien', esRec ? 'ej. Tanda Eva' : 'ej. Comadre Rosy');
+  ph('cob-nota',  esRec ? 'ej. Mi turno de la tanda' : 'ej. Le presté para la renta');
+
+  // En "me lo van a dar" no aplican: ni "cuándo se lo diste", ni recordarle por WhatsApp.
+  var ver=function(id, mostrar){ var e=document.getElementById(id); if(e) e.style.display = mostrar ? '' : 'none'; };
+  ver('cob-grp-fecha', !esRec);
+  ver('cob-grp-tel',   !esRec);
+
+  var bp=document.getElementById('cob-tipo-prestamo'), br=document.getElementById('cob-tipo-recibir');
+  if(bp) bp.className='cob-tipo'+(esRec?'':' cob-tipo-on');
+  if(br) br.className='cob-tipo'+(esRec?' cob-tipo-on':'');
+}
+
 function initCobrar(){
   try{ _fechaHoySiVacio('cob-fecha'); }catch(e){}
+  cobSetTipo(cobTipo);
   renderCobrar();
 }
 
@@ -8811,6 +9150,7 @@ function cobGuardar(){
   if(monto<=0){ alert('Pon el monto que te deben.'); return; }
   cobrarData.unshift({
     id:'C'+Date.now(),
+    tipo:cobTipo,
     quien:quien, monto:monto,
     fecha:g('cob-fecha')||_hoyISO(),
     esperada:g('cob-esperada'),
@@ -8819,6 +9159,7 @@ function cobGuardar(){
   });
   saveCobrar();
   ['cob-quien','cob-monto','cob-esperada','cob-tel','cob-nota'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
+  if(cobTipo==='recibir'){ var ef=document.getElementById('cob-fecha'); if(ef) ef.value=''; }
   try{ _fechaHoySiVacio('cob-fecha'); }catch(e){}
   if(typeof logInventario==='function') logInventario('Por cobrar: '+quien+' · '+_cobMoney(monto));
   if(typeof mostrarToast==='function') mostrarToast('🤲 Guardado','green');
@@ -8857,7 +9198,7 @@ function renderCobrar(){
 
   if(!lista.length){
     c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:16px;text-align:center">'
-      + (filtro==='pagadas' ? 'Nadie te ha terminado de pagar todavía.' : 'Nadie te debe. 🎉')
+      + (filtro==='pagadas' ? 'Nadie te ha terminado de pagar todavía.' : 'Nadie te debe ni tienes nada por recibir. 🎉')
       + '</div>';
     return;
   }
@@ -8870,27 +9211,36 @@ function renderCobrar(){
 
   lista.forEach(function(d){
     var saldo=_cobSaldo(d), abonado=_cobAbonado(d), pagada=_cobPagada(d);
+    var esRecibir = (d.tipo==='recibir');
     var dias=_cobDiasVence(d);
     var pct = d.monto>0 ? Math.min(100, abonado/d.monto*100) : 0;
 
     var estado='', col='var(--border)';
-    if(pagada){ estado='<span style="color:var(--green);font-weight:700">✅ Pagado</span>'; col='rgba(58,190,120,.4)'; }
+    if(pagada){ estado='<span style="color:var(--green);font-weight:700">✅ '+(esRecibir?'Ya lo recibiste':'Pagado')+'</span>'; col='rgba(58,190,120,.4)'; }
     else if(dias===null){ estado='<span style="color:var(--text2)">Sin fecha</span>'; }
-    else if(dias<0){ estado='<span style="color:var(--red);font-weight:700">⚠️ Vencida hace '+(-dias)+' día(s)</span>'; col='rgba(244,91,105,.45)'; }
-    else if(dias===0){ estado='<span style="color:#e8b84b;font-weight:700">📌 Te paga HOY</span>'; col='rgba(232,184,75,.45)'; }
+    else if(dias<0){ estado='<span style="color:var(--red);font-weight:700">⚠️ '+(esRecibir?'Se atrasó':'Vencida')+' hace '+(-dias)+' día(s)</span>'; col='rgba(244,91,105,.45)'; }
+    else if(dias===0){ estado='<span style="color:#e8b84b;font-weight:700">📌 '+(esRecibir?'Te lo dan HOY':'Te paga HOY')+'</span>'; col='rgba(232,184,75,.45)'; }
     else if(dias<=15){ estado='<span style="color:#e8b84b">⏳ En '+dias+' día(s)</span>'; col='rgba(232,184,75,.35)'; }
     else { estado='<span style="color:var(--text2)">En '+dias+' días</span>'; }
 
     h+='<div style="border:1px solid '+col+';border-radius:9px;padding:11px;margin-bottom:9px;'+(pagada?'opacity:.7':'')+'">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap">'
         +'<div style="flex:1;min-width:150px">'
-          +'<div style="font-size:14px;font-weight:700;color:var(--text)">'+_cobEsc(d.quien)+'</div>'
-          +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(d.nota?_cobEsc(d.nota)+' · ':'')+'Prestado el '+(d.fecha||'—')+'</div>'
+          +'<div style="font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+            +'<span>'+_cobEsc(d.quien)+'</span>'
+            +'<span style="font-size:9px;font-weight:700;border-radius:4px;padding:2px 6px;'
+              + (esRecibir
+                  ? 'background:rgba(91,138,244,.15);color:#5b8af4">🎁 POR RECIBIR'
+                  : 'background:rgba(232,184,75,.15);color:#e8b84b">💸 PRÉSTAMO')
+            +'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(d.nota?_cobEsc(d.nota)+' · ':'')
+            + (esRecibir ? 'Registrado el ' : 'Prestado el ') + (d.fecha||'—')+'</div>'
           +'<div style="font-size:11px;margin-top:3px">'+estado+'</div>'
         +'</div>'
         +'<div style="text-align:right">'
           +'<div style="font-size:18px;font-weight:700;color:'+(pagada?'var(--green)':'var(--red)')+'">'+_cobMoney(saldo)+'</div>'
-          +'<div style="font-size:10px;color:var(--text2)">'+(abonado>0?'de '+_cobMoney(d.monto):'te debe')+'</div>'
+          +'<div style="font-size:10px;color:var(--text2)">'+(abonado>0?'de '+_cobMoney(d.monto):(esRecibir?'te toca':'te debe'))+'</div>'
         +'</div>'
       +'</div>';
 
@@ -8918,10 +9268,12 @@ function renderCobrar(){
     // Acciones
     h+='<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center">';
     if(!pagada){
-      h+='<button onclick="cobAbonar(\''+d.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">💵 Me abonó</button>'
-        +'<button onclick="cobSaldar(\''+d.id+'\')" style="background:var(--surface2);border:1px solid var(--border);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">✅ Me pagó todo</button>';
+      h+='<button onclick="cobAbonar(\''+d.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">💵 '+(esRecibir?'Me dieron una parte':'Me abonó')+'</button>'
+        +'<button onclick="cobSaldar(\''+d.id+'\')" style="background:var(--surface2);border:1px solid var(--border);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">✅ '+(esRecibir?'Ya me lo dieron todo':'Me pagó todo')+'</button>';
       if(d.tel){
-        var msg=encodeURIComponent('Hola '+d.quien+', ¿cómo estás? Te escribo por el préstamo de '+_cobMoney(d.monto)+(d.esperada?' que quedamos para el '+d.esperada:'')+'. ¿Cómo vamos?');
+        var msg=encodeURIComponent(esRecibir
+          ? ('Hola '+d.quien+', ¿cómo estás? Te escribo por los '+_cobMoney(d.monto)+(d.esperada?' que quedamos para el '+d.esperada:'')+'. ¿Cómo vamos?')
+          : ('Hola '+d.quien+', ¿cómo estás? Te escribo por el préstamo de '+_cobMoney(d.monto)+(d.esperada?' que quedamos para el '+d.esperada:'')+'. ¿Cómo vamos?'));
         h+='<a href="https://wa.me/52'+String(d.tel).replace(/\D/g,'')+'?text='+msg+'" target="_blank" style="background:rgba(58,190,120,.14);border:1px solid rgba(58,190,120,.4);color:var(--green);border-radius:6px;padding:5px 12px;font-size:11px;text-decoration:none">💬 Recordarle</a>';
       }
     }
