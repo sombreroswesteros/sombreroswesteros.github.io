@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v175</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v179</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -2447,10 +2447,10 @@ function saveGastosFijos(){
 }
 
 const EMPLEADOS_DEFAULT = [
-  {nombre:'Empleado 1',salario_mensual:4000,frecuencia:'Mensual',area:'Empaque/Envíos'},
-  {nombre:'Empleado 2',salario_mensual:8000,frecuencia:'Mensual',area:'Atención ML'},
-  {nombre:'Empleado 3',salario_mensual:7600,frecuencia:'Mensual',area:'Producción'},
-  {nombre:'Empleado 4',salario_mensual:4000,frecuencia:'Mensual',area:'Auxiliar'},
+  {nombre:'Monica Guzman',salario_mensual:4000,frecuencia:'Mensual',area:'Otro'},
+  {nombre:'Maria de Lourdes Estrada Jacobo',salario_mensual:8000,frecuencia:'Mensual',area:'Tienda Física'},
+  {nombre:'Lizeth Arreola Mayorga',salario_mensual:7600,frecuencia:'Mensual',area:'Tienda Física'},
+  {nombre:'Ernesto Carlos Armas Duran',salario_mensual:4000,frecuencia:'Mensual',area:'Almacén'},
 ];
 
 const COMPONENTES_DEFAULT = [
@@ -3806,10 +3806,10 @@ function calcNomina() {
 const MESES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 let empleadasData = JSON.parse(localStorage.getItem('empleadas_perfiles') || JSON.stringify([
-  {id:1,nombre:'Empleada 1',cumple:'',ingreso:'',area:'Ventas',salario:4000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
-  {id:2,nombre:'Empleada 2',cumple:'',ingreso:'',area:'Empaque',salario:8000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
-  {id:3,nombre:'Empleada 3',cumple:'',ingreso:'',area:'Tienda Física',salario:7600,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
-  {id:4,nombre:'Empleada 4',cumple:'',ingreso:'',area:'Almacén',salario:4000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
+  {id:1,nombre:'Monica Guzman',cumple:'',ingreso:'',area:'Otro',salario:4000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
+  {id:2,nombre:'Maria de Lourdes Estrada Jacobo',cumple:'',ingreso:'',area:'Tienda Física',salario:8000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
+  {id:3,nombre:'Lizeth Arreola Mayorga',cumple:'',ingreso:'',area:'Tienda Física',salario:7600,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
+  {id:4,nombre:'Ernesto Carlos Armas Duran',cumple:'',ingreso:'',area:'Almacén',salario:4000,tel:'',whatsapp:'',curp:'',nss:'',direccion:'',emg_nombre:'',emg_parentesco:'Madre',emg_tel:'',notas:''},
 ]));
 
 function saveEmpleadas() { save('empleadas_perfiles', empleadasData); poblarSelectsEmpleados(); }
@@ -7750,6 +7750,13 @@ function _gfNormFin(fin){
   if(/^\d{4}-\d{2}$/.test(s)) return s+'-01';   // 2026-08 → 2026-08-01
   return s;
 }
+/* ── Fecha de inicio de una deuda (para deudas que empiezan a futuro) ── */
+function _gfMesHoy(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _gfInicioMes(it){ return (it && it.inicio) ? _gfNormFin(it.inicio).slice(0,7) : ''; }
+// ¿La deuda AÚN no empieza en el mes 'mes' (AAAA-MM)?
+function _gfNoActivoEn(it, mes){ var im=_gfInicioMes(it); return !!(im && im > mes); }
+// ¿Aún no empieza este mes? (para el promedio mensual y los paneles)
+function _gfEsFutura(it){ return _gfNoActivoEn(it, _gfMesHoy()); }
 function _gfEsFijo(it){
   if(it.frec==='unico') return false;   // un pago único nunca es "para siempre"
   if(typeof it.fijo==='boolean') return it.fijo;
@@ -7779,6 +7786,7 @@ function _gfPagosPorMes(it){
 }
 // Lo que ese gasto te cuesta AL MES
 function _gfMensual(it){
+  if(_gfEsFutura(it)) return 0;   // deuda que aún no empieza: no cuenta en el gasto del mes
   return _gfPagosPorMes(it) * (it.m||0);
 }
 function _gfFrecNombre(f){
@@ -8027,11 +8035,37 @@ function gfSetDiaPago(v){
   save('gf_dia_pago', GF_DIA_PAGO);
   renderGestionGastos();
 }
+/* Buscador de gastos: filtra la lista sin recargar (no pierde lo que estás editando) */
+function _gfNorm(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function gfFiltrar(q){
+  var box=document.getElementById('gf-box'); if(!box) return;
+  q=_gfNorm(q).trim();
+  var cats=box.querySelectorAll('.gf-cat');
+  for(var c=0;c<cats.length;c++){
+    var cat=cats[c];
+    var catInp=cat.querySelector('input');
+    var catName=catInp?_gfNorm(catInp.value):'';
+    var catMatch=(q==='' || catName.indexOf(q)>=0);
+    var items=cat.querySelectorAll('.gf-item');
+    var visibles=0;
+    for(var i=0;i<items.length;i++){
+      var it=items[i];
+      var nm=it.getAttribute('data-n')||'';
+      var inp=it.querySelector('input[placeholder="Concepto"]');
+      var live=inp?_gfNorm(inp.value):nm;
+      var match=(q==='' || catMatch || nm.indexOf(q)>=0 || live.indexOf(q)>=0);
+      it.style.display=match?'':'none';
+      if(match) visibles++;
+    }
+    cat.style.display=(catMatch || visibles>0)?'':'none';
+  }
+}
 
 /* Pagos frecuentes (semanales y quincenales): cuánto sale cada vez */
 function _gfFrecuentes(frec){
   var out=[];
   GASTOS.forEach(function(g){ g.items.forEach(function(it){
+    if(_gfEsFutura(it)) return;   // deuda futura: aún no cuenta en los pagos frecuentes
     if(_gfFrec(it)===frec && (it.m||0)>0){
       var mr=_gfEsFijo(it)?null:_gfMesesRestantes(it.fin);
       out.push({cat:g.cat, n:it.n, m:it.m, mens:_gfMensual(it), fijo:_gfEsFijo(it), mr:mr, pagos:_gfPagosRestantes(it), fin:it.fin, resta:_gfRestante(it)});
@@ -8116,11 +8150,12 @@ function renderGestionGastos(){
     +'<h2 style="margin:0;color:var(--accent2);font-size:18px">💸 Gastos fijos</h2>'
     +'<button onclick="_gfCerrar()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div>'
     +'<p style="color:var(--text2);font-size:11px;margin:0 0 12px">Son tus gastos de cada mes. Ponle <b>último pago</b> a los que tienen plazo (deudas) para saber cuándo se acaban.</p>'
+    +'<input id="gf-buscar" type="text" placeholder="🔍 Buscar gasto por nombre..." oninput="gfFiltrar(this.value)" autocomplete="off" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);margin-bottom:12px">'
     + '<div style="font-size:10px;color:var(--text2);margin-bottom:12px;padding:7px 9px;background:var(--surface2);border-radius:7px">💡 Los avisos de pagos y deudas los ves en la página de Gastos, sin abrir nada.<br>↕️ Usa las flechitas para acomodar tus gastos y categorías por prioridad. La lista de Gastos respeta ese orden.</div>';
 
   GASTOS.forEach(function(g,ci){
     var subt=g.items.reduce(function(a,i){return a+_gfMensual(i);},0);
-    h+='<div style="border:1px solid var(--border);border-radius:9px;margin-bottom:9px;overflow:hidden">'
+    h+='<div class="gf-cat" style="border:1px solid var(--border);border-radius:9px;margin-bottom:9px;overflow:hidden">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 10px;background:var(--surface2)">'
         +'<div style="display:flex;flex-direction:column;gap:1px">'
           +'<button onclick="gfMoverCat('+ci+',-1)" title="Subir categoría" '+(ci===0?'disabled':'')+' style="background:transparent;border:1px solid var(--border);color:'+(ci===0?'var(--border)':'var(--accent2)')+';border-radius:4px 4px 0 0;padding:0 5px;cursor:'+(ci===0?'default':'pointer')+';font-size:9px;line-height:1.4">▲</button>'
@@ -8135,7 +8170,7 @@ function renderGestionGastos(){
       var info=_gfTextoInfo(it);
       var bOn='background:var(--accent2);border:1px solid var(--accent2);color:#0f0f13';
       var bOff='background:transparent;border:1px solid var(--border);color:var(--text2)';
-      h+='<div style="border:1px solid var(--border);border-radius:7px;padding:7px;margin-bottom:6px">'
+      h+='<div class="gf-item" data-n="'+_gfNorm(it.n)+'" style="border:1px solid var(--border);border-radius:7px;padding:7px;margin-bottom:6px">'
         +'<div style="display:grid;grid-template-columns:26px 1fr 110px 30px;gap:6px;align-items:center">'
         +'<div style="display:flex;flex-direction:column;gap:1px">'
           +'<button onclick="gfMoverItem('+ci+','+ii+',-1)" title="Subir" '+(ii===0?'disabled':'')+' style="background:var(--surface2);border:1px solid var(--border);color:'+(ii===0?'var(--border)':'var(--text2)')+';border-radius:4px 4px 0 0;padding:1px;cursor:'+(ii===0?'default':'pointer')+';font-size:9px;line-height:1.3">▲</button>'
@@ -8196,6 +8231,9 @@ function gfSetCat(ci,val){ if(GASTOS[ci]){ GASTOS[ci].cat=val; saveGastosFijos()
 // El texto de cada renglón ("= $X/mes", "⏳ 3 meses…"). Se usa al dibujar Y al teclear.
 function _gfTextoInfo(it){
   var esFijo=_gfEsFijo(it), frec=_gfFrec(it), mens=_gfMensual(it);
+  if(_gfEsFutura(it)){
+    return '<span style="font-size:10px;color:#e8b84b;font-weight:700">⏳ Deuda futura · empieza el '+_gfMesNombre(it.inicio)+' — aún no cuenta este mes</span>';
+  }
   if(frec==='unico'){
     if(!it.fin) return '<span style="font-size:10px;color:var(--red)">⚠️ Ponle la fecha del pago</span>';
     var dU=_gfDiasRestantes(it.fin);
@@ -8274,6 +8312,8 @@ function _pgPagosDelMes(mes){
     g.items.forEach(function(it, ii){
       var frec=_gfFrec(it);
       var fijo=_gfEsFijo(it);
+      // Si la deuda aún no empieza en este mes, no la listes
+      if(_gfNoActivoEn(it, mes)) return;
       // Si ya terminó de pagarse, no lo listes
       if(!fijo && it.fin){
         var f=_gfNormFin(it.fin).slice(0,7);
@@ -8301,6 +8341,12 @@ function _pgPagosDelMes(mes){
       }
 
       fechas.forEach(function(dia, k){
+        // Si aún no llega su fecha de inicio (mes de arranque), no listes ese pago
+        if(it.inicio){
+          var _ini=_gfNormFin(it.inicio);
+          var _esta=anio+'-'+String(nm).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+          if(/^\d{4}-\d{2}-\d{2}$/.test(_ini) && _esta < _ini) return;
+        }
         // Si tiene fecha de término, no listes pagos posteriores
         if(!fijo && it.fin && frec!=='unico'){
           var fin=_gfNormFin(it.fin);
@@ -8898,6 +8944,15 @@ function _gfSelectorDia(ci, ii, it, frec){
     h+='<span style="'+lbl+'">📅 ¿Qué día lo pagas?</span>'
       +'<input type="date" value="'+_gfEsc(_gfNormFin(it.fin))+'" onchange="gfSetFin('+ci+','+ii+',this.value)" style="'+s+';padding:3px 6px">'
       + (it.fin ? '' : '<span style="font-size:10px;color:var(--red)">⚠️ Ponle fecha</span>');
+  }
+  // Fecha de inicio opcional (para deudas que empiezan a futuro). Catorcenal ya la pide; único no la necesita.
+  if(frec!=='catorcenal' && frec!=='unico'){
+    h+='<span style="width:100%;height:0"></span>'
+      +'<span style="'+lbl+'">🚦 Empieza el (opcional):</span>'
+      +'<input type="date" value="'+_gfEsc(_gfNormFin(it.inicio||''))+'" onchange="gfSetInicio('+ci+','+ii+',this.value)" style="'+s+';padding:3px 6px">'
+      + (it.inicio
+          ? '<button onclick="gfSetInicio('+ci+','+ii+',\'\')" title="Quitar fecha de inicio" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px">✕</button><span style="font-size:9px;color:var(--text2)">Si es a futuro, no cuenta hasta ese mes</span>'
+          : '<span style="font-size:9px;color:var(--text2)">Déjalo vacío si ya la estás pagando</span>');
   }
   return h+'</div>';
 }
@@ -10538,11 +10593,33 @@ function renderFisica() {
     <td>${x.pago}</td>
     <td style="display:flex;gap:4px">
       <button class="btn btn-secondary btn-sm" onclick="ticketDesdeFisica(${i})" title="Imprimir ticket">🧾</button>
+      <button class="btn btn-secondary btn-sm" onclick="editarComisionFisica(${i})" title="Editar comisión">✏️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteFisica(${i})">✕</button>
     </td>
   </tr>`).join('');
 }
 function deleteFisica(i) { solicitarAutorizacionBorrado('Eliminar esta venta de tienda física', ()=>{ state.fisicaEntries.splice(i,1); save('fisica_entries',state.fisicaEntries); renderFisica(); }); }
+
+function editarComisionFisica(i) {
+  var v = state.fisicaEntries[i]; if(!v) return;
+  var precio = parseFloat(v.precio)||0;
+  var pctActual = precio>0 ? Math.round((parseFloat(v.comision)||0)/precio*10000)/100 : 0;
+  var r = prompt(
+    'Comisión para esta venta:\n'
+    + '• Vendedor: ' + (v.vendedor||'—') + '\n'
+    + '• Producto: ' + (v.modelo||'—') + '\n'
+    + '• Precio: $' + Math.round(precio).toLocaleString() + '\n\n'
+    + 'Escribe el porcentaje de comisión (ejemplo: 5):',
+    pctActual
+  );
+  if(r===null) return; // canceló
+  var pct = parseFloat((''+r).replace('%','').replace(',','.').trim());
+  if(isNaN(pct) || pct<0){ alert('Escribe un número válido, por ejemplo 5'); return; }
+  v.comision = precio * pct / 100;
+  save('fisica_entries', state.fisicaEntries);
+  renderFisica();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Comisión actualizada: $'+Math.round(v.comision).toLocaleString(),'green');
+}
 
 function ticketDesdeFisica(i) {
   const v=state.fisicaEntries[i]; if(!v) return;
