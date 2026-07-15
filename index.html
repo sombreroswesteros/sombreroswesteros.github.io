@@ -5,6 +5,15 @@
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERP · Sombreros Westeros</title>
+<!-- App instalable (PWA) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#266846">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ERP Westeros">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
@@ -14662,5 +14671,13 @@ window.addEventListener('DOMContentLoaded', ()=>{
   </div>
 </div>
 
+<script>
+/* Registro de la app instalable (PWA) */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function(e){ console.log('SW no registrado:', e); });
+  });
+}
+</script>
 </body>
 </html>
