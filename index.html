@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v191</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v194</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -5194,6 +5194,12 @@ function initInventario() {
   renderCompras_init();
 }
 
+function irAProveedores(){
+  goTo('inventario');
+  setTimeout(function(){
+    try{ var pill=document.querySelector('#page-inventario .pill[onclick*="inv-proveedores"]'); showInvTab(pill,'inv-proveedores'); }catch(e){}
+  }, 70);
+}
 function showInvTab(el, id) {
   if((id==='inv-proveedores'||id==='inv-pedidos') && typeof _invEsAdmin==='function' && !_invEsAdmin()){
     if(typeof mostrarToast==='function') mostrarToast('Solo el administrador puede ver proveedores','red');
@@ -5203,7 +5209,7 @@ function showInvTab(el, id) {
     .forEach(t=>{ const d=document.getElementById(t); if(d) d.style.display='none'; });
   const d=document.getElementById(id); if(d) d.style.display='block';
   document.querySelectorAll('#page-inventario .pill').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
+  if(el && el.classList) el.classList.add('active');
   if(id==='inv-alertas') renderAlertas();
   if(id==='inv-movimientos') renderMovimientos();
   if(id==='inv-proveedores'){ try{ _precioSembrarDesdeNotas(false); }catch(e){} renderCompras_init(); try{ renderDevProv(); }catch(e){} try{ _fechaHoySiVacio('nc-fecha'); }catch(e){} }
@@ -7208,7 +7214,7 @@ function recConfirmar(){
             envio:(p.envio&&p.envio.fotoTicket)||'',
             transfer:(p.envio&&p.envio.fotoTransfer)||'' };
 
-  goTo('inv-proveedores');
+  irAProveedores();
   setTimeout(function(){
     var set=function(i,v){ var e=document.getElementById(i); if(e) e.value=v; };
     if(p.prov && proveedoresLista.indexOf(p.prov)<0){ proveedoresLista.push(p.prov); saveProvLista(); }
@@ -7773,7 +7779,7 @@ function pedRecibir(id){
   ncLineas=out;
   ncFotos={nota:'', envio:(p.envio&&p.envio.fotoTicket)||'', transfer:(p.envio&&p.envio.fotoTransfer)||''};
 
-  goTo('inv-proveedores');
+  irAProveedores();
   setTimeout(function(){
     var set=function(i,v){ var e=document.getElementById(i); if(e) e.value=v; };
     if(p.prov && proveedoresLista.indexOf(p.prov)<0){ proveedoresLista.push(p.prov); saveProvLista(); }
@@ -7794,7 +7800,7 @@ function pedRecibir(id){
 
 function ncVerNotaDePedido(id){
   var p=pedidosData.find(function(x){return x.id===id;}); if(!p || !p.notaId) return;
-  goTo('inv-proveedores');
+  irAProveedores();
   setTimeout(function(){ try{ ncVerNota(p.notaId); }catch(e){ if(typeof mostrarToast==='function') mostrarToast('No encontré la nota','red'); } }, 260);
 }
 
@@ -13737,6 +13743,19 @@ function saveRangel(arr){
   try { save('rangel_entries', arr); } catch(e){}
 }
 /* ── Entrega rica a Rangel (multi-producto, catálogo real, servicio por talla) ── */
+function _rgOpcGear(key){ return '<button onclick="rgGestionOpc(\''+key+'\')" title="Gestionar opciones" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:13px">⚙️</button>'; }
+function rgGestionOpc(key){
+  if(typeof abrirGestionOpciones!=='function') return;
+  abrirGestionOpciones(key);
+  var ov=document.getElementById('inv-opc-overlay'); if(!ov) return;
+  var obs=new MutationObserver(function(){
+    if(!document.body.contains(ov)){
+      obs.disconnect();
+      try{ _rgSyncEntrega(); renderProductosEntrega(); }catch(e){}
+    }
+  });
+  try{ obs.observe(document.body, {childList:true}); }catch(e){}
+}
 function loadNotasRangel(){ try{ return JSON.parse(localStorage.getItem('rangel_notas')||'[]'); }catch(e){ return []; } }
 function saveNotasRangel(arr){ try{ save('rangel_notas', arr); }catch(e){} }
 /* ── Tipos de producto (administrables) ── */
@@ -13822,7 +13841,7 @@ function verOrdenRangel(notaId){
       return '<tr>'
         +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px">'+esc(l.talla||'—')+' cm</td>'
         +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px;text-align:center">'+(l.cant||1)+'</td>'
-        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px"><b>'+esc(l.servNombre||'—')+'</b></td>'
+        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px"><b>'+esc(l.servNombre||'—')+'</b>'+(l.detalle?'<br><span style="font-size:11px;color:#555">📝 '+esc(l.detalle)+'</span>':'')+'</td>'
         +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px">'+esc(l.fecha||'—')+'</td>'
       +'</tr>';
     }).join('');
@@ -13890,7 +13909,7 @@ function _rgSyncEntrega(){
     var lineas=[];
     pd.querySelectorAll('[data-rgline]').forEach(function(ld){
       var lg=function(cls){ var el=ld.querySelector('.'+cls); return el?el.value:''; };
-      lineas.push({ talla:lg('rg-l-talla'), cant:parseInt(lg('rg-l-cant'),10)||1, servId:lg('rg-l-serv'), fecha:lg('rg-l-fecha') });
+      lineas.push({ talla:lg('rg-l-talla'), cant:parseInt(lg('rg-l-cant'),10)||1, servId:lg('rg-l-serv'), fecha:lg('rg-l-fecha'), detalle:lg('rg-l-detalle') });
     });
     prods.push({ tipo:g('rg-p-tipo')||'Sombrero', marca:g('rg-p-marca'), calidad:g('rg-p-calidad'), horma:g('rg-p-horma'), color:g('rg-p-color'), lineas:lineas.length?lineas:[{talla:'',cant:1,servId:'',fecha:''}] });
   });
@@ -13911,20 +13930,21 @@ function renderProductosEntrega(){
         +'<select class="rg-l-serv" onchange="rgCalcCostoEntrega()" style="'+inp+';flex:1;min-width:120px">'+_rgServOpts(l.servId)+'</select>'
         +'<input type="date" class="rg-l-fecha" value="'+esc(l.fecha||'')+'" title="Fecha de entrega de esta pieza" style="'+inp+';width:135px">'
         + (lineas.length>1?'<button onclick="rgDelLineaProd('+pi+','+li+')" class="btn btn-danger btn-sm">✕</button>':'')
+        +'<input type="text" class="rg-l-detalle" value="'+esc(l.detalle||'')+'" placeholder="📝 Indicación: ej. bajar a talla 57, recortar 2cm de falda…" style="'+inp+';flex:1 1 100%;min-width:100%">'
       +'</div>';
     }).join('');
     return '<div data-rgprod style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--accent2)">🎩 Producto '+(pi+1)+'</b>'+(_rgEntregaProds.length>1?'<button onclick="rgDelProducto('+pi+')" class="btn btn-danger btn-sm">Quitar</button>':'')+'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
         +'<select class="rg-p-tipo" style="'+inp+'">'+loadTiposRangel().map(function(tp){ return '<option'+((p.tipo||'Sombrero')===tp?' selected':'')+'>'+esc(tp)+'</option>'; }).join('')+'</select>'
-        +'<select class="rg-p-marca" style="'+inp+'">'+invOpts(io.marcas,p.marca)+'</select>'
+        +'<div style="display:flex;gap:4px;align-items:center"><select class="rg-p-marca" style="'+inp+';flex:1;min-width:0">'+invOpts(io.marcas,p.marca)+'</select>'+_rgOpcGear('marcas')+'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
-        +'<select class="rg-p-calidad" style="'+inp+'">'+invOpts(io.calidades,p.calidad)+'</select>'
-        +'<select class="rg-p-horma" style="'+inp+'">'+invOpts(io.hormas,p.horma)+'</select>'
+        +'<div style="display:flex;gap:4px;align-items:center"><select class="rg-p-calidad" style="'+inp+';flex:1;min-width:0">'+invOpts(io.calidades,p.calidad)+'</select>'+_rgOpcGear('calidades')+'</div>'
+        +'<div style="display:flex;gap:4px;align-items:center"><select class="rg-p-horma" style="'+inp+';flex:1;min-width:0">'+invOpts(io.hormas,p.horma)+'</select>'+_rgOpcGear('hormas')+'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">'
-        +'<select class="rg-p-color" style="'+inp+'">'+invOpts(io.colores,p.color)+'</select><span></span>'
+        +'<div style="display:flex;gap:4px;align-items:center"><select class="rg-p-color" style="'+inp+';flex:1;min-width:0">'+invOpts(io.colores,p.color)+'</select>'+_rgOpcGear('colores')+'</div><span></span>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--text2);margin-bottom:4px">📐 Talla · piezas · servicio · fecha de entrega</div>'
       + lh
@@ -13951,7 +13971,7 @@ function guardarRangel(){
   _rgEntregaProds.forEach(function(p){
     var lineas=(p.lineas||[]).filter(function(l){ return l.talla || l.servId; }).map(function(l){
       var serv=loadServEntregaRangel().find(function(x){ return x.id===l.servId; });
-      return { talla:l.talla, cant:parseInt(l.cant,10)||1, servId:l.servId, servNombre:serv?serv.nombre:'', precio:(serv&&serv.costo!=null)?(parseFloat(serv.costo)||0):0, fecha:l.fecha||'', estado:'en_rangel' };
+      return { talla:l.talla, cant:parseInt(l.cant,10)||1, servId:l.servId, servNombre:serv?serv.nombre:'', precio:(serv&&serv.costo!=null)?(parseFloat(serv.costo)||0):0, fecha:l.fecha||'', detalle:l.detalle||'', estado:'en_rangel' };
     });
     if(lineas.length || p.marca || p.horma){ productos.push({ tipo:p.tipo||'Sombrero', marca:p.marca||'', calidad:p.calidad||'', horma:p.horma||'', color:p.color||'', lineas:lineas }); }
   });
@@ -14055,7 +14075,7 @@ function renderRangel(){
       var lins=(p.lineas||[]).map(function(l,li){
         var precioTxt=(esAdmin&&l.precio)?' <span style="color:var(--accent2)">$'+Math.round((parseFloat(l.precio)||0)*(l.cant||1)).toLocaleString()+'</span>':'';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px dashed var(--border);padding:5px 0">'
-          +'<div style="font-size:11px;color:var(--text)">📐 '+esc(l.talla||'?')+' cm ×'+(l.cant||1)+' · <b>'+esc(l.servNombre||'—')+'</b>'+precioTxt+'<br><span style="color:var(--text2);font-size:10px">📦 entrega: '+esc(l.fecha||'—')+'</span></div>'
+          +'<div style="font-size:11px;color:var(--text)">📐 '+esc(l.talla||'?')+' cm ×'+(l.cant||1)+' · <b>'+esc(l.servNombre||'—')+'</b>'+precioTxt+(l.detalle?'<br><span style="color:var(--accent2);font-size:10px">📝 '+esc(l.detalle)+'</span>':'')+'<br><span style="color:var(--text2);font-size:10px">📦 entrega: '+esc(l.fecha||'—')+'</span></div>'
           +'<div style="display:flex;align-items:center;gap:5px">'+_estBadge(l.estado,((l.estado||'en_rangel')==='en_rangel')?l.fecha:'')+(esAdmin?_estSel(n.id,pi,li,l.estado):'')+'</div>'
         +'</div>';
       }).join('');
