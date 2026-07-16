@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v194</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v198</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -1736,7 +1736,7 @@
           <div class="form-group"><label>Proveedor</label>
             <div style="display:flex;gap:6px;align-items:center">
               <select id="ped-prov" style="flex:1" onchange="if(typeof renderPedLineas==='function')renderPedLineas(); if(typeof renderPedFolio==='function')renderPedFolio();"></select>
-              <button onclick="ncToggleProvMgr()" title="Gestionar proveedores" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;cursor:pointer">⚙️</button>
+              <button onclick="gestionarProveedores()" title="Gestionar proveedores" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;cursor:pointer">⚙️</button>
             </div>
           </div>
           <div class="form-group"><label>Estado</label>
@@ -1782,7 +1782,7 @@
           <div class="form-group"><label>Proveedor</label>
             <div style="display:flex;gap:6px;align-items:center">
               <select id="nc-prov" style="flex:1"></select>
-              <button onclick="ncToggleProvMgr()" title="Gestionar proveedores" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;cursor:pointer">⚙️</button>
+              <button onclick="gestionarProveedores()" title="Gestionar proveedores" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;cursor:pointer">⚙️</button>
             </div>
             <div id="nc-prov-mgr" style="display:none;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:6px;background:var(--surface2)"></div>
           </div>
@@ -2253,6 +2253,14 @@
       </div>
       <div style="font-size:12px;color:var(--text2);margin:2px 0 4px">Se va sumando lo que le debes por las modificaciones. Cuando le pagas o le das cosas (sombreros, cajas), se descuenta.</div>
       <div id="rg-saldo-box" style="margin:10px 0"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 6px">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">📋 Modificaciones de esta cuenta (por nota)</span>
+        <div style="display:flex;gap:6px">
+          <button onclick="_rgFotoResumen()" class="btn btn-accent btn-sm">📋 Copiar foto</button>
+          <button onclick="_rgImprimirResumen()" class="btn btn-secondary btn-sm">🖨️ Imprimir</button>
+        </div>
+      </div>
+      <div id="rg-modif-lista"></div>
       <div class="grid g2" style="align-items:start;margin-top:14px">
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">💵 Registrar pago (efectivo o transferencia)</div>
@@ -5711,6 +5719,47 @@ function renderNcProvOptions(){
     sel.innerHTML=proveedoresLista.map(function(p){ return '<option value="'+_ncEsc(p)+'">'+_ncEsc(p)+'</option>'; }).join('');
     if(cur && proveedoresLista.indexOf(cur)>=0) sel.value=cur;
   });
+}
+function gestionarProveedores(){
+  var ov=document.getElementById('prov-mng-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='prov-mng-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:18px;max-height:80vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;color:var(--accent2);font-size:16px">🏭 Proveedores</h3><button onclick="var o=document.getElementById(\'prov-mng-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:12px"><input id="prov-mng-new" placeholder="Nuevo proveedor" style="flex:1;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px"><button onclick="agregarProveedor()" class="btn btn-accent btn-sm">➕ Agregar</button></div>'
+    +'<div id="prov-mng-lista"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  renderProvMngLista();
+}
+function renderProvMngLista(){
+  var cont=document.getElementById('prov-mng-lista'); if(!cont) return;
+  var esc=(typeof _ncEsc==='function')?_ncEsc:function(s){return s||'';};
+  cont.innerHTML=proveedoresLista.map(function(p,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:8px 2px">'
+      +'<span style="font-size:14px;color:var(--text)">'+esc(p)+'</span>'
+      +'<div style="display:flex;gap:6px"><button onclick="editarProveedor('+i+')" class="btn btn-secondary btn-sm">✏️</button><button onclick="eliminarProveedor('+i+')" class="btn btn-danger btn-sm">✕</button></div>'
+    +'</div>';
+  }).join('');
+}
+function agregarProveedor(){
+  var el=document.getElementById('prov-mng-new'); var n=el?(el.value||'').trim():'';
+  if(!n) return;
+  if(proveedoresLista.indexOf(n)>=0){ if(typeof mostrarToast==='function') mostrarToast('Ya existe ese proveedor',''); return; }
+  proveedoresLista.push(n); saveProvLista();
+  if(el) el.value='';
+  renderProvMngLista(); if(typeof renderNcProvOptions==='function') renderNcProvOptions();
+}
+function editarProveedor(i){
+  var actual=proveedoresLista[i]; if(actual==null) return;
+  var nuevo=prompt('Editar proveedor:', actual); if(nuevo==null) return; nuevo=(nuevo||'').trim(); if(!nuevo) return;
+  proveedoresLista[i]=nuevo; saveProvLista();
+  renderProvMngLista(); if(typeof renderNcProvOptions==='function') renderNcProvOptions();
+}
+function eliminarProveedor(i){
+  proveedoresLista.splice(i,1); saveProvLista();
+  renderProvMngLista(); if(typeof renderNcProvOptions==='function') renderNcProvOptions();
 }
 function ncToggleProvMgr(){
   var c=document.getElementById('nc-prov-mgr'); if(!c) return;
@@ -13871,6 +13920,66 @@ function verOrdenRangel(notaId){
     +'<div id="rg-orden-scroll" style="max-width:100%;overflow-x:auto">'+docHtml+'</div>';
   document.body.appendChild(ov);
 }
+function _rgResumenDocHtml(){
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
+  var cta=_rgCuentaActual();
+  var r=_rgResumenCuenta();
+  var notasCta=loadNotasRangel().filter(function(n){ return (n.cuenta||1)===cta; }).slice().sort(function(a,b){ return (a.fechaRecoge||'').localeCompare(b.fechaRecoge||''); });
+  var granTotal=0;
+  var filas=notasCta.map(function(n,idx){
+    var subt=0;
+    var servs=(n.productos||[]).map(function(p){
+      return (p.lineas||[]).map(function(l){
+        var dev=(l.estado==='devuelto');
+        if(!dev) subt+=(parseFloat(l.precio)||0)*(l.cant||1);
+        return '<tr><td style="padding:4px 8px;font-size:12px;color:#333">• '+esc(l.servNombre||'—')+(l.talla?' ('+esc(l.talla)+'cm)':'')+(l.detalle?' — '+esc(l.detalle):'')+(dev?' (devuelto)':'')+'</td><td style="padding:4px 8px;font-size:12px;text-align:right;'+(dev?'text-decoration:line-through;color:#b00':'color:#333')+'">'+money((parseFloat(l.precio)||0)*(l.cant||1))+'</td></tr>';
+      }).join('');
+    }).join('');
+    granTotal+=subt;
+    return '<tr style="background:#f2ede0"><td style="padding:6px 8px;font-size:13px;font-weight:700;color:#111">#'+(idx+1)+' · '+esc(n.fechaRecoge||'—')+'</td><td style="padding:6px 8px;font-size:13px;font-weight:700;text-align:right;color:#b8892b">'+money(subt)+'</td></tr>'+servs;
+  }).join('');
+  return '<div id="rg-resumen-doc" style="background:#fff;color:#222;padding:22px;font-family:Arial,Helvetica,sans-serif;width:600px;box-sizing:border-box">'
+    +'<div style="border-bottom:2px solid #b8892b;padding-bottom:10px;margin-bottom:10px"><div style="font-size:20px;font-weight:800;color:#b8892b">SOMBREROS WESTEROS</div><div style="font-size:12px;color:#666">Resumen de cuenta con Rangel · Cuenta #'+cta+' · '+new Date().toLocaleDateString()+'</div></div>'
+    +'<table style="width:100%;border-collapse:collapse">'+filas+'</table>'
+    +'<div style="display:flex;justify-content:space-between;border-top:2px solid #b8892b;margin-top:10px;padding-top:8px;font-size:15px;font-weight:800;color:#111"><span>TOTAL modificaciones ('+notasCta.length+' nota'+(notasCta.length!==1?'s':'')+')</span><span style="color:#b8892b">'+money(granTotal)+'</span></div>'
+    +'<div style="margin-top:8px;font-size:12px;color:#444">Pagos + productos entregados: '+money(r.descontado)+' · <b>Saldo: '+money(r.saldo)+'</b></div>'
+  +'</div>';
+}
+function _rgCopiarCanvas(canvas, nombre){
+  var descargar=function(){
+    try{ var a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=nombre+'_'+new Date().toISOString().slice(0,10)+'.png'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){}
+    if(typeof mostrarToast==='function') mostrarToast('📸 No se pudo copiar; se descargó','');
+  };
+  try{
+    if(navigator.clipboard && window.ClipboardItem && canvas.toBlob){
+      canvas.toBlob(function(blob){
+        if(!blob){ descargar(); return; }
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(function(){
+          if(typeof mostrarToast==='function') mostrarToast('📋 Copiada — ya puedes pegarla','green');
+        }).catch(function(){ descargar(); });
+      }, 'image/png');
+    } else { descargar(); }
+  }catch(e){ descargar(); }
+}
+function _rgFotoResumen(){
+  var wrap=document.getElementById('rg-resumen-hidden');
+  if(!wrap){ wrap=document.createElement('div'); wrap.id='rg-resumen-hidden'; wrap.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(wrap); }
+  wrap.innerHTML=_rgResumenDocHtml();
+  var doc=document.getElementById('rg-resumen-doc');
+  _rgCargarHtml2Canvas(function(err){
+    if(err||!window.html2canvas || !doc){ alert('No se pudo cargar el generador de imagen. Revisa tu internet e intenta de nuevo.'); return; }
+    window.html2canvas(doc,{scale:2,backgroundColor:'#ffffff'}).then(function(canvas){
+      _rgCopiarCanvas(canvas, 'Cuenta_Rangel');
+    }).catch(function(){ alert('No se pudo generar la foto.'); });
+  });
+}
+function _rgImprimirResumen(){
+  var html=_rgResumenDocHtml();
+  var w=window.open('','_blank'); if(!w){ alert('Permite las ventanas emergentes para imprimir.'); return; }
+  w.document.write('<html><head><title>Cuenta Rangel</title></head><body style="margin:0">'+html+'</body></html>');
+  w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} }, 300);
+}
 function _rgImprimirOrden(){
   var doc=document.getElementById('rg-orden-doc'); if(!doc) return;
   var w=window.open('','_blank'); if(!w){ alert('Permite las ventanas emergentes para imprimir.'); return; }
@@ -13987,11 +14096,20 @@ function guardarRangel(){
   if(typeof mostrarToast==='function') mostrarToast('✅ Entrega registrada','green');
   renderRangel();
 }
+var _rgNotaAbierta={};
+function rgToggleNota(id){
+  var d=document.getElementById('rgnd-'+id); if(!d) return;
+  var open=d.style.display!=='none';
+  d.style.display=open?'none':'';
+  _rgNotaAbierta[id]=!open;
+  var c=document.getElementById('rgcaret-'+id); if(c) c.textContent=open?'▸':'▾';
+}
 function rgSetEstadoLinea(notaId, pi, li, estado){
   var notas=loadNotasRangel();
   var n=notas.find(function(x){ return x.id===notaId; }); if(!n) return;
   if(n.productos && n.productos[pi] && n.productos[pi].lineas && n.productos[pi].lineas[li]){ n.productos[pi].lineas[li].estado=estado; }
   saveNotasRangel(notas);
+  delete _rgNotaAbierta[notaId];
   renderRangel();
 }
 function eliminarNotaRangel(id){
@@ -14082,11 +14200,16 @@ function renderRangel(){
       return '<div style="margin-top:6px"><div style="font-size:12px;font-weight:700;color:var(--text)">🎩 '+(esc(head)||'Producto')+'</div>'+lins+'</div>';
     }).join('');
     var totalNota=(n.productos||[]).reduce(function(s,p){ return s+(p.lineas||[]).reduce(function(a,l){ return a+((l.estado==='devuelto')?0:(parseFloat(l.precio)||0)*(l.cant||1)); },0); },0);
-    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+    var _hayL=false,_todasEnt=true;
+    (n.productos||[]).forEach(function(p){ (p.lineas||[]).forEach(function(l){ _hayL=true; if((l.estado||'en_rangel')!=='entregado') _todasEnt=false; }); });
+    var _full=_hayL&&_todasEnt;
+    var _exp=(n.id in _rgNotaAbierta)?_rgNotaAbierta[n.id]:!_full;
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px'+(_full&&!_exp?';opacity:.7':'')+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
-        +'<span style="font-size:12px;color:var(--text);font-weight:700">📋 Nota · recogió '+esc(n.fechaRecoge||'—')+'</span>'
+        +'<span onclick="rgToggleNota(\''+n.id+'\')" style="cursor:pointer;font-size:12px;color:var(--text);font-weight:700"><span id="rgcaret-'+n.id+'">'+(_exp?'▾':'▸')+'</span> 📋 Nota · recogió '+esc(n.fechaRecoge||'—')+(_full?' <span style="color:var(--green);font-size:10px">✅ entregada</span>':'')+'</span>'
         +'<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">'+(esAdmin?'<b style="color:var(--accent2);font-size:12px">'+money(totalNota)+'</b>':'')+'<button onclick="verOrdenRangel(\''+n.id+'\')" class="btn btn-secondary btn-sm" title="Orden para Rangel (imprimir / foto)">📋 Orden</button>'+(esAdmin?'<button onclick="eliminarNotaRangel(\''+n.id+'\')" class="btn btn-danger btn-sm">✕</button>':'')+'</div>'
-      +'</div>'+prods
+      +'</div>'
+      +'<div id="rgnd-'+n.id+'" style="display:'+(_exp?'':'none')+'">'+prods+'</div>'
     +'</div>';
   }).join('');
   var legacyHtml=lista.map(function(x){
@@ -14272,6 +14395,40 @@ function renderCuentaRangel(){
       +'<div style="font-size:18px;font-weight:700;color:var(--green)">'+money(r.descontado)+'</div>'
     +'</div>'
     +'</div>';
+  // Resumen numerado de modificaciones (entregas) por nota
+  var ml=document.getElementById('rg-modif-lista');
+  if(ml){
+    var _cta=_rgCuentaActual();
+    var notasCta=loadNotasRangel().filter(function(n){ return (n.cuenta||1)===_cta; }).slice().sort(function(a,b){ return (a.fechaRecoge||'').localeCompare(b.fechaRecoge||''); });
+    if(!notasCta.length){ ml.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px;text-align:center">Sin modificaciones en esta cuenta.</div>'; }
+    else{
+      var granTotal=0;
+      ml.innerHTML=notasCta.map(function(n,idx){
+        var subt=0;
+        var servs=(n.productos||[]).map(function(p){
+          return (p.lineas||[]).map(function(l){
+            var dev=(l.estado==='devuelto');
+            if(!dev) subt+=(parseFloat(l.precio)||0)*(l.cant||1);
+            return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text2);padding-left:8px;margin-top:2px">'
+              +'<span>• '+esc(l.servNombre||'—')+(l.talla?' ('+esc(l.talla)+'cm)':'')+(l.detalle?' — '+esc(l.detalle):'')+(dev?' <span style="color:var(--red)">↩️ devuelto</span>':'')+'</span>'
+              +'<span style="white-space:nowrap;'+(dev?'text-decoration:line-through;color:var(--red)':'color:var(--text)')+'">'+money((parseFloat(l.precio)||0)*(l.cant||1))+'</span>'
+            +'</div>';
+          }).join('');
+        }).join('');
+        granTotal+=subt;
+        return '<div style="border-top:1px solid var(--border);padding:8px 2px">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+            +'<span style="font-size:12px;color:var(--text);font-weight:700">#'+(idx+1)+' · '+esc(n.fechaRecoge||'—')+'</span>'
+            +'<b style="color:var(--accent2);font-size:13px">'+money(subt)+'</b>'
+          +'</div>'+servs
+        +'</div>';
+      }).join('')
+      +'<div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--accent);margin-top:6px;padding-top:8px">'
+        +'<span style="font-size:13px;color:var(--text);font-weight:700">TOTAL modificaciones ('+notasCta.length+' nota'+(notasCta.length!==1?'s':'')+')</span>'
+        +'<b style="color:var(--accent2);font-size:15px">'+money(granTotal)+'</b>'
+      +'</div>';
+    }
+  }
   var mv=document.getElementById('rg-movimientos');
   if(mv){
     var abonos=r.listaAbonos.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
