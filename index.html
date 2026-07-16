@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v179</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v191</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -392,6 +392,7 @@
     <div class="nav-item" onclick="goTo('gastos-tienda')"><span class="ico">🏠</span> Gastos Tienda</div>
     <div class="nav-item" onclick="goTo('documentos')"><span class="ico">🧾</span> Tickets & Cotizaciones</div>
     <div class="nav-item" onclick="goTo('bitacora')"><span class="ico">📓</span> Bitácora</div>
+    <div class="nav-item" onclick="goTo('rangel')"><span class="ico">🧵</span> Rangel</div>
     <div class="nav-item admin-only" onclick="goTo('clientes')"><span class="ico">🤝</span> Clientes</div>
     <div class="nav-item admin-only" onclick="goTo('paqueteria')"><span class="ico">📦</span> Paquetería</div>
     <div class="nav-item admin-only" onclick="goTo('compras')"><span class="ico">🛒</span> Plan de Compras</div>
@@ -2210,6 +2211,157 @@
   </div>
 
   <!-- ═══════════ BITÁCORA ═══════════ -->
+  <div class="page" id="page-rangel">
+    <div class="grid g2" style="margin-bottom:16px;align-items:start">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🧵 REGISTRAR ENTREGA A RANGEL</div>
+        <p style="color:var(--text2);font-size:12px;margin:6px 0 12px">Elige el producto de tu catálogo y, por cada talla, el servicio y su fecha de entrega. Puedes meter varios productos.</p>
+        <div style="margin-bottom:10px;max-width:230px">
+          <label style="font-size:11px;color:var(--text2)">📅 Fecha en que Rangel recogió</label>
+          <input type="date" id="rg-fecha" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+        </div>
+        <div id="rg-tipos-mng-link" style="margin-bottom:10px"><span onclick="gestionarTiposRangel()" style="cursor:pointer;color:var(--accent2);font-size:12px">⚙️ Administrar tipos de producto (sombrero, texana, toquilla…)</span></div>
+        <div id="rg-productos"></div>
+        <button onclick="rgAddProducto()" class="btn btn-secondary btn-sm" style="margin-top:2px">➕ Agregar otro producto</button>
+        <div id="rg-costo-wrap" style="margin-top:12px">
+          <span style="font-size:13px;color:var(--text)">💵 Costo total: <b id="rg-costo-total" style="color:var(--accent2)">$0</b></span>
+        </div>
+        <div style="text-align:right;margin-top:10px">
+          <button onclick="guardarRangel()" class="btn btn-accent">💾 Guardar entrega</button>
+        </div>
+        <div id="rg-msg" style="text-align:right;font-size:12px;color:var(--green);margin-top:8px;min-height:16px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span><span class="dot" style="background:var(--green)"></span>EN RANGEL / HISTORIAL</span>
+          <select id="rg-filtro" onchange="renderRangel()" style="background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:6px 10px;font-size:11px">
+            <option value="todos">Todos</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="entregado">✅ Entregados</option>
+          </select>
+        </div>
+        <div id="rg-resumen" style="font-size:12px;color:var(--text2);margin:10px 0"></div>
+        <div id="rg-lista" style="max-height:620px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px" id="rg-cuenta-card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span><span class="dot" style="background:var(--accent2)"></span>💰 CUENTA CON RANGEL <span id="rg-cuenta-num" style="font-size:11px;color:var(--text2);font-weight:400"></span></span>
+        <button onclick="cerrarCuentaRangel()" class="btn btn-secondary btn-sm">🔄 Cerrar cuenta y empezar nueva</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin:2px 0 4px">Se va sumando lo que le debes por las modificaciones. Cuando le pagas o le das cosas (sombreros, cajas), se descuenta.</div>
+      <div id="rg-saldo-box" style="margin:10px 0"></div>
+      <div class="grid g2" style="align-items:start;margin-top:14px">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">💵 Registrar pago (efectivo o transferencia)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label style="font-size:11px;color:var(--text2)">📅 Fecha</label>
+              <input type="date" id="rg-ab-fecha" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text2)">💵 Monto (MXN)</label>
+              <input type="number" min="0" step="0.01" id="rg-ab-monto" placeholder="ej. 500" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--text2)">Nota (opcional)</label>
+            <input type="text" id="rg-ab-desc" placeholder="ej. Pago en efectivo" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+          </div>
+          <button onclick="guardarAbonoRangel()" class="btn btn-accent btn-sm">💵 Registrar pago</button>
+          <div id="rg-ab-msg" style="font-size:12px;color:var(--green);margin-top:6px;min-height:14px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">💵 Pagos registrados</div>
+          <div id="rg-movimientos" style="max-height:360px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">🎁 Productos que le vendo a Rangel (precio especial)</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Elige de tu catálogo, agrega uno o varios productos en la misma nota, y se descuenta de lo que le debes.</div>
+        <datalist id="rg-catalogo-list"></datalist>
+        <div id="rg-nota-lineas"></div>
+        <button onclick="rgAddLinea()" class="btn btn-secondary btn-sm" style="margin-top:4px">➕ Agregar otro producto</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:13px;color:var(--text)">Total de la nota: <b id="rg-nota-total" style="color:var(--accent2)">$0</b></span>
+          <button onclick="guardarVentaRangel()" class="btn btn-accent btn-sm">🧾 Registrar nota</button>
+        </div>
+        <div id="rg-vt-msg" style="font-size:12px;color:var(--green);margin-top:6px;min-height:14px"></div>
+        <div id="rg-ventas-lista" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;display:none" id="rg-tarifario-card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📋 SERVICIOS Y PRECIOS (RANGEL)</div>
+      <div style="font-size:12px;color:var(--text2);margin:2px 0 12px">Tus paquetes y extras. El <b>precio a cliente</b> lo ven todos (es el letrero de abajo); tu <b>costo</b> solo tú.</div>
+      <div id="rg-serv-form-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px" id="rg-serv-form-title">➕ Agregar servicio / paquete</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="min-width:100px">
+            <label style="font-size:11px;color:var(--text2)">Tipo</label>
+            <select id="rg-serv-cat" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px"><option>Paquete</option><option>Extra</option></select>
+          </div>
+          <div style="flex:2;min-width:150px">
+            <label style="font-size:11px;color:var(--text2)">Nombre</label>
+            <input type="text" id="rg-serv-nombre" placeholder="ej. Paquete 4 · Express completo" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+          </div>
+          <div style="flex:1;min-width:110px">
+            <label style="font-size:11px;color:var(--text2)">🕒 Entrega</label>
+            <input type="text" id="rg-serv-entrega" placeholder="ej. 6 a 24 horas" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label style="font-size:11px;color:var(--text2)">Incluye / detalle (sepáralos con comas)</label>
+          <textarea id="rg-serv-incluye" rows="2" placeholder="ej. Lavado, Desinfectado, Engomado, Planchado, Lavado de forro, Planchado de forro" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px;resize:vertical;font-family:inherit"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+          <div style="min-width:100px;max-width:150px">
+            <label style="font-size:11px;color:var(--text2)">💵 Mi costo</label>
+            <input type="number" min="0" step="0.01" id="rg-serv-precio" placeholder="ej. 600" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+          </div>
+          <div style="min-width:110px;max-width:160px">
+            <label style="font-size:11px;color:var(--text2)">🏪 Precio cliente</label>
+            <input type="number" min="0" step="0.01" id="rg-serv-preciotf" placeholder="ej. 750" style="width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+          </div>
+          <button onclick="agregarServicioRangel()" class="btn btn-accent btn-sm" id="rg-serv-btn">➕ Agregar</button>
+          <button onclick="cancelarEdicionServicio()" class="btn btn-secondary btn-sm" id="rg-serv-cancel" style="display:none">Cancelar</button>
+        </div>
+      </div>
+      <div id="rg-letrero"></div>
+      <div id="rg-tarifario-lista" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px" id="rg-serent-card">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>🛠️ SERVICIOS DEL MENÚ "REGISTRAR ENTREGA"</div>
+      <div style="font-size:12px;color:var(--text2);margin:2px 0 10px">Estos aparecen en el menú <b>Servicio</b> cuando registras una entrega. El costo solo lo ves tú.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div style="flex:2;min-width:150px">
+          <label style="font-size:11px;color:var(--text2)">Servicio</label>
+          <input type="text" id="rg-serent-nombre" placeholder="ej. Ajuste de talla fino" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+        </div>
+        <div style="flex:1;min-width:100px;max-width:150px">
+          <label style="font-size:11px;color:var(--text2)">💵 Costo (opcional)</label>
+          <input type="number" min="0" step="0.01" id="rg-serent-precio" placeholder="pendiente" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px">
+        </div>
+        <button onclick="agregarServEntrega()" id="rg-serent-btn" class="btn btn-accent btn-sm">➕ Agregar</button>
+        <button onclick="cancelarEdicionServEntrega()" id="rg-serent-cancel" class="btn btn-secondary btn-sm" style="display:none">Cancelar</button>
+      </div>
+      <div id="rg-serent-lista"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px" id="rg-mov-card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span><span class="dot" style="background:var(--red)"></span>🔔 MOVIMIENTOS Y ALERTAS <span id="rg-mov-badge" style="font-size:11px;color:var(--red);font-weight:700"></span></span>
+        <button onclick="marcarVistoRangel()" class="btn btn-secondary btn-sm">✔️ Marcar todo como visto</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin:2px 0 10px">Aquí se registra si alguien borra algo. En rojo lo que aún no has revisado.</div>
+      <div id="rg-mov-lista" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-bitacora">
     <div class="grid g2" style="margin-bottom:16px;align-items:start">
       <div class="card">
@@ -2628,7 +2780,7 @@ try{
 
 // ═══ NAVIGATION ═══
 // Páginas a las que SÍ pueden entrar los colaboradores (todo lo demás es solo-admin)
-const PAGINAS_COLABORADOR = ['tienda','gastos-tienda','documentos','bitacora','inventario','ventas-buscar','tlinea'];
+const PAGINAS_COLABORADOR = ['tienda','gastos-tienda','documentos','bitacora','rangel','inventario','ventas-buscar','tlinea'];
 function paginaInicio(){
   return (typeof currentUser!=='undefined' && currentUser && currentUser.rol==='admin') ? 'dashboard' : 'tienda';
 }
@@ -2642,7 +2794,7 @@ const pageTitles = {
   shopify:'Ventas Shopify',
   rentabilidad:'Rentabilidad por Canal', metas:'Metas y Temporada', clientes:'Registro de Clientes', paqueteria:'Paquetería y Envíos',
   deudas:'Deudas y Flujos', compras:'Plan de Compras',
-  admin:'Administrador', bitacora:'Bitácora del Equipo',
+  admin:'Administrador', bitacora:'Bitácora del Equipo', rangel:'Rangel · Modificaciones',
   caja:'Caja Chica', 'ventas-buscar':'Buscar Ventas por Modelo',
   cobrar:'🤲 Me Deben'
 };
@@ -2705,6 +2857,7 @@ function goTo(page) {
   if(page==='paqueteria') { setTimeout(initPaqueteria,30); }
   if(page==='admin') { initAdmin(); }
   if(page==='bitacora') { initBitacora(); }
+  if(page==='rangel') { renderRangel(); try{ _rgAlertaAlAbrir(); }catch(e){} }
   if(page==='caja') { setTimeout(initCaja,30); }
   if(page==='ventas-buscar') { setTimeout(initVentasBuscar,30); }
 }
@@ -6770,6 +6923,7 @@ function abrirRecepcion(id){
       foto: prev ? (prev.foto||'') : ''
     };
   });
+  if(r && r.extras && r.extras.length){ r.extras.forEach(function(x){ recepLineas.push({extra:true, etiqueta:x.etiqueta||'', cat:x.cat||'Operación', tipoSom:x.tipoSom||'Sombrero', marca:x.marca||'', calidad:x.calidad||'', horma:x.horma||'', color:x.color||'', talla:x.talla||'', desc:x.desc||'', costoU:x.costoU||0, pedidas:0, llegaron:x.llegaron||0, malas:x.malas||0, motivo:x.motivo||'', foto:x.foto||''}); }); }
   var ov=document.createElement('div'); ov.id='rec-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:22px 12px;overflow-y:auto';
   ov.onclick=function(e){ if(e.target===ov) recCerrar(); };
@@ -6809,6 +6963,9 @@ function renderRecepcion(){
       +'<input type="number" min="0" value="'+(l.llegaron||0)+'" oninput="recSet('+i+',\'llegaron\',this.value)" style="'+inp+';width:100%">'
       +'<input type="number" min="0" value="'+(l.malas||0)+'" oninput="recSet('+i+',\'malas\',this.value)" style="'+inp+';width:100%;'+(l.malas>0?'border-color:var(--red);color:var(--red)':'')+'">'
       +'</div>';
+    if(l.extra){
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px"><span style="font-size:10px;color:var(--accent2)">🆕 Llegó de más (no venía en el pedido)</span><button onclick="recQuitarExtra('+i+')" class="btn btn-danger btn-sm">✕ Quitar</button></div>';
+    }
     // Avisos
     var avisos=[];
     if(faltan>0) avisos.push('<span style="color:#e8b84b">⚠️ Faltaron '+faltan+'</span>');
@@ -6826,6 +6983,9 @@ function renderRecepcion(){
     }
     h+='</div>';
   });
+
+  // Botón: artículo que llegó de más
+  h+='<div style="margin:4px 0 10px"><button onclick="recAgregarExtra()" style="background:var(--surface2);border:1px dashed var(--accent2);color:var(--accent2);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">➕ Agregar artículo que llegó de más</button></div>';
 
   // Resumen
   h+='<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap">'
@@ -6861,7 +7021,7 @@ function recSet(i,campo,val){
   var l=recepLineas[i]; if(!l) return;
   if(campo==='llegaron' || campo==='malas'){
     var n=parseInt(val)||0; if(n<0) n=0;
-    if(campo==='llegaron' && n>l.pedidas) n=l.pedidas;          // no puede llegar más de lo pedido
+    if(campo==='llegaron' && !l.extra && n>l.pedidas) n=l.pedidas;          // no puede llegar más de lo pedido (salvo extras)
     l[campo]=n;
     if(l.malas>l.llegaron) l.malas=l.llegaron;                   // las malas son parte de las que llegaron
     renderRecepcion();
@@ -6874,6 +7034,75 @@ function recFotoLinea(i,input){
   });
 }
 function recQuitarFoto(i){ if(recepLineas[i]){ recepLineas[i].foto=''; renderRecepcion(); } }
+/* ── Artículo que llegó de más (fuera del pedido) ── */
+var _recExtra={tipo:'Sombrero',marca:'',calidad:'',horma:'',talla:'',color:'',desc:'',cant:1,costoU:0};
+function recAgregarExtra(){ _recExtra={tipo:'Sombrero',marca:'',calidad:'',horma:'',talla:'',color:'',desc:'',cant:1,costoU:0}; _recExtraOverlay(); }
+function _recExtraOverlay(){
+  var ov=document.getElementById('rec-extra-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='rec-extra-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100002;display:flex;align-items:center;justify-content:center;padding:18px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div id="rec-extra-box" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;padding:18px;max-height:85vh;overflow-y:auto"></div>';
+  document.body.appendChild(ov);
+  _recExtraRender();
+}
+function _recExtraSync(){
+  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  _recExtra.tipo=g('rex-tipo')||'Sombrero';
+  _recExtra.marca=g('rex-marca'); _recExtra.calidad=g('rex-calidad'); _recExtra.horma=g('rex-horma'); _recExtra.talla=g('rex-talla'); _recExtra.color=g('rex-color');
+  _recExtra.desc=g('rex-desc');
+  _recExtra.cant=parseInt(g('rex-cant'),10)||0;
+  _recExtra.costoU=parseFloat(g('rex-costo'))||0;
+}
+function _recExtraRender(){
+  var box=document.getElementById('rec-extra-box'); if(!box) return;
+  var io=(typeof invOpciones!=='undefined')?invOpciones:{marcas:[],calidades:[],hormas:[],colores:[]};
+  var e=_recExtra;
+  var esc=(typeof _ncEsc==='function')?_ncEsc:function(s){return s||'';};
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:3px';
+  var lbl='font-size:11px;color:var(--text2)';
+  var tallaOpts='<option value="">Talla</option>'+((typeof INV_TALLAS!=='undefined')?INV_TALLAS:[]).map(function(t){ return '<option value="'+t.cm+'"'+(String(e.talla)===String(t.cm)?' selected':'')+'>'+t.cm+' cm</option>'; }).join('');
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;color:var(--accent2);font-size:16px">➕ Artículo que llegó de más</h3><button onclick="var o=document.getElementById(\'rec-extra-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>';
+  h+='<div><label style="'+lbl+'">Tipo</label><select id="rex-tipo" onchange="_recExtraSync();_recExtraRender();" style="'+inp+'"><option value="Sombrero"'+(e.tipo==='Sombrero'?' selected':'')+'>Sombrero</option><option value="Texana"'+(e.tipo==='Texana'?' selected':'')+'>Texana</option><option value="Otro"'+(e.tipo==='Otro'?' selected':'')+'>Otro (accesorio / operación)</option></select></div>';
+  if(e.tipo!=='Otro'){
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      +'<div><label style="'+lbl+'">Marca</label><select id="rex-marca" style="'+inp+'">'+invOpts(io.marcas,e.marca)+'</select></div>'
+      +'<div><label style="'+lbl+'">Calidad</label><select id="rex-calidad" style="'+inp+'">'+invOpts(io.calidades,e.calidad)+'</select></div>'
+      +'<div><label style="'+lbl+'">Horma</label><select id="rex-horma" style="'+inp+'">'+invOpts(io.hormas,e.horma)+'</select></div>'
+      +'<div><label style="'+lbl+'">Talla</label><select id="rex-talla" style="'+inp+'">'+tallaOpts+'</select></div>'
+      +'<div><label style="'+lbl+'">Color</label><select id="rex-color" style="'+inp+'">'+invOpts(io.colores,e.color)+'</select></div>'
+      +'<div></div>'
+    +'</div>';
+  } else {
+    h+='<div style="margin-top:8px"><label style="'+lbl+'">Descripción</label><input id="rex-desc" value="'+esc(e.desc)+'" placeholder="ej. Estuche genérico, tapa-copa..." style="'+inp+'"></div>';
+  }
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+    +'<div><label style="'+lbl+'">¿Cuántas llegaron de más?</label><input id="rex-cant" type="number" min="1" value="'+(e.cant||1)+'" style="'+inp+'"></div>'
+    +'<div><label style="'+lbl+'">Costo unitario (opcional)</label><input id="rex-costo" type="number" min="0" step="0.01" value="'+(e.costoU||'')+'" placeholder="0" style="'+inp+'"></div>'
+  +'</div>';
+  h+='<div style="text-align:right;margin-top:14px"><button onclick="_recExtraGuardar()" class="btn btn-accent btn-sm">➕ Agregar al pedido</button></div>';
+  box.innerHTML=h;
+}
+function _recExtraGuardar(){
+  _recExtraSync();
+  var e=_recExtra;
+  var cant=parseInt(e.cant,10)||0;
+  if(cant<=0){ alert('Pon cuántas piezas llegaron de más.'); return; }
+  var linea;
+  if(e.tipo!=='Otro'){
+    if(!e.marca || !e.horma){ alert('Elige al menos marca y horma.'); return; }
+    var etiqueta=[(e.tipo==='Texana'?'Texana':''),e.calidad,e.marca,e.horma,(e.talla?e.talla+'cm':''),e.color].filter(Boolean).join(' ');
+    linea={ extra:true, etiqueta:etiqueta, cat:'Sombrero', tipoSom:e.tipo, marca:e.marca, calidad:e.calidad, horma:e.horma, color:e.color, talla:e.talla, desc:'', costoU:e.costoU||0, pedidas:0, llegaron:cant, malas:0, motivo:'', foto:'' };
+  } else {
+    if(!(e.desc||'').trim()){ alert('Escribe la descripción del artículo.'); return; }
+    linea={ extra:true, etiqueta:e.desc.trim(), cat:'Operación', tipoSom:'Sombrero', marca:'', calidad:'', horma:'', color:'', talla:'', desc:e.desc.trim(), costoU:e.costoU||0, pedidas:0, llegaron:cant, malas:0, motivo:'', foto:'' };
+  }
+  recepLineas.push(linea);
+  var o=document.getElementById('rec-extra-ov'); if(o) o.remove();
+  renderRecepcion();
+  if(typeof mostrarToast==='function') mostrarToast('➕ Artículo agregado','green');
+}
+function recQuitarExtra(i){ if(recepLineas[i] && recepLineas[i].extra){ recepLineas.splice(i,1); renderRecepcion(); } }
 function recFotoG(campo,input){
   var f=input.files&&input.files[0]; if(!f) return;
   _comprimirFoto(f, function(d){ recepFotos[campo]=d; renderRecepcion(); _avisarEspacio(); });
@@ -6885,8 +7114,11 @@ function _recSnapshot(){
     fecha:_hoyISO(),
     fotoNota:recepFotos.nota||'',
     fotoProductos:recepFotos.productos||'',
-    lineas:recepLineas.map(function(l){
+    lineas:recepLineas.filter(function(l){ return !l.extra; }).map(function(l){
       return {idx:l.idx, llegaron:l.llegaron||0, malas:l.malas||0, motivo:l.motivo||'', foto:l.foto||''};
+    }),
+    extras:recepLineas.filter(function(l){ return l.extra; }).map(function(l){
+      return {extra:true, etiqueta:l.etiqueta||'', cat:l.cat||'Operación', tipoSom:l.tipoSom||'Sombrero', marca:l.marca||'', calidad:l.calidad||'', horma:l.horma||'', color:l.color||'', talla:l.talla||'', desc:l.desc||'', costoU:l.costoU||0, pedidas:0, llegaron:l.llegaron||0, malas:l.malas||0, motivo:l.motivo||'', foto:l.foto||''};
     })
   };
 }
@@ -6923,7 +7155,7 @@ function recConfirmar(){
   devProvData=devProvData.filter(function(d){ return d.pedidoId!==p.id; });
   recepLineas.forEach(function(rl){
     if(!(rl.malas>0)) return;
-    var l=(p.lineas||[])[rl.idx]||{};
+    var l= rl.extra ? rl : ((p.lineas||[])[rl.idx]||{});
     devProvData.unshift({
       id:'D'+Date.now()+'_'+rl.idx,
       pedidoId:p.id,
@@ -6948,7 +7180,7 @@ function recConfirmar(){
   recepLineas.forEach(function(rl){
     var bien=Math.max(0,(rl.llegaron||0)-(rl.malas||0));
     if(bien<=0) return;
-    var l=(p.lineas||[])[rl.idx]; if(!l) return;
+    var l = rl.extra ? rl : (p.lineas||[])[rl.idx]; if(!l) return;
     if((l.cat||'')==='Sombrero' && l.marca && l.horma){
       var k=[(l.tipoSom||'Sombrero'),l.marca,l.calidad,l.horma,l.color].join('|');
       if(!soms[k]){
@@ -6993,7 +7225,51 @@ function recConfirmar(){
 }
 
 /* ═══════════ PANEL DE ENVÍO (estado "En tránsito") ═══════════ */
-var PAQUETERIAS=['DHL','Estafeta','FedEx','Paquetexpress','Redpack','Tres Guerras','Castores','Correos de México','Autobús / Encomienda','Entrega en tienda','Otro'];
+var PAQUETERIAS=(function(){ try{ var v=JSON.parse(localStorage.getItem('paqueterias')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(e){} return ['DHL','Estafeta','FedEx','Paquetexpress','Redpack','Tres Guerras','Castores','Correos de México','Autobús / Encomienda','Entrega en tienda','Otro']; })();
+function loadPaqueterias(){ try{ var v=JSON.parse(localStorage.getItem('paqueterias')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(e){} return PAQUETERIAS.slice(); }
+function savePaqueterias(arr){ PAQUETERIAS=arr.slice(); try{ save('paqueterias', arr); }catch(e){} }
+function _refrescarSelectPaq(){
+  var sel=document.getElementById('env-paq-sel'); if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">— Elige —</option>'+PAQUETERIAS.map(function(x){ return '<option'+(cur===x?' selected':'')+'>'+(typeof _ncEsc==='function'?_ncEsc(x):x)+'</option>'; }).join('');
+}
+function gestionarPaqueterias(){
+  var ov=document.getElementById('paq-mng-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='paq-mng-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:80vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;color:var(--accent2);font-size:16px">📦 Paqueterías</h3><button onclick="var o=document.getElementById(\'paq-mng-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:12px"><input id="paq-new" placeholder="Nueva paquetería" style="flex:1;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px"><button onclick="agregarPaqueteria()" class="btn btn-accent btn-sm">➕ Agregar</button></div>'
+    +'<div id="paq-mng-lista"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  renderPaqMngLista();
+}
+function renderPaqMngLista(){
+  var cont=document.getElementById('paq-mng-lista'); if(!cont) return;
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  cont.innerHTML=PAQUETERIAS.map(function(x,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:8px 2px">'
+      +'<span style="font-size:14px;color:var(--text)">'+esc(x)+'</span>'
+      +'<button onclick="eliminarPaqueteria('+i+')" class="btn btn-danger btn-sm">✕</button>'
+    +'</div>';
+  }).join('');
+}
+function agregarPaqueteria(){
+  var el=document.getElementById('paq-new'); var n=el?(el.value||'').trim():'';
+  if(!n) return;
+  var arr=PAQUETERIAS.slice();
+  if(arr.indexOf(n)>=0){ if(typeof mostrarToast==='function') mostrarToast('Ya existe esa paquetería',''); return; }
+  arr.push(n); savePaqueterias(arr);
+  if(el) el.value='';
+  renderPaqMngLista(); _refrescarSelectPaq();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Paquetería agregada','green');
+}
+function eliminarPaqueteria(i){
+  var arr=PAQUETERIAS.slice(); arr.splice(i,1); savePaqueterias(arr);
+  renderPaqMngLista(); _refrescarSelectPaq();
+}
 var envioEditId=null;
 
 function abrirEnvio(id){
@@ -7024,7 +7300,7 @@ function renderEnvio(){
     +'<p style="color:var(--text2);font-size:11px;margin:0 0 14px">'+_ncEsc(p.folio||'')+' · <b>'+_ncEsc(p.prov)+'</b>. Este costo de envío se pasará solo a la Nota de compra cuando marques el pedido como <b>Recibida</b>.</p>';
 
   h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-    +'<div><label style="'+lbl+'">📦 Paquetería</label><select onchange="envSet(\'paqueteria\',this.value)" style="'+inp+'"><option value="">— Elige —</option>'
+    +'<div><label style="'+lbl+'">📦 Paquetería <span onclick="gestionarPaqueterias()" style="cursor:pointer;color:var(--accent2);font-size:11px">⚙️ gestionar</span></label><select id="env-paq-sel" onchange="envSet(\'paqueteria\',this.value)" style="'+inp+'"><option value="">— Elige —</option>'
       + PAQUETERIAS.map(function(x){ return '<option'+(e.paqueteria===x?' selected':'')+'>'+_ncEsc(x)+'</option>'; }).join('')
       +'</select></div>'
     +'<div><label style="'+lbl+'">🔢 Número de guía / rastreo</label><input value="'+_ncEsc(e.guia||'')+'" oninput="envSet(\'guia\',this.value)" placeholder="ej. 7749 8821 0031" style="'+inp+'"></div>'
@@ -13453,6 +13729,807 @@ function initFacturar(){
 
 
 // ═══ BITÁCORA ═══
+/* ═══════════ RANGEL · Entradas y salidas de modificaciones ═══════════ */
+function loadRangel(){
+  try { return JSON.parse(localStorage.getItem('rangel_entries')||'[]'); } catch(e){ return []; }
+}
+function saveRangel(arr){
+  try { save('rangel_entries', arr); } catch(e){}
+}
+/* ── Entrega rica a Rangel (multi-producto, catálogo real, servicio por talla) ── */
+function loadNotasRangel(){ try{ return JSON.parse(localStorage.getItem('rangel_notas')||'[]'); }catch(e){ return []; } }
+function saveNotasRangel(arr){ try{ save('rangel_notas', arr); }catch(e){} }
+/* ── Tipos de producto (administrables) ── */
+function loadTiposRangel(){ try{ var v=JSON.parse(localStorage.getItem('rangel_tipos')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(e){} return ['Sombrero','Texana','Toquilla']; }
+function saveTiposRangel(arr){ try{ save('rangel_tipos', arr); }catch(e){} }
+function gestionarTiposRangel(){
+  var ov=document.getElementById('rg-tipos-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='rg-tipos-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:80vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;color:var(--accent2);font-size:16px">🎩 Tipos de producto</h3><button onclick="var o=document.getElementById(\'rg-tipos-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:12px"><input id="rg-tipo-new" placeholder="Nuevo tipo (ej. Toquilla)" style="flex:1;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px"><button onclick="agregarTipoRangel()" class="btn btn-accent btn-sm">➕ Agregar</button></div>'
+    +'<div id="rg-tipos-lista"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  renderTiposLista();
+}
+function renderTiposLista(){
+  var cont=document.getElementById('rg-tipos-lista'); if(!cont) return;
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  cont.innerHTML=loadTiposRangel().map(function(t,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:8px 2px">'
+      +'<span style="font-size:14px;color:var(--text)">'+esc(t)+'</span>'
+      +'<div style="display:flex;gap:6px"><button onclick="editarTipoRangel('+i+')" class="btn btn-secondary btn-sm">✏️</button><button onclick="eliminarTipoRangel('+i+')" class="btn btn-danger btn-sm">✕</button></div>'
+    +'</div>';
+  }).join('');
+}
+function agregarTipoRangel(){
+  var el=document.getElementById('rg-tipo-new'); var n=el?(el.value||'').trim():'';
+  if(!n) return;
+  var arr=loadTiposRangel();
+  if(arr.indexOf(n)>=0){ if(typeof mostrarToast==='function') mostrarToast('Ya existe ese tipo',''); return; }
+  arr.push(n); saveTiposRangel(arr);
+  if(el) el.value='';
+  renderTiposLista();
+  try{ renderProductosEntrega(); }catch(e){}
+}
+function editarTipoRangel(i){
+  var arr=loadTiposRangel(); var actual=arr[i]; if(actual==null) return;
+  var nuevo=prompt('Editar tipo:', actual); if(nuevo==null) return; nuevo=(nuevo||'').trim(); if(!nuevo) return;
+  arr[i]=nuevo; saveTiposRangel(arr);
+  renderTiposLista();
+  try{ renderProductosEntrega(); }catch(e){}
+}
+function eliminarTipoRangel(i){
+  var arr=loadTiposRangel(); var borrado=arr[i];
+  arr.splice(i,1); if(!arr.length) arr=['Sombrero']; saveTiposRangel(arr);
+  renderTiposLista();
+  try{ renderProductosEntrega(); }catch(e){}
+  if(borrado!=null) _rgDeshacer('Tipo "'+borrado+'" borrado', function(){ var a=loadTiposRangel(); if(a.indexOf(borrado)<0){ a.splice(Math.min(i,a.length),0,borrado); saveTiposRangel(a); } renderTiposLista(); try{ renderProductosEntrega(); }catch(e){} });
+}
+/* ── Deshacer (banner temporal) ── */
+var _rgUndoTimer=null;
+function _rgDeshacer(texto, restoreFn){
+  var old=document.getElementById('rg-undo-banner'); if(old) old.remove();
+  if(_rgUndoTimer){ clearTimeout(_rgUndoTimer); _rgUndoTimer=null; }
+  var b=document.createElement('div'); b.id='rg-undo-banner';
+  b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100001;background:#1a1a1f;border:1px solid var(--accent);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:14px;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  b.innerHTML='<span style="font-size:13px;color:var(--text)">🗑️ '+esc(texto)+'</span><button id="rg-undo-btn" class="btn btn-accent btn-sm">↩️ Deshacer</button><button id="rg-undo-close" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">×</button>';
+  document.body.appendChild(b);
+  document.getElementById('rg-undo-btn').onclick=function(){ try{ restoreFn(); }catch(e){} b.remove(); if(_rgUndoTimer){ clearTimeout(_rgUndoTimer); } if(typeof mostrarToast==='function') mostrarToast('↩️ Restaurado','green'); };
+  document.getElementById('rg-undo-close').onclick=function(){ b.remove(); if(_rgUndoTimer){ clearTimeout(_rgUndoTimer); } };
+  _rgUndoTimer=setTimeout(function(){ var e=document.getElementById('rg-undo-banner'); if(e) e.remove(); }, 12000);
+}
+/* ── Orden de servicio para Rangel (imprimir / foto) ── */
+function _rgCargarHtml2Canvas(cb){
+  if(window.html2canvas){ cb(); return; }
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onload=function(){ cb(); };
+  s.onerror=function(){ cb(new Error('no_load')); };
+  document.head.appendChild(s);
+}
+function verOrdenRangel(notaId){
+  var n=loadNotasRangel().find(function(x){ return x.id===notaId; }); if(!n) return;
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var folio='RG-'+String(notaId).replace(/[^0-9]/g,'').slice(-6);
+  var prodsHtml=(n.productos||[]).map(function(p,pi){
+    var head=[p.tipo,p.marca,p.calidad,p.horma,p.color].filter(Boolean).join(' · ');
+    var lins=(p.lineas||[]).map(function(l){
+      return '<tr>'
+        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px">'+esc(l.talla||'—')+' cm</td>'
+        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px;text-align:center">'+(l.cant||1)+'</td>'
+        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px"><b>'+esc(l.servNombre||'—')+'</b></td>'
+        +'<td style="padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px">'+esc(l.fecha||'—')+'</td>'
+      +'</tr>';
+    }).join('');
+    return '<div style="margin-top:14px"><div style="font-weight:700;font-size:14px;color:#222;margin-bottom:4px">🎩 Producto '+(pi+1)+': '+(esc(head)||'—')+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;background:#fff"><thead><tr style="background:#f2ede0">'
+      +'<th style="padding:6px 8px;text-align:left;font-size:11px;color:#555">Talla</th><th style="padding:6px 8px;font-size:11px;color:#555">Pz</th><th style="padding:6px 8px;text-align:left;font-size:11px;color:#555">Servicio a realizar</th><th style="padding:6px 8px;text-align:left;font-size:11px;color:#555">Entrega</th>'
+      +'</tr></thead><tbody>'+lins+'</tbody></table></div>';
+  }).join('');
+  var totalPz=(n.productos||[]).reduce(function(s,p){ return s+(p.lineas||[]).reduce(function(a,l){ return a+(l.cant||1); },0); },0);
+  var docHtml='<div id="rg-orden-doc" style="background:#fff;color:#222;padding:22px;font-family:Arial,Helvetica,sans-serif;width:640px;box-sizing:border-box">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #b8892b;padding-bottom:10px">'
+      +'<div><div style="font-size:20px;font-weight:800;color:#b8892b">SOMBREROS WESTEROS</div><div style="font-size:12px;color:#666">Orden de servicio · Rangel</div></div>'
+      +'<div style="text-align:right;font-size:12px;color:#444"><div><b>Folio:</b> '+folio+'</div><div><b>Recogió:</b> '+esc(n.fechaRecoge||'—')+'</div><div><b>Piezas:</b> '+totalPz+'</div></div>'
+    +'</div>'
+    + prodsHtml
+    +'<div style="margin-top:18px;border-top:1px dashed #bbb;padding-top:10px;font-size:11px;color:#777">Favor de respetar la fecha de entrega de cada pieza. Cualquier duda, contactar a Sombreros Westeros.</div>'
+  +'</div>';
+  var ov=document.getElementById('rg-orden-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='rg-orden-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;justify-content:center">'
+      +'<button onclick="_rgDescargarOrden()" class="btn btn-accent btn-sm">📸 Descargar foto</button>'
+      +'<button onclick="_rgImprimirOrden()" class="btn btn-secondary btn-sm">🖨️ Imprimir</button>'
+      +'<button onclick="var o=document.getElementById(\'rg-orden-ov\'); if(o) o.remove();" class="btn btn-secondary btn-sm">Cerrar</button>'
+    +'</div>'
+    +'<div id="rg-orden-scroll" style="max-width:100%;overflow-x:auto">'+docHtml+'</div>';
+  document.body.appendChild(ov);
+}
+function _rgImprimirOrden(){
+  var doc=document.getElementById('rg-orden-doc'); if(!doc) return;
+  var w=window.open('','_blank'); if(!w){ alert('Permite las ventanas emergentes para imprimir.'); return; }
+  w.document.write('<html><head><title>Orden Rangel</title></head><body style="margin:0">'+doc.outerHTML+'</body></html>');
+  w.document.close(); w.focus();
+  setTimeout(function(){ try{ w.print(); }catch(e){} }, 300);
+}
+function _rgDescargarOrden(){
+  var doc=document.getElementById('rg-orden-doc'); if(!doc) return;
+  _rgCargarHtml2Canvas(function(err){
+    if(err || !window.html2canvas){ alert('No se pudo cargar el generador de imagen. Revisa tu internet e intenta de nuevo.'); return; }
+    window.html2canvas(doc, {scale:2, backgroundColor:'#ffffff'}).then(function(canvas){
+      var a=document.createElement('a');
+      a.href=canvas.toDataURL('image/png');
+      a.download='Orden_Rangel_'+(new Date().toISOString().slice(0,10))+'.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      if(typeof mostrarToast==='function') mostrarToast('📸 Foto descargada','green');
+    }).catch(function(){ alert('No se pudo generar la foto.'); });
+  });
+}
+var _rgEntregaProds = [{tipo:'Sombrero',marca:'',calidad:'',horma:'',color:'',lineas:[{talla:'',cant:1,servId:'',fecha:''}]}];
+function _rgTallaOpts(sel){
+  var T=(typeof INV_TALLAS!=='undefined')?INV_TALLAS:[];
+  return '<option value="">Talla</option>'+T.map(function(t){ return '<option value="'+t.cm+'"'+(String(sel||'')===String(t.cm)?' selected':'')+'>'+t.cm+' cm</option>'; }).join('');
+}
+function _rgServOpts(sel){
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  return '<option value="">Servicio</option>'+loadServEntregaRangel().map(function(s){ return '<option value="'+s.id+'"'+(sel===s.id?' selected':'')+'>'+esc(s.nombre)+'</option>'; }).join('');
+}
+function _rgPrecioServ(servId){ var s=loadServEntregaRangel().find(function(x){ return x.id===servId; }); return (s&&s.costo!=null)?(parseFloat(s.costo)||0):0; }
+function _rgSyncEntrega(){
+  var cont=document.getElementById('rg-productos'); if(!cont) return;
+  var prods=[];
+  cont.querySelectorAll('[data-rgprod]').forEach(function(pd){
+    var g=function(cls){ var el=pd.querySelector('.'+cls); return el?el.value:''; };
+    var lineas=[];
+    pd.querySelectorAll('[data-rgline]').forEach(function(ld){
+      var lg=function(cls){ var el=ld.querySelector('.'+cls); return el?el.value:''; };
+      lineas.push({ talla:lg('rg-l-talla'), cant:parseInt(lg('rg-l-cant'),10)||1, servId:lg('rg-l-serv'), fecha:lg('rg-l-fecha') });
+    });
+    prods.push({ tipo:g('rg-p-tipo')||'Sombrero', marca:g('rg-p-marca'), calidad:g('rg-p-calidad'), horma:g('rg-p-horma'), color:g('rg-p-color'), lineas:lineas.length?lineas:[{talla:'',cant:1,servId:'',fecha:''}] });
+  });
+  if(prods.length) _rgEntregaProds=prods;
+}
+function renderProductosEntrega(){
+  var cont=document.getElementById('rg-productos'); if(!cont) return;
+  if(!_rgEntregaProds.length) _rgEntregaProds=[{tipo:'Sombrero',marca:'',calidad:'',horma:'',color:'',lineas:[{talla:'',cant:1,servId:'',fecha:''}]}];
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var io=(typeof invOpciones!=='undefined')?invOpciones:{marcas:[],calidades:[],hormas:[],colores:[]};
+  var inp='box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:7px 9px;font-size:12px';
+  cont.innerHTML=_rgEntregaProds.map(function(p,pi){
+    var lineas=(p.lineas&&p.lineas.length)?p.lineas:[{talla:'',cant:1,servId:'',fecha:''}];
+    var lh=lineas.map(function(l,li){
+      return '<div data-rgline style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px">'
+        +'<select class="rg-l-talla" style="'+inp+';width:86px">'+_rgTallaOpts(l.talla)+'</select>'
+        +'<input type="number" min="1" step="1" class="rg-l-cant" value="'+(l.cant||1)+'" oninput="rgCalcCostoEntrega()" title="Piezas" style="'+inp+';width:48px">'
+        +'<select class="rg-l-serv" onchange="rgCalcCostoEntrega()" style="'+inp+';flex:1;min-width:120px">'+_rgServOpts(l.servId)+'</select>'
+        +'<input type="date" class="rg-l-fecha" value="'+esc(l.fecha||'')+'" title="Fecha de entrega de esta pieza" style="'+inp+';width:135px">'
+        + (lineas.length>1?'<button onclick="rgDelLineaProd('+pi+','+li+')" class="btn btn-danger btn-sm">✕</button>':'')
+      +'</div>';
+    }).join('');
+    return '<div data-rgprod style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px;color:var(--accent2)">🎩 Producto '+(pi+1)+'</b>'+(_rgEntregaProds.length>1?'<button onclick="rgDelProducto('+pi+')" class="btn btn-danger btn-sm">Quitar</button>':'')+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+        +'<select class="rg-p-tipo" style="'+inp+'">'+loadTiposRangel().map(function(tp){ return '<option'+((p.tipo||'Sombrero')===tp?' selected':'')+'>'+esc(tp)+'</option>'; }).join('')+'</select>'
+        +'<select class="rg-p-marca" style="'+inp+'">'+invOpts(io.marcas,p.marca)+'</select>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+        +'<select class="rg-p-calidad" style="'+inp+'">'+invOpts(io.calidades,p.calidad)+'</select>'
+        +'<select class="rg-p-horma" style="'+inp+'">'+invOpts(io.hormas,p.horma)+'</select>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">'
+        +'<select class="rg-p-color" style="'+inp+'">'+invOpts(io.colores,p.color)+'</select><span></span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-bottom:4px">📐 Talla · piezas · servicio · fecha de entrega</div>'
+      + lh
+      +'<button onclick="rgAddLineaProd('+pi+')" class="btn btn-secondary btn-sm" style="margin-top:2px">➕ Agregar talla</button>'
+    +'</div>';
+  }).join('');
+  rgCalcCostoEntrega();
+}
+function rgAddProducto(){ _rgSyncEntrega(); _rgEntregaProds.push({tipo:'Sombrero',marca:'',calidad:'',horma:'',color:'',lineas:[{talla:'',cant:1,servId:'',fecha:''}]}); renderProductosEntrega(); }
+function rgDelProducto(pi){ _rgSyncEntrega(); _rgEntregaProds.splice(pi,1); if(!_rgEntregaProds.length) _rgEntregaProds=[{tipo:'Sombrero',marca:'',calidad:'',horma:'',color:'',lineas:[{talla:'',cant:1,servId:'',fecha:''}]}]; renderProductosEntrega(); }
+function rgAddLineaProd(pi){ _rgSyncEntrega(); if(_rgEntregaProds[pi]){ _rgEntregaProds[pi].lineas.push({talla:'',cant:1,servId:'',fecha:''}); } renderProductosEntrega(); }
+function rgDelLineaProd(pi,li){ _rgSyncEntrega(); if(_rgEntregaProds[pi]){ _rgEntregaProds[pi].lineas.splice(li,1); if(!_rgEntregaProds[pi].lineas.length) _rgEntregaProds[pi].lineas=[{talla:'',cant:1,servId:'',fecha:''}]; } renderProductosEntrega(); }
+function rgCalcCostoEntrega(){
+  _rgSyncEntrega();
+  var t=0;
+  _rgEntregaProds.forEach(function(p){ (p.lineas||[]).forEach(function(l){ t+=_rgPrecioServ(l.servId)*(parseInt(l.cant,10)||1); }); });
+  var el=document.getElementById('rg-costo-total'); if(el) el.textContent='$'+Math.round(t).toLocaleString();
+}
+function guardarRangel(){
+  _rgSyncEntrega();
+  var fecha=(document.getElementById('rg-fecha')||{}).value||new Date().toISOString().slice(0,10);
+  var msg=document.getElementById('rg-msg');
+  var productos=[];
+  _rgEntregaProds.forEach(function(p){
+    var lineas=(p.lineas||[]).filter(function(l){ return l.talla || l.servId; }).map(function(l){
+      var serv=loadServEntregaRangel().find(function(x){ return x.id===l.servId; });
+      return { talla:l.talla, cant:parseInt(l.cant,10)||1, servId:l.servId, servNombre:serv?serv.nombre:'', precio:(serv&&serv.costo!=null)?(parseFloat(serv.costo)||0):0, fecha:l.fecha||'', estado:'en_rangel' };
+    });
+    if(lineas.length || p.marca || p.horma){ productos.push({ tipo:p.tipo||'Sombrero', marca:p.marca||'', calidad:p.calidad||'', horma:p.horma||'', color:p.color||'', lineas:lineas }); }
+  });
+  var hayLinea=productos.some(function(p){ return p.lineas.length; });
+  if(!hayLinea){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Agrega al menos un producto con su talla y servicio.'; } return; }
+  var costoTotal=productos.reduce(function(s,p){ return s+p.lineas.reduce(function(a,l){ return a+((parseFloat(l.precio)||0)*(l.cant||1)); },0); },0);
+  var notas=loadNotasRangel();
+  notas.push({ id:'rn'+Date.now()+Math.floor(Math.random()*1000), fechaRecoge:fecha, productos:productos, costoTotal:costoTotal, cuenta:_rgCuentaActual(), ts:new Date().toISOString() });
+  saveNotasRangel(notas);
+  _rgEntregaProds=[{tipo:'Sombrero',marca:'',calidad:'',horma:'',color:'',lineas:[{talla:'',cant:1,servId:'',fecha:''}]}];
+  renderProductosEntrega();
+  if(msg){ msg.style.color='var(--green)'; msg.textContent='✅ Entrega registrada.'; setTimeout(function(){ if(msg) msg.textContent=''; },2800); }
+  if(typeof mostrarToast==='function') mostrarToast('✅ Entrega registrada','green');
+  renderRangel();
+}
+function rgSetEstadoLinea(notaId, pi, li, estado){
+  var notas=loadNotasRangel();
+  var n=notas.find(function(x){ return x.id===notaId; }); if(!n) return;
+  if(n.productos && n.productos[pi] && n.productos[pi].lineas && n.productos[pi].lineas[li]){ n.productos[pi].lineas[li].estado=estado; }
+  saveNotasRangel(notas);
+  renderRangel();
+}
+function eliminarNotaRangel(id){
+  var n=loadNotasRangel().find(function(x){ return x.id===id; });
+  var borrar=function(){
+    if(n) _rgLogMov('🗑️ Borró una nota de entrega a Rangel', (n.productos?n.productos.length:0)+' producto(s) · recogió '+(n.fechaRecoge||''));
+    saveNotasRangel(loadNotasRangel().filter(function(x){ return x.id!==id; })); renderRangel();
+    if(n) _rgDeshacer('Nota borrada', function(){ var a=loadNotasRangel(); if(!a.some(function(x){ return x.id===n.id; })){ a.push(n); saveNotasRangel(a); } renderRangel(); });
+  };
+  if(typeof solicitarAutorizacionBorrado==='function') solicitarAutorizacionBorrado('Eliminar esta nota de entrega a Rangel', borrar);
+  else if(confirm('¿Eliminar esta nota?')) borrar();
+}
+function toggleEntregadoRangel(id){
+  var arr=loadRangel();
+  var e=arr.find(function(x){ return x.id===id; }); if(!e) return;
+  e.entregado=!e.entregado;
+  if(e.entregado) e.entregadoTs=new Date().toISOString();
+  saveRangel(arr);
+  renderRangel();
+}
+function eliminarRangel(id){
+  var arr=loadRangel();
+  var e=arr.find(function(x){ return x.id===id; }); if(!e) return;
+  var borrar=function(){
+    _rgLogMov('🗑️ Borró una pieza de Rangel', (e.producto||'?')+(e.talla?(' · talla '+e.talla):'')+(e.modificacion?(' · '+e.modificacion):'')+(e.fecha?(' · se llevó '+e.fecha):''));
+    saveRangel(loadRangel().filter(function(x){ return x.id!==id; }));
+    renderRangel();
+  };
+  if(typeof solicitarAutorizacionBorrado==='function') solicitarAutorizacionBorrado('Eliminar este registro de Rangel', borrar);
+  else if(confirm('¿Eliminar este registro?')) borrar();
+}
+function renderRangel(){
+  var cont=document.getElementById('rg-lista'); if(!cont) return;
+  var esAdmin=_rgEsAdmin();
+  // Mostrar/ocultar por rol: costo, servicio rápido, cuenta, tarifario y alertas son solo del admin
+  ['rg-costo-wrap','rg-serv-form-wrap','rg-serent-card','rg-cuenta-card','rg-mov-card','rg-tipos-mng-link'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display = esAdmin ? '' : 'none';
+  });
+  // Fecha de hoy por defecto en el formulario
+  var hoyISO=new Date().toISOString().slice(0,10);
+  var fEl=document.getElementById('rg-fecha'); if(fEl && !fEl.value) fEl.value=hoyISO;
+  try{ renderTarifarioRangel(); }catch(e){}
+  try{ renderServEntrega(); }catch(e){}
+  try{ var _rp=document.getElementById('rg-productos'); if(_rp && !_rp.querySelector('[data-rgprod]')) renderProductosEntrega(); else rgCalcCostoEntrega(); }catch(e){}
+  if(esAdmin){ try{ renderCuentaRangel(); }catch(e){} try{ renderMovimientosRangel(); }catch(e){} try{ _rgLlenarCatalogo(); }catch(e){} try{ var _nl=document.getElementById('rg-nota-lineas'); if(_nl && !_nl.querySelector('[data-rgline]')) renderNotaLineas(); }catch(e){} }
+  var filtro=(document.getElementById('rg-filtro')||{}).value||'todos';
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
+  var arr=loadRangel().slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
+  // Resumen
+  var pend=arr.filter(function(x){ return !x.entregado; });
+  var totalPend=pend.reduce(function(a,x){ return a+(parseFloat(x.costo)||0); },0);
+  var res=document.getElementById('rg-resumen');
+  if(res) res.innerHTML='⏳ <b>'+pend.length+'</b> pieza(s) sin entregar';
+  // Filtro
+  var cta=_rgCuentaActual();
+  var notasAll=loadNotasRangel().filter(function(n){ return (n.cuenta||1)===cta; }).slice().sort(function(a,b){ return (b.fechaRecoge||'').localeCompare(a.fechaRecoge||''); });
+  var lista=arr.filter(function(x){ if(filtro==='pendiente') return !x.entregado; if(filtro==='entregado') return x.entregado; return true; });
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  // Contador de pendientes (notas + viejas)
+  var pendCount=arr.filter(function(x){ return !x.entregado; }).length;
+  notasAll.forEach(function(n){ (n.productos||[]).forEach(function(p){ (p.lineas||[]).forEach(function(l){ if((l.estado||'en_rangel')==='en_rangel') pendCount+=(l.cant||1); }); }); });
+  var _res2=document.getElementById('rg-resumen'); if(_res2) _res2.innerHTML='⏳ <b>'+pendCount+'</b> pieza(s) sin entregar';
+  // Filtro de notas
+  var notas=notasAll;
+  if(filtro==='pendiente') notas=notasAll.filter(function(n){ return (n.productos||[]).some(function(p){ return (p.lineas||[]).some(function(l){ return (l.estado||'en_rangel')==='en_rangel'; }); }); });
+  else if(filtro==='entregado') notas=notasAll.filter(function(n){ var all=true,any=false; (n.productos||[]).forEach(function(p){ (p.lineas||[]).forEach(function(l){ any=true; if((l.estado||'en_rangel')!=='entregado') all=false; }); }); return any&&all; });
+  var _estBadge=function(e,fecha){
+    if(e==='entregado') return '<span style="font-size:10px;color:var(--green);font-weight:700">✅ Entregado</span>';
+    if(e==='devuelto') return '<span style="font-size:10px;color:var(--red);font-weight:700">↩️ Devuelto</span>';
+    var atr=fecha && new Date(fecha+'T00:00:00')<hoy;
+    return atr?'<span style="font-size:10px;color:var(--red);font-weight:700">⚠️ Atrasado</span>':'<span style="font-size:10px;color:var(--accent2);font-weight:700">⏳ En Rangel</span>';
+  };
+  var _estSel=function(nid,pi,li,cur){
+    var o=function(v,t){ return '<option value="'+v+'"'+((cur||'en_rangel')===v?' selected':'')+'>'+t+'</option>'; };
+    return '<select onchange="rgSetEstadoLinea(\''+nid+'\','+pi+','+li+',this.value)" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 4px;font-size:10px">'+o('en_rangel','⏳ En Rangel')+o('entregado','✅ Entregado')+o('devuelto','↩️ Devuelto')+'</select>';
+  };
+  var notasHtml=notas.map(function(n){
+    var prods=(n.productos||[]).map(function(p,pi){
+      var head=[p.tipo,p.marca,p.calidad,p.horma,p.color].filter(Boolean).join(' · ');
+      var lins=(p.lineas||[]).map(function(l,li){
+        var precioTxt=(esAdmin&&l.precio)?' <span style="color:var(--accent2)">$'+Math.round((parseFloat(l.precio)||0)*(l.cant||1)).toLocaleString()+'</span>':'';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px dashed var(--border);padding:5px 0">'
+          +'<div style="font-size:11px;color:var(--text)">📐 '+esc(l.talla||'?')+' cm ×'+(l.cant||1)+' · <b>'+esc(l.servNombre||'—')+'</b>'+precioTxt+'<br><span style="color:var(--text2);font-size:10px">📦 entrega: '+esc(l.fecha||'—')+'</span></div>'
+          +'<div style="display:flex;align-items:center;gap:5px">'+_estBadge(l.estado,((l.estado||'en_rangel')==='en_rangel')?l.fecha:'')+(esAdmin?_estSel(n.id,pi,li,l.estado):'')+'</div>'
+        +'</div>';
+      }).join('');
+      return '<div style="margin-top:6px"><div style="font-size:12px;font-weight:700;color:var(--text)">🎩 '+(esc(head)||'Producto')+'</div>'+lins+'</div>';
+    }).join('');
+    var totalNota=(n.productos||[]).reduce(function(s,p){ return s+(p.lineas||[]).reduce(function(a,l){ return a+((l.estado==='devuelto')?0:(parseFloat(l.precio)||0)*(l.cant||1)); },0); },0);
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        +'<span style="font-size:12px;color:var(--text);font-weight:700">📋 Nota · recogió '+esc(n.fechaRecoge||'—')+'</span>'
+        +'<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">'+(esAdmin?'<b style="color:var(--accent2);font-size:12px">'+money(totalNota)+'</b>':'')+'<button onclick="verOrdenRangel(\''+n.id+'\')" class="btn btn-secondary btn-sm" title="Orden para Rangel (imprimir / foto)">📋 Orden</button>'+(esAdmin?'<button onclick="eliminarNotaRangel(\''+n.id+'\')" class="btn btn-danger btn-sm">✕</button>':'')+'</div>'
+      +'</div>'+prods
+    +'</div>';
+  }).join('');
+  var legacyHtml=lista.map(function(x){
+    var atrasado=(!x.entregado && x.entrega && new Date(x.entrega+'T00:00:00') < hoy);
+    var badge = x.entregado
+      ? '<span style="font-size:10px;color:var(--green);font-weight:700">✅ Entregado</span>'
+      : (atrasado ? '<span style="font-size:10px;color:var(--red);font-weight:700">⚠️ Atrasado</span>' : '<span style="font-size:10px;color:var(--accent2);font-weight:700">⏳ En Rangel</span>');
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;'+(x.entregado?'opacity:.55':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+        +'<div style="font-weight:700;color:var(--text);font-size:14px">'+esc(x.producto)+(x.talla?' <span style="color:var(--text2);font-weight:400;font-size:12px">· talla '+esc(x.talla)+'</span>':'')+'</div>'
+        +'<div style="white-space:nowrap">'+badge+'</div>'
+      +'</div>'
+      + (x.modificacion ? '<div style="font-size:12px;color:var(--text);margin-top:4px">✂️ '+esc(x.modificacion)+'</div>' : '')
+      +'<div style="font-size:11px;color:var(--text2);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap">'
+        +'<span>📅 Se llevó: <b style="color:var(--text)">'+esc(x.fecha||'—')+'</b></span>'
+        +'<span>📦 Entrega: <b style="color:'+(atrasado?'var(--red)':'var(--text)')+'">'+esc(x.entrega||'—')+'</b></span>'
+        +(esAdmin?'<span>💵 <b style="color:var(--accent2)">'+money(x.costo)+'</b></span>':'')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px">'
+        +(esAdmin?'<button onclick="editarCostoRangel(\''+x.id+'\')" class="btn btn-secondary btn-sm" title="Poner o cambiar el costo">✏️ Costo</button>':'')
+        +'<button onclick="toggleEntregadoRangel(\''+x.id+'\')" class="btn btn-sm '+(x.entregado?'btn-secondary':'btn-accent')+'">'+(x.entregado?'↩️ Marcar pendiente':'✅ Marcar entregado')+'</button>'
+        +'<button onclick="eliminarRangel(\''+x.id+'\')" class="btn btn-danger btn-sm">✕</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+  if(!notas.length && !lista.length){ cont.innerHTML='<div style="color:var(--text2);font-size:12px;padding:16px;text-align:center">Nada por aquí todavía.</div>'; return; }
+  cont.innerHTML=notasHtml+legacyHtml;
+}
+
+/* ── Cuenta corriente con Rangel (se acumula y se liquida) ── */
+function _rgCuentaActual(){ try{ var v=JSON.parse(localStorage.getItem('rangel_cuenta')||'1'); return (typeof v==='number' && v>0)?v:1; }catch(e){ return 1; } }
+function loadAbonosRangel(){ try{ return JSON.parse(localStorage.getItem('rangel_abonos')||'[]'); }catch(e){ return []; } }
+function saveAbonosRangel(arr){ try{ save('rangel_abonos', arr); }catch(e){} }
+function _rgResumenCuenta(){
+  var cta=_rgCuentaActual();
+  var entries=loadRangel().filter(function(e){ return (e.cuenta||1)===cta; });
+  var abonos=loadAbonosRangel().filter(function(a){ return (a.cuenta||1)===cta; });
+  var ventas=loadVentasRangel().filter(function(v){ return (v.cuenta||1)===cta; });
+  var cargos=entries.reduce(function(s,e){ return s+(parseFloat(e.costo)||0); },0);
+  var notas=loadNotasRangel().filter(function(n){ return (n.cuenta||1)===cta; });
+  notas.forEach(function(n){ (n.productos||[]).forEach(function(p){ (p.lineas||[]).forEach(function(l){ if((l.estado||'en_rangel')!=='devuelto'){ cargos+=(parseFloat(l.precio)||0)*(parseInt(l.cant,10)||1); } }); }); });
+  var totalAb=abonos.reduce(function(s,a){ return s+(parseFloat(a.monto)||0); },0);
+  var totalVt=ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
+  return { cta:cta, cargos:cargos, abonos:totalAb, ventas:totalVt, descontado:totalAb+totalVt, saldo:cargos-totalAb-totalVt, listaAbonos:abonos, listaVentas:ventas };
+}
+function guardarAbonoRangel(){
+  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var fecha=g('rg-ab-fecha')||new Date().toISOString().slice(0,10);
+  var desc=(g('rg-ab-desc')||'').trim();
+  var monto=parseFloat(g('rg-ab-monto'))||0;
+  var msg=document.getElementById('rg-ab-msg');
+  if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon el monto del pago.'; } return; }
+  if(!desc){ desc='Pago'; }
+  var arr=loadAbonosRangel();
+  arr.push({ id:'ab'+Date.now()+Math.floor(Math.random()*1000), fecha:fecha, tipo:'dinero', desc:desc, monto:monto, cuenta:_rgCuentaActual(), ts:new Date().toISOString() });
+  saveAbonosRangel(arr);
+  ['rg-ab-desc','rg-ab-monto'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  if(msg){ msg.style.color='var(--green)'; msg.textContent='✅ Pago registrado.'; setTimeout(function(){ if(msg) msg.textContent=''; },2500); }
+  if(typeof mostrarToast==='function') mostrarToast('✅ Pago registrado','green');
+  renderRangel();
+}
+function loadVentasRangel(){ try{ return JSON.parse(localStorage.getItem('rangel_ventas')||'[]'); }catch(e){ return []; } }
+function saveVentasRangel(arr){ try{ save('rangel_ventas', arr); }catch(e){} }
+var _rgNotaLineas = [{producto:'',cant:1,precio:0}];
+function _rgSyncLineas(){
+  var cont=document.getElementById('rg-nota-lineas'); if(!cont) return;
+  var out=[];
+  cont.querySelectorAll('[data-rgline]').forEach(function(r){
+    var p=r.querySelector('.rg-lp'), c=r.querySelector('.rg-lc'), pr=r.querySelector('.rg-lpr');
+    out.push({ producto:p?p.value:'', cant:c?(parseInt(c.value,10)||1):1, precio:pr?(parseFloat(pr.value)||0):0 });
+  });
+  if(out.length) _rgNotaLineas=out;
+}
+function _rgLlenarCatalogo(){
+  var dl=document.getElementById('rg-catalogo-list'); if(!dl) return;
+  if(dl.getAttribute('data-filled')==='1') return;
+  if(typeof CATALOGO==='undefined' || !CATALOGO) return;
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  dl.innerHTML=CATALOGO.map(function(c){ return '<option value="'+esc(c.t)+'">'; }).join('');
+  dl.setAttribute('data-filled','1');
+}
+function renderNotaLineas(){
+  var cont=document.getElementById('rg-nota-lineas'); if(!cont) return;
+  if(!_rgNotaLineas.length) _rgNotaLineas=[{producto:'',cant:1,precio:0}];
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var inp='box-sizing:border-box;background:var(--surface2);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px';
+  cont.innerHTML=_rgNotaLineas.map(function(l,i){
+    return '<div data-rgline style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'
+      +'<input list="rg-catalogo-list" class="rg-lp" value="'+esc(l.producto)+'" oninput="rgCalcTotalNota()" placeholder="Producto (elige o escribe)" style="'+inp+';flex:2;min-width:150px">'
+      +'<input type="number" min="1" step="1" class="rg-lc" value="'+(l.cant||1)+'" oninput="rgCalcTotalNota()" title="Cantidad" style="'+inp+';width:58px">'
+      +'<input type="number" min="0" step="0.01" class="rg-lpr" value="'+(l.precio||'')+'" oninput="rgCalcTotalNota()" placeholder="Precio c/u" style="'+inp+';width:100px">'
+      + (_rgNotaLineas.length>1?'<button onclick="rgDelLinea('+i+')" class="btn btn-danger btn-sm">✕</button>':'')
+    +'</div>';
+  }).join('');
+  rgCalcTotalNota();
+}
+function rgAddLinea(){ _rgSyncLineas(); _rgNotaLineas.push({producto:'',cant:1,precio:0}); renderNotaLineas(); }
+function rgDelLinea(i){ _rgSyncLineas(); _rgNotaLineas.splice(i,1); if(!_rgNotaLineas.length) _rgNotaLineas=[{producto:'',cant:1,precio:0}]; renderNotaLineas(); }
+function rgCalcTotalNota(){
+  var cont=document.getElementById('rg-nota-lineas'); if(!cont) return;
+  var t=0; cont.querySelectorAll('[data-rgline]').forEach(function(r){
+    var c=parseInt((r.querySelector('.rg-lc')||{}).value,10)||0;
+    var pr=parseFloat((r.querySelector('.rg-lpr')||{}).value)||0;
+    t+=c*pr;
+  });
+  var el=document.getElementById('rg-nota-total'); if(el) el.textContent='$'+Math.round(t).toLocaleString();
+}
+function guardarVentaRangel(){
+  _rgSyncLineas();
+  var lineas=_rgNotaLineas.filter(function(l){ return (l.producto||'').trim() && (parseFloat(l.precio)||0)>0; }).map(function(l){
+    var cant=parseInt(l.cant,10)||1; if(cant<1) cant=1;
+    var precio=parseFloat(l.precio)||0;
+    return { producto:(l.producto||'').trim(), cant:cant, precio:precio, total:Math.round(cant*precio*100)/100 };
+  });
+  var msg=document.getElementById('rg-vt-msg');
+  if(!lineas.length){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Agrega al menos un producto con su precio.'; } return; }
+  var total=lineas.reduce(function(s,l){ return s+l.total; },0);
+  var arr=loadVentasRangel();
+  arr.push({ id:'vt'+Date.now()+Math.floor(Math.random()*1000), fecha:new Date().toISOString().slice(0,10), lineas:lineas, total:total, cuenta:_rgCuentaActual(), ts:new Date().toISOString() });
+  saveVentasRangel(arr);
+  _rgNotaLineas=[{producto:'',cant:1,precio:0}]; renderNotaLineas();
+  if(msg){ msg.style.color='var(--green)'; msg.textContent='✅ Nota registrada · se descontó $'+Math.round(total).toLocaleString(); setTimeout(function(){ if(msg) msg.textContent=''; },3000); }
+  if(typeof mostrarToast==='function') mostrarToast('✅ Nota de compra registrada','green');
+  renderRangel();
+}
+function eliminarVentaRangel(id){
+  var v=loadVentasRangel().find(function(x){ return x.id===id; });
+  var borrar=function(){
+    if(v){ var det = v.lineas ? (v.lineas.length+' producto(s)') : (v.producto||''); _rgLogMov('🗑️ Borró una nota de producto a Rangel', det+' · -$'+Math.round(v.total||0).toLocaleString()); }
+    saveVentasRangel(loadVentasRangel().filter(function(x){ return x.id!==id; })); renderRangel();
+  };
+  if(typeof solicitarAutorizacionBorrado==='function') solicitarAutorizacionBorrado('Eliminar esta nota de producto', borrar);
+  else if(confirm('¿Eliminar esta nota?')) borrar();
+}
+function eliminarAbonoRangel(id){
+  var ab=loadAbonosRangel().find(function(x){ return x.id===id; });
+  var borrar=function(){
+    if(ab) _rgLogMov('🗑️ Borró un movimiento de la cuenta', (ab.desc||'')+' · -$'+Math.round(ab.monto||0).toLocaleString());
+    saveAbonosRangel(loadAbonosRangel().filter(function(x){ return x.id!==id; })); renderRangel();
+  };
+  if(typeof solicitarAutorizacionBorrado==='function') solicitarAutorizacionBorrado('Eliminar este movimiento de la cuenta', borrar);
+  else if(confirm('¿Eliminar este movimiento?')) borrar();
+}
+function cerrarCuentaRangel(){
+  var r=_rgResumenCuenta();
+  var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
+  var txt='Vas a CERRAR la cuenta #'+r.cta+' y empezar una nueva desde cero.\n\n'
+    + '• Modificaciones (le debes): '+money(r.cargos)+'\n'
+    + '• Pagos + cosas que le diste: '+money(r.abonos)+'\n'
+    + '• Saldo actual: '+money(r.saldo)+'\n\n'
+    + (r.saldo>0 ? '⚠️ Todavía queda un saldo de '+money(r.saldo)+'. Ciérrala solo si ya le pagaste todo (en efectivo o como se hayan arreglado).\n\n' : '')
+    + '¿Cerrar esta cuenta y empezar la #'+(r.cta+1)+'?';
+  if(!confirm(txt)) return;
+  var cierres=[]; try{ cierres=JSON.parse(localStorage.getItem('rangel_cierres')||'[]'); }catch(e){}
+  cierres.push({ cuenta:r.cta, fecha:new Date().toISOString().slice(0,10), cargos:r.cargos, abonos:r.abonos, saldo:r.saldo, ts:new Date().toISOString() });
+  save('rangel_cierres', cierres);
+  save('rangel_cuenta', r.cta+1);
+  if(typeof mostrarToast==='function') mostrarToast('🔄 Cuenta cerrada. Empezaste la #'+(r.cta+1),'green');
+  renderRangel();
+}
+function renderCuentaRangel(){
+  if(!_rgEsAdmin()) return;
+  var box=document.getElementById('rg-saldo-box'); if(!box) return;
+  var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var r=_rgResumenCuenta();
+  var numEl=document.getElementById('rg-cuenta-num'); if(numEl) numEl.textContent='· Cuenta #'+r.cta;
+  var abF=document.getElementById('rg-ab-fecha'); if(abF && !abF.value) abF.value=new Date().toISOString().slice(0,10);
+  var saldoColor=r.saldo>0?'var(--red)':'var(--green)';
+  var saldoLabel=r.saldo>0?'Le debes a Rangel':(r.saldo<0?'Rangel te debe (le diste de más)':'Estás a mano ✅');
+  box.innerHTML=
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +'<div style="flex:1.4;min-width:160px;background:var(--surface2);border:1px solid '+saldoColor+';border-radius:10px;padding:12px 14px">'
+      +'<div style="font-size:11px;color:var(--text2)">'+saldoLabel+'</div>'
+      +'<div style="font-size:26px;font-weight:800;color:'+saldoColor+'">'+money(Math.abs(r.saldo))+'</div>'
+    +'</div>'
+    +'<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">'
+      +'<div style="font-size:11px;color:var(--text2)">➕ Modificaciones</div>'
+      +'<div style="font-size:18px;font-weight:700;color:var(--text)">'+money(r.cargos)+'</div>'
+    +'</div>'
+    +'<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">'
+      +'<div style="font-size:11px;color:var(--text2)">➖ Pagos + productos</div>'
+      +'<div style="font-size:18px;font-weight:700;color:var(--green)">'+money(r.descontado)+'</div>'
+    +'</div>'
+    +'</div>';
+  var mv=document.getElementById('rg-movimientos');
+  if(mv){
+    var abonos=r.listaAbonos.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
+    if(!abonos.length){ mv.innerHTML='<div style="color:var(--text2);font-size:12px;padding:10px;text-align:center">Aún no le has pagado ni dado nada en esta cuenta.</div>'; }
+    else{
+      mv.innerHTML=abonos.map(function(a){
+        var icono=(a.tipo==='especie')?'🎁':'💵';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:7px 2px">'
+          +'<div style="min-width:0"><div style="font-size:12px;color:var(--text)">'+icono+' '+esc(a.desc)+'</div>'
+          +'<div style="font-size:10px;color:var(--text2)">'+esc(a.fecha||'')+'</div></div>'
+          +'<div style="display:flex;align-items:center;gap:6px;white-space:nowrap"><b style="color:var(--green);font-size:13px">-'+money(a.monto)+'</b>'
+          +'<button onclick="eliminarAbonoRangel(\''+a.id+'\')" class="btn btn-danger btn-sm">✕</button></div>'
+        +'</div>';
+      }).join('');
+    }
+  }
+  var vl=document.getElementById('rg-ventas-lista');
+  if(vl){
+    var ventas=r.listaVentas.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
+    if(!ventas.length){ vl.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px;text-align:center">Sin notas de producto en esta cuenta.</div>'; }
+    else{
+      vl.innerHTML=ventas.map(function(v){
+        var lineas = v.lineas || [{producto:v.producto, cant:v.cant, precio:v.precio, total:v.total}];
+        var lh=lineas.map(function(l){
+          return '<div style="font-size:11px;color:var(--text2);padding-left:8px;margin-top:2px">• '+esc(l.producto)+' <span style="color:var(--text2)">x'+(l.cant||1)+' · $'+Math.round(l.precio||0).toLocaleString()+' c/u</span> = <b style="color:var(--text)">$'+Math.round(l.total||0).toLocaleString()+'</b></div>';
+        }).join('');
+        return '<div style="border-top:1px solid var(--border);padding:8px 2px">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+            +'<span style="font-size:12px;color:var(--text);font-weight:600">🧾 Nota · '+esc(v.fecha||'')+'</span>'
+            +'<div style="display:flex;align-items:center;gap:6px;white-space:nowrap"><b style="color:var(--green);font-size:13px">-'+money(v.total)+'</b>'
+            +'<button onclick="eliminarVentaRangel(\''+v.id+'\')" class="btn btn-danger btn-sm">✕</button></div>'
+          +'</div>'+lh
+        +'</div>';
+      }).join('');
+    }
+  }
+}
+
+/* ── Rangel: rol, alertas de borrado, tarifario y costos ── */
+function _rgEsAdmin(){ return (typeof currentUser!=='undefined' && currentUser && currentUser.rol==='admin'); }
+function _rgQuien(){ return (typeof currentUser!=='undefined' && currentUser && currentUser.nombre) ? currentUser.nombre : 'Alguien'; }
+
+/* Bitácora de movimientos (borrados) + alerta al admin */
+function loadMovRangel(){ try{ return JSON.parse(localStorage.getItem('rangel_movimientos')||'[]'); }catch(e){ return []; } }
+function saveMovRangel(arr){ try{ save('rangel_movimientos', arr); }catch(e){} }
+function _rgLogMov(accion, detalle){
+  var arr=loadMovRangel();
+  arr.push({ id:'mv'+Date.now()+Math.floor(Math.random()*1000), accion:accion, detalle:detalle||'', quien:_rgQuien(), cuando:new Date().toISOString(), visto:false });
+  saveMovRangel(arr);
+}
+function _rgAlertaAlAbrir(){
+  if(!_rgEsAdmin()) return;
+  var n=loadMovRangel().filter(function(m){ return !m.visto; }).length;
+  if(n>0 && typeof mostrarToast==='function') mostrarToast('🔔 '+n+' movimiento(s) sin revisar en Rangel','');
+}
+function marcarVistoRangel(){
+  var arr=loadMovRangel(); arr.forEach(function(m){ m.visto=true; }); saveMovRangel(arr); renderMovimientosRangel();
+}
+function renderMovimientosRangel(){
+  var cont=document.getElementById('rg-mov-lista'); if(!cont) return;
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var arr=loadMovRangel().slice().sort(function(a,b){ return (b.cuando||'').localeCompare(a.cuando||''); });
+  var noVistos=arr.filter(function(m){ return !m.visto; }).length;
+  var badge=document.getElementById('rg-mov-badge'); if(badge) badge.textContent = noVistos>0 ? ('· '+noVistos+' sin revisar') : '';
+  if(!arr.length){ cont.innerHTML='<div style="color:var(--text2);font-size:12px;padding:12px;text-align:center">Sin movimientos por ahora.</div>'; return; }
+  cont.innerHTML=arr.slice(0,80).map(function(m){
+    var fecha=(m.cuando||'').slice(0,10)+' '+(m.cuando||'').slice(11,16);
+    return '<div style="border-top:1px solid var(--border);padding:8px 4px;'+(!m.visto?'background:rgba(244,91,105,.10)':'')+'">'
+      +'<div style="font-size:12px;color:var(--text)">'+(!m.visto?'🔴 ':'')+esc(m.accion)+'</div>'
+      +(m.detalle?'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+esc(m.detalle)+'</div>':'')
+      +'<div style="font-size:10px;color:var(--text2);margin-top:2px">👤 '+esc(m.quien||'')+' · '+fecha+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+/* Editar el costo de una pieza (solo admin; útil cuando un colaborador la registró sin costo) */
+function editarCostoRangel(id){
+  var arr=loadRangel();
+  var x=arr.find(function(e){ return e.id===id; }); if(!x) return;
+  var actual=(x.costo!=null && x.costo!=='')?x.costo:'';
+  var r=prompt('Costo de esta modificación:\n• '+(x.producto||'')+(x.talla?(' · talla '+x.talla):'')+'\n'+(x.modificacion?('• '+x.modificacion+'\n'):'')+'\nEscribe el costo en pesos:', actual);
+  if(r===null) return;
+  var val=parseFloat((''+r).replace(/[^0-9.]/g,''));
+  if(isNaN(val)||val<0){ alert('Escribe un número válido, por ejemplo 150'); return; }
+  x.costo=val;
+  saveRangel(arr);
+  renderRangel();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Costo actualizado: $'+Math.round(val).toLocaleString(),'green');
+}
+
+/* ── Tarifario de paquetes/extras + servicios del selector de entrega ── */
+var _RG_SERV_SEED = [
+  {id:'pq4', categoria:'Paquete', nombre:'Paquete 4 · Express completo', entrega:'6 a 24 horas', incluye:'Lavado, Desinfectado, Engomado, Planchado, Lavado de forro, Planchado de forro', costo:600, precioTF:750},
+  {id:'pq3', categoria:'Paquete', nombre:'Paquete 3 · Servicio completo', entrega:'4 días', incluye:'Lavado, Desinfectado, Engomado, Planchado, Lavado de forro, Planchado de forro', costo:290, precioTF:380},
+  {id:'pq2', categoria:'Paquete', nombre:'Paquete 2', entrega:'2 días', incluye:'Limpieza en seco, Engomado, Planchado', costo:200, precioTF:300},
+  {id:'pq1', categoria:'Paquete', nombre:'Paquete 1', entrega:'2 días', incluye:'Limpieza en seco, Planchado', costo:100, precioTF:200},
+  {id:'ex1', categoria:'Extra', nombre:'Ajuste de talla (por talla)', entrega:'2 días', incluye:'', costo:50, precioTF:80},
+  {id:'ex2', categoria:'Extra', nombre:'Renovador de color', entrega:'', incluye:'', costo:100, precioTF:250},
+  {id:'ex3', categoria:'Extra', nombre:'Cambiar tafilete', entrega:'', incluye:'', costo:100, precioTF:120},
+  {id:'ex4', categoria:'Extra', nombre:'Extra de engomado', entrega:'', incluye:'', costo:100, precioTF:120},
+  {id:'ex5', categoria:'Extra', nombre:'Planchado de copa', entrega:'', incluye:'', costo:150, precioTF:200}
+];
+var _RG_SERVENT_SEED = [
+  {id:'se1', nombre:'Ajuste de talla fino', costo:100},
+  {id:'se2', nombre:'Ajuste de talla económico', costo:50},
+  {id:'se3', nombre:'Horma y Planchado', costo:null},
+  {id:'se4', nombre:'Servicio completo', costo:null},
+  {id:'se5', nombre:'Cambio de Tafilete', costo:null}
+];
+function loadServiciosRangel(){ try{ var v=localStorage.getItem('rangel_servicios'); if(v===null) return _RG_SERV_SEED.slice(); return JSON.parse(v); }catch(e){ return _RG_SERV_SEED.slice(); } }
+function saveServiciosRangel(arr){ try{ save('rangel_servicios', arr); }catch(e){} }
+function loadServEntregaRangel(){ try{ var v=localStorage.getItem('rangel_serv_entrega'); if(v===null) return _RG_SERVENT_SEED.slice(); return JSON.parse(v); }catch(e){ return _RG_SERVENT_SEED.slice(); } }
+function saveServEntregaRangel(arr){ try{ save('rangel_serv_entrega', arr); }catch(e){} }
+
+var _rgEditServId = null;
+function agregarServicioRangel(){
+  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var cat=g('rg-serv-cat')||'Extra';
+  var nombre=(g('rg-serv-nombre')||'').trim();
+  var entrega=(g('rg-serv-entrega')||'').trim();
+  var incluye=(g('rg-serv-incluye')||'').trim();
+  var costo=parseFloat(g('rg-serv-precio'))||0;
+  var ptf=parseFloat(g('rg-serv-preciotf'))||0;
+  if(!nombre){ alert('Escribe el nombre del servicio.'); return; }
+  var arr=loadServiciosRangel();
+  if(_rgEditServId){
+    var it=arr.find(function(s){ return s.id===_rgEditServId; });
+    if(it){ it.categoria=cat; it.nombre=nombre; it.entrega=entrega; it.incluye=incluye; it.costo=costo; it.precioTF=ptf; }
+  } else {
+    arr.push({ id:'sv'+Date.now()+Math.floor(Math.random()*1000), categoria:cat, nombre:nombre, entrega:entrega, incluye:incluye, costo:costo, precioTF:ptf });
+  }
+  saveServiciosRangel(arr);
+  cancelarEdicionServicio();
+  renderTarifarioRangel();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Guardado','green');
+}
+function editarServicioRangel(id){
+  var s=loadServiciosRangel().find(function(x){ return x.id===id; }); if(!s) return;
+  _rgEditServId=id;
+  var set=function(i,v){ var el=document.getElementById(i); if(el) el.value=(v==null?'':v); };
+  set('rg-serv-cat', s.categoria||'Extra'); set('rg-serv-nombre', s.nombre); set('rg-serv-entrega', s.entrega); set('rg-serv-incluye', s.incluye); set('rg-serv-precio', s.costo); set('rg-serv-preciotf', s.precioTF);
+  var btn=document.getElementById('rg-serv-btn'); if(btn) btn.textContent='💾 Guardar cambios';
+  var c=document.getElementById('rg-serv-cancel'); if(c) c.style.display='';
+  var t=document.getElementById('rg-serv-form-title'); if(t) t.textContent='✏️ Editando servicio';
+  var f=document.getElementById('rg-serv-form-wrap'); if(f && f.scrollIntoView) f.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function cancelarEdicionServicio(){
+  _rgEditServId=null;
+  ['rg-serv-nombre','rg-serv-entrega','rg-serv-incluye','rg-serv-precio','rg-serv-preciotf'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var cat=document.getElementById('rg-serv-cat'); if(cat) cat.value='Paquete';
+  var btn=document.getElementById('rg-serv-btn'); if(btn) btn.textContent='➕ Agregar';
+  var c=document.getElementById('rg-serv-cancel'); if(c) c.style.display='none';
+  var t=document.getElementById('rg-serv-form-title'); if(t) t.textContent='➕ Agregar servicio / paquete';
+}
+function eliminarServicioRangel(id){
+  saveServiciosRangel(loadServiciosRangel().filter(function(x){ return x.id!==id; }));
+  renderTarifarioRangel();
+}
+function renderTarifarioRangel(){
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
+  var arr=loadServiciosRangel();
+  var esAdmin=_rgEsAdmin();
+  var letrero=document.getElementById('rg-letrero');
+  if(letrero){
+    var paquetes=arr.filter(function(s){ return (s.categoria||'Extra')==='Paquete'; });
+    var extras=arr.filter(function(s){ return (s.categoria||'Extra')==='Extra'; });
+    var h='<div style="background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:16px">'
+      +'<div style="text-align:center;font-size:16px;font-weight:800;color:var(--accent2)">🎩 Servicios de Sombrerería</div>'
+      +'<div style="text-align:center;font-size:11px;color:var(--text2);margin-bottom:14px">Limpieza y renovación de sombreros y texanas · Sombreros Westeros</div>';
+    if(paquetes.length){
+      h+='<div style="font-size:13px;font-weight:700;color:var(--accent2);letter-spacing:.5px;margin:6px 0 4px">PAQUETES</div>';
+      paquetes.forEach(function(s){
+        h+='<div style="border-top:1px solid var(--border);padding:10px 0">'
+          +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="color:var(--text);font-size:14px">'+esc(s.nombre)+'</b><b style="color:var(--green);font-size:16px;white-space:nowrap">'+money(s.precioTF)+'</b></div>'
+          + (s.entrega?'<div style="font-size:11px;color:var(--accent2);margin-top:2px">🕒 Entrega: '+esc(s.entrega)+'</div>':'')
+          + (s.incluye?'<div style="font-size:12px;color:var(--text2);margin-top:4px">'+esc(s.incluye).split(',').map(function(x){ return '✓ '+x.trim(); }).join('&nbsp;&nbsp; ')+'</div>':'')
+        +'</div>';
+      });
+    }
+    if(extras.length){
+      h+='<div style="font-size:13px;font-weight:700;color:var(--accent2);letter-spacing:.5px;margin:14px 0 4px">EXTRAS</div>';
+      extras.forEach(function(s){
+        h+='<div style="display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border);padding:7px 0">'
+          +'<span style="color:var(--text);font-size:13px">'+esc(s.nombre)+(s.entrega?' <span style="color:var(--text2);font-size:10px">('+esc(s.entrega)+')</span>':'')+'</span>'
+          +'<b style="color:var(--green);white-space:nowrap">'+money(s.precioTF)+'</b>'
+        +'</div>';
+      });
+    }
+    h+='</div>';
+    letrero.innerHTML=h;
+  }
+  var cont=document.getElementById('rg-tarifario-lista'); if(!cont) return;
+  if(!esAdmin){ cont.innerHTML=''; return; }
+  cont.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Gestión (solo tú ves el costo):</div>'
+    + (arr.length?arr.map(function(s){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:8px 2px">'
+        +'<span style="font-size:13px;color:var(--text);flex:1;min-width:0"><span style="font-size:9px;color:var(--text2)">['+(s.categoria||'Extra')+']</span> '+esc(s.nombre)+'</span>'
+        +'<div style="display:flex;align-items:center;gap:10px;white-space:nowrap">'
+          +'<span style="font-size:11px;color:var(--text2)">Costo <b style="color:var(--text)">'+money(s.costo)+'</b></span>'
+          +'<span style="font-size:11px;color:var(--text2)">🏪 <b style="color:var(--accent2)">'+money(s.precioTF)+'</b></span>'
+          +'<button onclick="editarServicioRangel(\''+s.id+'\')" class="btn btn-secondary btn-sm">✏️</button>'
+          +'<button onclick="eliminarServicioRangel(\''+s.id+'\')" class="btn btn-danger btn-sm">✕</button>'
+        +'</div>'
+      +'</div>';
+    }).join(''):'<div style="color:var(--text2);font-size:12px;padding:8px;text-align:center">Sin servicios.</div>');
+}
+function renderServEntrega(){
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var arr=loadServEntregaRangel();
+  var esAdmin=_rgEsAdmin();
+  var pick=document.getElementById('rg-servicio-pick');
+  if(pick){ pick.innerHTML='<option value="">— Elegir servicio —</option>'+arr.map(function(s){ return '<option value="'+s.id+'">'+esc(s.nombre)+'</option>'; }).join(''); }
+  var mng=document.getElementById('rg-serent-lista'); if(!mng) return;
+  if(!esAdmin){ mng.innerHTML=''; return; }
+  if(!arr.length){ mng.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px;text-align:center">Agrega servicios arriba.</div>'; return; }
+  mng.innerHTML=arr.map(function(s){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--border);padding:7px 2px">'
+      +'<span style="font-size:13px;color:var(--text)">'+esc(s.nombre)+'</span>'
+      +'<div style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span style="font-size:11px;color:var(--text2)">'+(s.costo==null?'⏳ pendiente':('$'+Math.round(s.costo).toLocaleString()))+'</span>'
+      +'<button onclick="editarServEntrega(\''+s.id+'\')" class="btn btn-secondary btn-sm">✏️</button>'
+      +'<button onclick="eliminarServEntrega(\''+s.id+'\')" class="btn btn-danger btn-sm">✕</button></div>'
+    +'</div>';
+  }).join('');
+}
+var _rgEditServEntId=null;
+function agregarServEntrega(){
+  var n=((document.getElementById('rg-serent-nombre')||{}).value||'').trim();
+  var pRaw=(document.getElementById('rg-serent-precio')||{}).value;
+  var p=(pRaw===''||pRaw==null)?null:(parseFloat(pRaw)||0);
+  if(!n){ alert('Escribe el nombre del servicio.'); return; }
+  var arr=loadServEntregaRangel();
+  if(_rgEditServEntId){
+    var it=arr.find(function(x){ return x.id===_rgEditServEntId; });
+    if(it){ it.nombre=n; it.costo=p; }
+  } else {
+    arr.push({ id:'se'+Date.now()+Math.floor(Math.random()*1000), nombre:n, costo:p });
+  }
+  saveServEntregaRangel(arr);
+  cancelarEdicionServEntrega();
+  renderServEntrega();
+  try{ renderRangel(); }catch(e){}
+  if(typeof mostrarToast==='function') mostrarToast('✅ Guardado','green');
+}
+function editarServEntrega(id){
+  var s=loadServEntregaRangel().find(function(x){ return x.id===id; }); if(!s) return;
+  _rgEditServEntId=id;
+  var nEl=document.getElementById('rg-serent-nombre'); if(nEl) nEl.value=s.nombre||'';
+  var pEl=document.getElementById('rg-serent-precio'); if(pEl) pEl.value=(s.costo==null?'':s.costo);
+  var btn=document.getElementById('rg-serent-btn'); if(btn) btn.textContent='💾 Guardar';
+  var c=document.getElementById('rg-serent-cancel'); if(c) c.style.display='';
+  if(nEl && nEl.scrollIntoView) nEl.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function cancelarEdicionServEntrega(){
+  _rgEditServEntId=null;
+  ['rg-serent-nombre','rg-serent-precio'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var btn=document.getElementById('rg-serent-btn'); if(btn) btn.textContent='➕ Agregar';
+  var c=document.getElementById('rg-serent-cancel'); if(c) c.style.display='none';
+}
+function eliminarServEntrega(id){
+  var s=loadServEntregaRangel().find(function(x){ return x.id===id; });
+  saveServEntregaRangel(loadServEntregaRangel().filter(function(x){ return x.id!==id; }));
+  renderServEntrega();
+  if(s) _rgDeshacer('Servicio "'+(s.nombre||'')+'" borrado', function(){ var a=loadServEntregaRangel(); a.push(s); saveServEntregaRangel(a); renderServEntrega(); try{ renderRangel(); }catch(e){} });
+}
+function rgAplicarServicio(){
+  var pick=document.getElementById('rg-servicio-pick'); if(!pick) return;
+  var id=pick.value; if(!id) return;
+  var s=loadServEntregaRangel().find(function(x){ return x.id===id; }); if(!s) return;
+  var mod=document.getElementById('rg-modificacion');
+  if(mod){ var cur=(mod.value||'').trim(); mod.value = cur ? (cur+', '+s.nombre) : s.nombre; }
+  if(_rgEsAdmin()){
+    var costo=document.getElementById('rg-costo');
+    if(costo && s.costo!=null){ var prev=parseFloat(costo.value)||0; costo.value = Math.round((prev+(parseFloat(s.costo)||0))*100)/100; }
+  }
+  pick.value='';
+}
+
 function loadBitacora(){
   try { return JSON.parse(localStorage.getItem('bitacora_entries')||'[]'); } catch(e){ return []; }
 }
