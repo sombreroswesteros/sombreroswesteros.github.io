@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v198</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v200</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -2000,6 +2000,7 @@
           <div class="grid g2">
             <div class="form-group"><label>Descuento (MXN)</label><input type="number" id="cot-descuento" value="0" oninput="calcTotalesDoc('cot')"></div>
             <div class="form-group"><label>Costo de envío</label><input type="number" id="cot-envio" value="0" oninput="calcTotalesDoc('cot')"></div>
+            <div class="form-group"><label>Paquetería (envío)</label><select id="cot-paqueteria" onchange="actualizarPreviewCot()"><option value="">— Sin especificar —</option></select></div>
           </div>
           <div class="form-group"><label>Notas / Condiciones</label><textarea id="cot-notas" rows="2" placeholder="ej. Precios incluyen IVA · Sujeto a disponibilidad de stock"></textarea></div>
           <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
@@ -11008,7 +11009,7 @@ function initDocumentos() {
   actualizarPreviewCot();
   try{
     ['tk-fecha','tk-folio','tk-cliente','tk-vendedor','tk-pago','tk-descuento','tk-notas'].forEach(function(id){ var el=document.getElementById(id); if(el && !el._pvHook){ el._pvHook=true; el.addEventListener('input', actualizarPreviewTicket); el.addEventListener('change', actualizarPreviewTicket); } });
-    ['cot-fecha','cot-folio','cot-cliente','cot-tel','cot-direccion','cot-vigencia','cot-condicion','cot-descuento','cot-envio','cot-notas'].forEach(function(id){ var el=document.getElementById(id); if(el && !el._pvHook){ el._pvHook=true; el.addEventListener('input', actualizarPreviewCot); el.addEventListener('change', actualizarPreviewCot); } });
+    ['cot-fecha','cot-folio','cot-cliente','cot-tel','cot-direccion','cot-vigencia','cot-condicion','cot-descuento','cot-envio','cot-paqueteria','cot-notas'].forEach(function(id){ var el=document.getElementById(id); if(el && !el._pvHook){ el._pvHook=true; el.addEventListener('input', actualizarPreviewCot); el.addEventListener('change', actualizarPreviewCot); } });
   }catch(e){}
   renderHistorialDocs();
 }
@@ -11232,6 +11233,8 @@ function actualizarPreviewCot() {
   const dir=document.getElementById('cot-direccion')?.value||'';
   const descuento=parseFloat(document.getElementById('cot-descuento')?.value)||0;
   const envio=parseFloat(document.getElementById('cot-envio')?.value)||0;
+  (function(){ var ps=document.getElementById('cot-paqueteria'); if(ps && ps.options.length<=1 && typeof PAQUETERIAS!=='undefined'){ var cur=ps.value; ps.innerHTML='<option value="">— Sin especificar —</option>'+PAQUETERIAS.map(function(x){ return '<option'+(cur===x?' selected':'')+'>'+(typeof _ncEsc==='function'?_ncEsc(x):x)+'</option>'; }).join(''); } })();
+  const paqueteria=document.getElementById('cot-paqueteria')?.value||'';
   const notas=document.getElementById('cot-notas')?.value||'Precios sujetos a cambio sin previo aviso.';
   const items=docItems.cot;
   const subtotal=items.reduce((a,it)=>a+it.precio*it.qty,0);
@@ -11245,7 +11248,7 @@ function actualizarPreviewCot() {
     <div>
       <img src="${LOGO_B64}" style="width:180px;max-width:100%" alt="Sombreros Westeros">
       <div style="font-size:10px;color:#555;margin-top:3px">Morelia, Michoacán, México</div>
-      <div style="font-size:10px;color:#555">Tel: (443) xxx-xxxx · sombreroswesteros@gmail.com</div>
+      <div style="font-size:10px;color:#555">Tel: 443 490 3551 · sombreroswesteros@gmail.com</div>
     </div>
     <div style="text-align:right">
       <div style="font-size:16px;font-weight:800;color:#1a1a22">COTIZACIÓN</div>
@@ -11265,6 +11268,7 @@ function actualizarPreviewCot() {
       <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:5px;text-transform:uppercase">Condiciones:</div>
       <div style="font-size:11px">${condicion}</div>
       <div style="font-size:10px;color:#555;margin-top:4px">Vigencia: ${vigencia} días</div>
+      ${paqueteria?`<div style="font-size:10px;color:#555;margin-top:2px">Envío por: <b>${paqueteria}</b></div>`:''}
     </div>
   </div>
   <table style="width:100%;font-size:10px;border-collapse:collapse;margin-bottom:12px">
@@ -11293,11 +11297,7 @@ function actualizarPreviewCot() {
     </div>
   </div>
   <div style="margin-top:16px;font-size:10px;color:#666;border-top:1px solid #ddd;padding-top:8px">
-    <b>Notas:</b> ${notas}<br><br>
-    <div style="display:flex;justify-content:space-between;margin-top:20px">
-      <div style="text-align:center"><div style="border-top:1px solid #333;width:160px;padding-top:4px">Autorizado por</div></div>
-      <div style="text-align:center"><div style="border-top:1px solid #333;width:160px;padding-top:4px">Recibido por</div></div>
-    </div>
+    <b>Notas:</b> ${notas}<br>
     <div style="text-align:center;margin-top:12px;font-size:9px;color:#aaa">Cotización generada con ERP Sombreros Westeros · ${new Date().toLocaleDateString('es-MX')}</div>
   </div>`;
 }
