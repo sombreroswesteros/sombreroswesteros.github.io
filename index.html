@@ -146,9 +146,8 @@
   .card-title .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); }
 
   /* CHART CONTAINER */
-  .chart-wrap { position:relative; height:220px; }
+  .chart-wrap { position:relative; }
   .chart-wrap canvas { max-height:220px; }
-  .chart-wrap-tall { height:300px; }
   .chart-wrap-tall canvas { max-height:300px; }
 
   /* TABLE */
@@ -1005,7 +1004,7 @@
     <div class="grid g2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-title"><span class="dot"></span>Distribución por Categoría</div>
-        <div class="chart-wrap" style="height:260px"><canvas id="chartCateg"></canvas></div>
+        <div class="chart-wrap" style="max-height:260px"><canvas id="chartCateg"></canvas></div>
       </div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>Top 10 Productos por Venta</div>
@@ -3039,7 +3038,7 @@ const CH = {
   font_color: '#9896a8'
 };
 const baseOpts = {
-  responsive:true, maintainAspectRatio:false, animation:false,
+  responsive:true, maintainAspectRatio:true,
   plugins:{legend:{display:false},tooltip:{backgroundColor:'#22222e',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8e6f0',bodyColor:'#9896a8'}},
   scales:{x:{grid:{color:CH.gridColor},ticks:{color:CH.font_color,font:{size:10}}},y:{grid:{color:CH.gridColor},ticks:{color:CH.font_color,font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'}}}
 };
@@ -3047,7 +3046,6 @@ const charts = {};
 function makeChart(id, type, labels, datasets, opts={}) {
   const ctx = document.getElementById(id);
   if(!ctx) return;
-  try{ if(typeof Chart!=='undefined'&&Chart.defaults){ Chart.defaults.animation=false; } }catch(e){}
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {type, data:{labels, datasets}, options:{...baseOpts,...opts}});
 }
@@ -3178,26 +3176,16 @@ function initDashboard() {
     fill:true, tension:0.4, pointBackgroundColor:CH.color_accent2, pointRadius:3
   }]);
 
-  // Mapa de BRUTO real por mes (YYYY-MM) desde tus ventas -> para gráficas con datos reales
-  var _mmB={}; (DATA.monthly||[]).forEach(function(m){ _mmB[m.anio+'-'+String(m.mes).padStart(2,'0')]=(m.bruto||0); });
-  var _brutoMes=function(k,fb){ return (typeof _mmB[k]==='number' && _mmB[k]>0) ? _mmB[k] : fb; };
-
-  // Flujo Jul-Ago (Ingreso = ventas reales si existen; Gastos = estimado)
-  var _julIng=_brutoMes('2026-07',288000), _agoIng=_brutoMes('2026-08',198000);
+  // Flujo Jul-Ago
   makeChart('chartFlujo','bar',['Jul 2026','Ago 2026'],[
-    {label:'Ingreso',data:[Math.round(_julIng),Math.round(_agoIng)],backgroundColor:'rgba(62,207,142,0.7)'},
-    {label:'Gastos (estimado)',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
+    {label:'Ingreso Proyectado',data:[288000,198000],backgroundColor:'rgba(62,207,142,0.7)'},
+    {label:'Gastos',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-  // Proyección: 2025 real vs 2026 real/proyectado (Jul-Dic), en miles
-  var _mp=['07','08','09','10','11','12'];
-  var _hc25=[485989,338075,467177,548776,830583,929354];
-  var _hc26=[500000,350000,480000,570000,860000,960000];
-  var _d25=_mp.map(function(mo,ix){ return Math.round(_brutoMes('2025-'+mo,_hc25[ix])/1000); });
-  var _d26=_mp.map(function(mo,ix){ return Math.round(_brutoMes('2026-'+mo,_hc26[ix])/1000); });
+  // Proyección
   makeChart('chartProy','bar',['Jul','Ago','Sep','Oct','Nov','Dic'],[
-    {label:'2025',data:_d25,backgroundColor:'rgba(91,138,244,0.5)'},
-    {label:'2026',data:_d26,backgroundColor:'rgba(201,150,58,0.7)'}
+    {label:'2025',data:[485989,338075,467177,548776,830583,929354].map(v=>v*0.001),backgroundColor:'rgba(91,138,244,0.5)'},
+    {label:'2026 Proy.',data:[500000,350000,480000,570000,860000,960000].map(v=>v*0.001),backgroundColor:'rgba(201,150,58,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v+'k'}}}});
 
   // Gastos pie
@@ -10921,13 +10909,15 @@ function renderHogarTab(){
     } else {
       estado='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap"><span style="font-size:11px;color:#e8b84b;font-weight:700">⏳ Pendiente de pago</span><button class="btn btn-accent btn-sm" onclick="pagarGastoHogar('+gi+')">✅ Marcar pagado</button></div>';
     }
-    return '<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:13px"><span>'+esc(g.concepto)+(g.fecha?' <span style="color:var(--text2);font-size:11px">· '+esc(g.fecha)+'</span>':'')+'</span><span style="display:flex;align-items:center;gap:8px"><b>'+_cobMoney(g.monto)+'</b>'+_cobOwnerBtns(gi,g.owner)+'</span></div>'+estado+'</div>';
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:13px"><span>'+esc(g.concepto)+(g.fecha?' <span style="color:var(--text2);font-size:11px">· '+esc(g.fecha)+'</span>':'')+'</span><span style="display:flex;align-items:center;gap:8px"><span style="text-align:right"><b>'+_cobMoney(g.monto)+'</b><br><span style="font-size:10px;color:var(--accent2)">'+esc(pareja)+': '+_cobMoney((parseFloat(g.monto)||0)/2)+'</span></span>'+_cobOwnerBtns(gi,g.owner)+'</span></div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-top:3px">📝 <span onclick="cobEditNotaHogar('+gi+')" style="cursor:pointer">'+(g.nota?esc(g.nota):'<span style="color:var(--accent2)">+ agregar nota</span>')+'</span></div>'
+      +estado+'</div>';
   }).join('') : '';
   h+= _cajaGnoF.map(function(m){ return _cobCajaRow(m); }).join('');
   if(!gastos.length && !_cajaGnoF.length){ h+='<div style="color:var(--text2);font-size:12px;padding:8px">Sin gastos aún. Usa ⚙️ Gestionar gastos.</div>'; }
   h+='</div>';
   h+='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>💵 Pagos de '+esc(pareja)+'</span><button class="btn btn-accent btn-sm" onclick="cobPagoHogar()">➕ Registrar pago</button></div>';
-  h+= pagos.length ? pagos.map(function(p,pi){ return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;border-top:1px solid var(--border);padding:7px 0"><span>💵 '+esc(p.fecha||'')+' · <b>'+_cobMoney(p.monto)+'</b></span><span style="display:flex;gap:8px;align-items:center">'+_cobFotoHogarCtrl(pi,p.fotos||p.foto)+'<span onclick="cobBorrarPagoHogar('+pi+')" style="cursor:pointer;color:var(--red)">✕</span></span></div>'; }).join('') : '<div style="color:var(--text2);font-size:12px;padding:8px">Sin pagos aún.</div>';
+  h+= pagos.length ? pagos.map(function(p,pi){ return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;border-top:1px solid var(--border);padding:7px 0"><span>💵 '+esc(p.fecha||'')+' · <b>'+_cobMoney(p.monto)+'</b>'+(p.nota?' <span style="color:var(--text2);font-size:11px">· '+esc(p.nota)+'</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center">'+_cobFotoHogarCtrl(pi,p.fotos||p.foto)+'<span onclick="cobBorrarPagoHogar('+pi+')" style="cursor:pointer;color:var(--red)">✕</span></span></div>'; }).join('') : '<div style="color:var(--text2);font-size:12px;padding:8px">Sin pagos aún.</div>';
   h+='</div>';
   cont.innerHTML=h;
 }
@@ -11039,10 +11029,17 @@ function cobBorrarFotoHogar(pi, idx){
   saveHogarPagos(a); renderCobDetallePersona();
 }
 function cobPagoHogar(){
-  var m=parseFloat(prompt('¿Cuánto pagó de gastos de casa?')); if(!m||m<=0) return;
-  var a=loadHogarPagos(); a.push({id:'hp'+Date.now(), fecha:_hoyISO(), monto:m, foto:''}); saveHogarPagos(a);
-  renderCobDetallePersona();
-  if(typeof mostrarToast==='function') mostrarToast('💵 Pago registrado — puedes adjuntar la foto','green');
+  var m=parseFloat(prompt('¿Cuánto pagó '+_cobPareja()+' de gastos de casa?')); if(!m||m<=0) return;
+  var nota=prompt('Nota (opcional): ¿de qué fue el pago? Ej. pago completo del gas','')||'';
+  var a=loadHogarPagos(); a.push({id:'hp'+Date.now(), fecha:_hoyISO(), monto:m, nota:(nota||'').trim(), foto:''}); saveHogarPagos(a);
+  try{ renderHogarTab(); }catch(e){}
+  try{ renderCobDetallePersona(); }catch(e){}
+  if(typeof mostrarToast==='function') mostrarToast('✅ Abono registrado','green');
+}
+function cobEditNotaHogar(i){
+  var a=loadHogarGastos(); if(!a[i]) return;
+  var n=prompt('Nota para este gasto:', a[i].nota||''); if(n===null) return;
+  a[i].nota=(n||'').trim(); saveHogarGastos(a); renderHogarTab();
 }
 function cobBorrarPagoHogar(pi){
   var a=loadHogarPagos(); if(!a[pi]) return;
