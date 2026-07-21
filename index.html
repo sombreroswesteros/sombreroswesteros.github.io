@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v254</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v256</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -3944,6 +3944,7 @@ function _actaRetardosDe(empId){
   var fechas=Object.keys(asistencia).sort();
   fechas.forEach(function(f){
     var r=asistencia[f] && asistencia[f][empId]; if(!r || !r.entrada) return;
+    if(r.justificado) return;
     var esp=null;
     if(sch){ var p=f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); var dia=sch[dow]; if(dia && dia.e) esp=_asisMin(dia.e); }
     var lle=_asisMin(r.entrada);
@@ -11957,6 +11958,7 @@ function _asisAnalisis(empId, r){
   var res={horarioTxt:'', diffTxt:'', diffColor:'', esDescanso:false, sinHorario:false};
   var sch=asisHorarios[empId];
   if(!sch){ res.sinHorario=true; return res; }
+  if(r && r.justificado){ res.diffTxt='✅ Permiso justificado'; res.diffColor='var(--green)'; var _dw=_asisDowDeFecha(_asisFecha); var _d=sch[_dw]; res.horarioTxt=(_d&&_d.e)?(_d.e+'–'+_d.s):'Descanso'; return res; }
   var dow=_asisDowDeFecha(_asisFecha);
   var dia=sch[dow];
   if(dia===null || dia===undefined){
@@ -12104,6 +12106,7 @@ function _asisContarRetardosMayores(empId){
   var sch=asisHorarios[empId]; if(!sch) return 0; var count=0;
   for(var f in asistencia){
     var r=asistencia[f] && asistencia[f][empId]; if(!r || !r.entrada) continue;
+    if(r.justificado) continue;
     var p=f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay();
     var dia=sch[dow]; if(!dia||!dia.e) continue;
     var esp=_asisMin(dia.e), lle=_asisMin(r.entrada);
@@ -12117,6 +12120,7 @@ function _asisRetardosDetalle(empId){
   if(!sch || typeof asistencia==='undefined') return {mayor:mayor, leve:leve};
   Object.keys(asistencia).sort().forEach(function(f){
     var r=asistencia[f] && asistencia[f][empId]; if(!r||!r.entrada) return;
+    if(r.justificado) return;
     var p=f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay();
     var dia=sch[dow]; if(!dia||!dia.e) return;
     var esp=_asisMin(dia.e), lle=_asisMin(r.entrada); if(esp==null||lle==null) return;
@@ -12156,6 +12160,64 @@ function asisHistorialRetardos(){
   if(!hay) body='<div style="font-size:12px;color:var(--text2)">Aún no hay empleadas con horario configurado. Ponles horario en "🗓️ Horarios esperados".</div>';
   _nomOverlay('📋 Historial de retardos', body);
 }
+var _asisHistMes=null;
+function asisHistoricoMensual(){
+  if(!_asisEsAdmin()) return;
+  if(!_asisHistMes) _asisHistMes=_asisHoy().slice(0,7);
+  _asisRenderHistorico();
+}
+function asisHistMesNav(delta){
+  var p=_asisHistMes.split('-'); var d=new Date(+p[0], +p[1]-1+delta, 1);
+  _asisHistMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  var o=document.getElementById('nom-ov'); if(o) o.remove(); _asisRenderHistorico();
+}
+function _asisRenderHistorico(){
+  var emps=(typeof empleadasData!=='undefined'?empleadasData:[]);
+  var mes=_asisHistMes; var pm=mes.split('-');
+  var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
+  var nav='background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 13px;cursor:pointer;font-size:14px';
+  var body='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<button onclick="asisHistMesNav(-1)" style="'+nav+'">◀</button>'
+    +'<b style="font-size:14px">'+mesNom+'</b>'
+    +'<button onclick="asisHistMesNav(1)" style="'+nav+'">▶</button>'
+  +'</div>';
+  emps.forEach(function(e){
+    var sch=asisHorarios[e.id];
+    var dias=[];
+    Object.keys(asistencia).filter(function(f){ return f.slice(0,7)===mes; }).sort().forEach(function(f){
+      var r=asistencia[f] && asistencia[f][e.id]; if(!r) return;
+      if(!r.entrada && !r.salida && !r.permiso && !r.justificado) return;
+      dias.push({f:f, r:r});
+    });
+    body+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:9px">'
+      +'<div style="font-weight:700;font-size:13px;margin-bottom:5px">👤 '+_ncEsc(e.nombre)+' <span style="font-size:10px;color:var(--text2)">('+dias.length+' días)</span></div>';
+    if(!dias.length){ body+='<div style="font-size:11px;color:var(--text2)">Sin registros este mes.</div>'; }
+    else dias.forEach(function(o){
+      var r=o.r; var estado='—'; var col='var(--text2)';
+      if(r.justificado){ estado='✅ Justificado'; col='var(--green)'; }
+      else if(sch){
+        var p=o.f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); var dia=sch[dow];
+        if(!dia||!dia.e){ estado='Descanso'; }
+        else { var esp=_asisMin(dia.e), lle=_asisMin(r.entrada);
+          if(lle==null) estado='—';
+          else if(lle>esp+15){ estado='🔴 Retardo mayor'; col='#ff6b6b'; }
+          else if(lle>esp){ estado='🟠 Retardo'; col='#e8934b'; }
+          else { estado='🟢 A tiempo'; col='var(--green)'; }
+        }
+      }
+      var horas=_asisHorasTrabajadas(r);
+      body+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-top:1px solid var(--border);flex-wrap:wrap">'
+        +'<span style="min-width:64px">'+_asisFechaCorta(o.f)+'</span>'
+        +'<span>Ent: <b>'+(r.entrada||'--')+'</b> · Sal: <b>'+(r.salida||'--')+'</b>'+(horas?(' · '+horas):'')+'</span>'
+        +'<span style="color:'+col+';font-weight:600">'+estado+'</span>'
+      +'</div>'
+      + ((r._geo && r._geo.entrada)?('<div style="font-size:10px;padding-left:4px;margin-top:-1px">Entró desde: '+_asisGeoBadge(r._geo.entrada)+'</div>'):'')
+      + (r.permiso?('<div style="font-size:10px;color:var(--text2);padding-left:4px">📝 '+_ncEsc(r.permiso)+'</div>'):'');
+    });
+    body+='</div>';
+  });
+  _nomOverlay('📅 Histórico mensual de asistencia', body);
+}
 function _asisCheckRetardo(empId, hora){
   var sch=asisHorarios[empId]; if(!sch) return;
   var dow=_asisDowDeFecha(_asisFecha);
@@ -12164,6 +12226,7 @@ function _asisCheckRetardo(empId, hora){
   if(esperado==null || llegada==null || llegada<=esperado) return; // a tiempo
   var f=_asisFecha||_asisHoy();
   var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
+  if(r.justificado) return; // permiso justificado, no cuenta
   var mayor = llegada > (esperado+15);
   var ya=r._retNotif;
   if(ya==='mayor') return;
@@ -12233,6 +12296,22 @@ function asisSetPermiso(empId, val){
   asistencia[f][empId].permiso=val;
   saveAsistencia();
 }
+function asisToggleJustificado(empId, val){
+  if(!_asisEsAdmin()) return;
+  var f=_asisFecha||_asisHoy();
+  if(!asistencia[f]) asistencia[f]={};
+  if(!asistencia[f][empId]) asistencia[f][empId]={};
+  asistencia[f][empId].justificado=!!val;
+  saveAsistencia(); renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast(val?'✅ Día justificado — no contará como retardo':'Día ya no justificado','green');
+}
+function asisBorrarDia(empId){
+  if(!_asisEsAdmin()) return;
+  var f=_asisFecha||_asisHoy();
+  var nom=''; var L=(typeof empleadasData!=='undefined'?empleadasData:[]); for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nom=L[i].nombre; break; } }
+  if(!confirm('¿Borrar todo el registro de asistencia de '+(nom||'esta empleada')+' del día '+f+'? Esto no se puede deshacer.')) return;
+  if(asistencia[f] && asistencia[f][empId]){ delete asistencia[f][empId]; if(!Object.keys(asistencia[f]).length) delete asistencia[f]; saveAsistencia(); renderAsistencia(); if(typeof mostrarToast==='function') mostrarToast('🗑️ Registro borrado','green'); }
+}
 function asisVincularUsuario(uid, empId){
   if(!_asisEsAdmin()) return;
   if(empId) asisUsuarios[uid]=empId; else delete asisUsuarios[uid];
@@ -12301,6 +12380,7 @@ function renderAsistencia(){
       +'<button onclick="asisFijarTienda()" style="'+btnAhora+'">📍 Fijar ubicación de la tienda</button>'
       +'<button onclick="asisGestionarHorarios()" style="'+btnAhora+'">🗓️ Horarios esperados</button>'
       +'<button onclick="asisHistorialRetardos()" style="'+btnAhora+'">📋 Historial de retardos</button>'
+      +'<button onclick="asisHistoricoMensual()" style="'+btnAhora+'">📅 Histórico mensual</button>'
       +'<span style="font-size:10px;color:'+(asisTienda?'var(--green)':'var(--text2)')+'">'+(asisTienda?'✓ Ubicación guardada — al marcar se compara contra este punto':'Aún sin fijar (hazlo estando en la tienda)')+'</span>'
     +'</div>'
     +'</div>';
@@ -12373,6 +12453,10 @@ function renderAsistencia(){
         +'<label style="font-size:10px;color:var(--text2)">📝 Permiso o motivo de salida (si saliste antes o más tarde, explica por qué) '+(tienePermiso?'<span style="color:var(--accent2)">●</span>':'')+'</label>'
         +'<input type="text" value="'+_ncEsc(r.permiso||'')+'" onblur="asisSetPermiso('+emp.id+',this.value)" placeholder="Ej. me fui tarde porque olvidé las llaves / salí antes por cita médica" style="'+inp+';width:100%;margin-top:3px">'
       +'</div>'
+      + (esAdmin ? ('<div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap;border-top:1px dashed var(--border);padding-top:8px">'
+          +'<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:'+(r.justificado?'var(--green)':'var(--text2)')+';cursor:pointer"><input type="checkbox" '+(r.justificado?'checked':'')+' onchange="asisToggleJustificado('+emp.id+',this.checked)"> ✅ Día justificado (permiso — no cuenta como retardo)</label>'
+          +'<button onclick="asisBorrarDia('+emp.id+')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:11px;margin-left:auto">🗑️ Borrar registro del día</button>'
+        +'</div>') : '')
     +'</div>';
   });
   c.innerHTML=h;
