@@ -146,8 +146,9 @@
   .card-title .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); }
 
   /* CHART CONTAINER */
-  .chart-wrap { position:relative; }
+  .chart-wrap { position:relative; height:220px; }
   .chart-wrap canvas { max-height:220px; }
+  .chart-wrap-tall { height:300px; }
   .chart-wrap-tall canvas { max-height:300px; }
 
   /* TABLE */
@@ -367,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v267</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v268</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -1004,7 +1005,7 @@
     <div class="grid g2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-title"><span class="dot"></span>Distribución por Categoría</div>
-        <div class="chart-wrap" style="max-height:260px"><canvas id="chartCateg"></canvas></div>
+        <div class="chart-wrap" style="height:260px"><canvas id="chartCateg"></canvas></div>
       </div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>Top 10 Productos por Venta</div>
@@ -3038,7 +3039,7 @@ const CH = {
   font_color: '#9896a8'
 };
 const baseOpts = {
-  responsive:true, maintainAspectRatio:true,
+  responsive:true, maintainAspectRatio:false, animation:false,
   plugins:{legend:{display:false},tooltip:{backgroundColor:'#22222e',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8e6f0',bodyColor:'#9896a8'}},
   scales:{x:{grid:{color:CH.gridColor},ticks:{color:CH.font_color,font:{size:10}}},y:{grid:{color:CH.gridColor},ticks:{color:CH.font_color,font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'}}}
 };
@@ -3046,6 +3047,7 @@ const charts = {};
 function makeChart(id, type, labels, datasets, opts={}) {
   const ctx = document.getElementById(id);
   if(!ctx) return;
+  try{ if(typeof Chart!=='undefined'&&Chart.defaults){ Chart.defaults.animation=false; } }catch(e){}
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(ctx, {type, data:{labels, datasets}, options:{...baseOpts,...opts}});
 }
@@ -3176,16 +3178,26 @@ function initDashboard() {
     fill:true, tension:0.4, pointBackgroundColor:CH.color_accent2, pointRadius:3
   }]);
 
-  // Flujo Jul-Ago
+  // Mapa de BRUTO real por mes (YYYY-MM) desde tus ventas -> para gráficas con datos reales
+  var _mmB={}; (DATA.monthly||[]).forEach(function(m){ _mmB[m.anio+'-'+String(m.mes).padStart(2,'0')]=(m.bruto||0); });
+  var _brutoMes=function(k,fb){ return (typeof _mmB[k]==='number' && _mmB[k]>0) ? _mmB[k] : fb; };
+
+  // Flujo Jul-Ago (Ingreso = ventas reales si existen; Gastos = estimado)
+  var _julIng=_brutoMes('2026-07',288000), _agoIng=_brutoMes('2026-08',198000);
   makeChart('chartFlujo','bar',['Jul 2026','Ago 2026'],[
-    {label:'Ingreso Proyectado',data:[288000,198000],backgroundColor:'rgba(62,207,142,0.7)'},
-    {label:'Gastos',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
+    {label:'Ingreso',data:[Math.round(_julIng),Math.round(_agoIng)],backgroundColor:'rgba(62,207,142,0.7)'},
+    {label:'Gastos (estimado)',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-  // Proyección
+  // Proyección: 2025 real vs 2026 real/proyectado (Jul-Dic), en miles
+  var _mp=['07','08','09','10','11','12'];
+  var _hc25=[485989,338075,467177,548776,830583,929354];
+  var _hc26=[500000,350000,480000,570000,860000,960000];
+  var _d25=_mp.map(function(mo,ix){ return Math.round(_brutoMes('2025-'+mo,_hc25[ix])/1000); });
+  var _d26=_mp.map(function(mo,ix){ return Math.round(_brutoMes('2026-'+mo,_hc26[ix])/1000); });
   makeChart('chartProy','bar',['Jul','Ago','Sep','Oct','Nov','Dic'],[
-    {label:'2025',data:[485989,338075,467177,548776,830583,929354].map(v=>v*0.001),backgroundColor:'rgba(91,138,244,0.5)'},
-    {label:'2026 Proy.',data:[500000,350000,480000,570000,860000,960000].map(v=>v*0.001),backgroundColor:'rgba(201,150,58,0.7)'}
+    {label:'2025',data:_d25,backgroundColor:'rgba(91,138,244,0.5)'},
+    {label:'2026',data:_d26,backgroundColor:'rgba(201,150,58,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v+'k'}}}});
 
   // Gastos pie
