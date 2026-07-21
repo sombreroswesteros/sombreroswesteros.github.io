@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v256</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v267</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -1813,25 +1813,26 @@
     <!-- STOCK tab -->
     <div id="inv-stock" style="display:none">
       <div id="inv-delete-pass-admin"></div>
+      <div style="margin-bottom:14px">
+        <input type="text" id="inv-search-box" oninput="invBuscar(this.value)" placeholder="🔍 Buscar producto (marca, modelo, color, talla…) para ver su stock" style="width:100%;background:#0f0f13;border:1px solid var(--border);border-radius:9px;padding:11px 13px;color:var(--text);font-size:13px">
+      </div>
+      <div id="inv-search-results" style="display:none;margin-bottom:14px"></div>
+      <div id="inv-stock-cats">
       <div class="card"><div onclick="invToggleSec('sec-somb')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🎩 Sombreros y Texanas</span><span id="sec-somb-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-somb" style="display:none;margin-top:12px"><div id="inv-stock-sombreros"></div></div></div>
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-acc')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🪶 Accesorios</span><span id="sec-acc-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-acc" style="display:none;margin-top:12px"><div id="inv-accesorios-list"></div></div></div>
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-kits')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">🎁 Kits</span><span id="sec-kits-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-kits" style="display:none;margin-top:12px"><div id="inv-kits-list"></div></div></div>
       <div class="card" style="margin-top:14px"><div onclick="invToggleSec('sec-op')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:14px;color:var(--accent2)">📦 Operación</span><span id="sec-op-arrow" style="color:var(--text2);font-size:13px">▸</span></div><div id="sec-op" style="display:none;margin-top:12px"><div id="inv-operacion-list"></div></div></div>
       <div class="admin-only" style="margin-top:16px;text-align:center"><button onclick="abrirGestionSecciones()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer">⚙️ Gestionar secciones (agregar más)</button></div>
       <div id="inv-secciones-custom"></div>
+      </div>
     </div>
 
     <!-- AGREGAR tab -->
     <div id="inv-agregar" style="display:none">
-      <div class="grid g2">
+      <div>
         <div class="card">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><span class="dot"></span>Agregar / Actualizar Stock de Sombrero — Texana</span><button onclick="abrirGestionOpciones()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">⚙️ Gestionar opciones</button></div>
           <div id="inv-form-sombrero"></div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><span class="dot" style="background:var(--blue)"></span>Registrar Movimiento</span><button onclick="abrirGestionTipos()" style="background:rgba(201,150,58,.15);border:1px solid rgba(201,150,58,.4);color:var(--accent2);border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">⚙️ Tipos</button></div>
-          <div id="inv-form-movimiento"></div>
-          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📋 Últimos movimientos</div><div id="inv-movs-recientes"></div></div>
         </div>
       </div>
     </div>
@@ -4916,7 +4917,7 @@ function invCatRender(catKey){
   else h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+data.length+' items · '+totPz+' piezas</div>';
   if(admin) h+=_invSelBar(catKey);
   h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:5px;padding:0 2px">'+(selMode?'<span></span>':'')+'<span>Artículo</span><span style="text-align:center">Pzs</span>'+(admin?'<span style="text-align:center">Costo</span>':'')+'<span style="text-align:center">P. Tienda</span></div>';
-  data.forEach(function(a,i){
+  data.map(function(a,i){return {a:a,i:i};}).sort(function(p,q){return (p.a.nombre||'').localeCompare(q.a.nombre||'','es');}).forEach(function(_o){ var a=_o.a, i=_o.i;
     if(admin){
       h+='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:center;margin-bottom:5px">'
         +(selMode?'<input type="checkbox"'+(invSelSet[catKey]&&invSelSet[catKey][i]?' checked':'')+' onchange="invSelTog(\''+catKey+'\','+i+',this.checked)" style="width:16px;height:16px;cursor:pointer">':'')
@@ -4948,6 +4949,7 @@ function renderAccesorios(){
   var ro='padding:5px 4px;font-size:12px;color:var(--text)';
   var grupos={};
   invAccesorios.forEach(function(a,i){ var cat=_invCatAccesorio(a.nombre,a); if(!grupos[cat])grupos[cat]=[]; grupos[cat].push({a:a,i:i}); });
+  Object.keys(grupos).forEach(function(k){ grupos[k].sort(function(p,q){ return (p.a.nombre||'').localeCompare(q.a.nombre||'','es'); }); });
   var orden=invGruposAcc.map(function(g){return g.nombre;}).concat(['Otros']);
   var cats=orden.filter(function(x){return grupos[x];}).concat(Object.keys(grupos).filter(function(x){return orden.indexOf(x)<0;}));
   var totPz=invAccesorios.reduce(function(a,x){return a+(x.piezas||0);},0);
@@ -5238,7 +5240,7 @@ function renderFormSombrero(){
   // Guardar lo que ya tenías elegido para NO perderlo al redibujar
   var g=function(id){ var e=document.getElementById(id); return e?(e.value||''):''; };
   var prev={ tipo:g('som-tipo'), marca:g('som-marca'), calidad:g('som-calidad'), horma:g('som-horma'), color:g('som-color'),
-             costo:g('som-costo'), precio:g('som-precio-tienda') };
+             costo:g('som-costo'), precio:g('som-precio-tienda'), tipomov:g('som-tipomov'), ref:g('som-ref') };
   var sel=function(id,arr,key,val){
     return '<div style="display:flex;gap:5px;align-items:center">'
       +'<select id="'+id+'" onchange="somRefrescarChips()" style="flex:1;min-width:0">'+invOpts(arr,val)+'</select>'
@@ -5255,7 +5257,9 @@ function renderFormSombrero(){
   }).join('');
   c.innerHTML =
     '<div style="background:rgba(91,138,244,.08);border:1px solid rgba(91,138,244,.25);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text2)">'
-    +'ℹ️ Alta manual: <b>suma piezas al stock</b> pero <b>no crea nota de compra</b> (no afecta tu cuenta de crédito ni los totales del proveedor). Úsala para ajustes de conteo, muestras o modelos nuevos.</div>'
+    +'ℹ️ Registra el movimiento y ajusta el stock: <b>Entrada</b> suma piezas, <b>Salida</b> las resta. Queda en "Movimientos" con su referencia. <b>No crea nota de compra</b> ni afecta tu cuenta con el proveedor.</div>'
+    +'<div class="grid g2"><div class="form-group"><label>🔄 Tipo de movimiento</label><select id="som-tipomov">'+invTiposMov.map(function(t){return '<option'+(prev.tipomov===t?' selected':'')+'>'+_invEsc(t)+'</option>';}).join('')+'</select></div>'
+    +'<div class="form-group"><label>📝 Referencia / Notas</label><input type="text" id="som-ref" value="'+_invEsc(prev.ref)+'" placeholder="ej. Pedido #1234, ajuste de conteo"></div></div>'
     +'<div class="grid g2"><div class="form-group"><label>📅 Fecha de ingreso</label><input type="date" id="som-fecha" value="'+_invEsc(somFecha||_hoyISO())+'" onchange="somFecha=this.value||_hoyISO()"></div>'
     +'<div class="form-group"><label>🎩 Tipo</label><select id="som-tipo" onchange="somRefrescarChips()"><option'+(prev.tipo!=='Texana'?' selected':'')+'>Sombrero</option><option'+(prev.tipo==='Texana'?' selected':'')+'>Texana</option></select></div></div>'
     +'<div class="grid g2"><div class="form-group"><label>Marca</label>'+sel('som-marca',invOpciones.marcas,'marcas',prev.marca)+'</div>'
@@ -5268,7 +5272,7 @@ function renderFormSombrero(){
     +'<div style="padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;font-weight:700;color:var(--accent2)" id="som-total-pz">'+_somTotalPz()+'</div></div>'
     +'<div class="form-group"><label>Costo unitario (MXN)</label><input type="number" id="som-costo" value="'+_invEsc(prev.costo)+'" placeholder="ej. 1800"></div></div>'
     +'<div class="form-group"><label>💵 Precio de tienda (MXN)</label><input type="number" id="som-precio-tienda" value="'+_invEsc(prev.precio)+'" placeholder="ej. 2500"></div>'
-    +'<button class="btn btn-accent" onclick="guardarSombrero()" style="margin-top:8px;width:100%">💾 Guardar en Inventario</button>';
+    +'<button class="btn btn-accent" onclick="guardarSombrero()" style="margin-top:8px;width:100%">💾 Guardar y registrar movimiento</button>';
   somRefrescarChips();
 }
 function guardarSombrero(){
@@ -5278,23 +5282,38 @@ function guardarSombrero(){
   var tipo=g('som-tipo')||'Sombrero';
   var marca=g('som-marca'), calidad=g('som-calidad'), horma=g('som-horma'), color=g('som-color');
   var costo=parseFloat(g('som-costo'))||0, precioTienda=parseFloat(g('som-precio-tienda'))||0;
+  var tipoMov=g('som-tipomov')||'Entrada (compra)';
+  var ref=g('som-ref');
+  var esSal=_movEsSalida(tipoMov), esEnt=_movEsEntrada(tipoMov);
   if(!marca || !horma){ alert('Elige al menos la Marca y la Horma.'); return; }
   var tallas=Object.keys(somTallas).filter(function(k){ return (parseInt(somTallas[k])||0)>0; });
   if(!tallas.length){ alert('Escribe cuántas piezas en al menos una talla.'); return; }
+  var modelo=[marca,calidad,horma,color].filter(Boolean).join(' ')||'(sin especificar)';
 
-  var totalPz=0, nuevas=0;
+  var totalPz=0, nuevas=0, sinStock=[];
   tallas.sort(function(a,b){return parseInt(a)-parseInt(b);}).forEach(function(tk){
     var pz=parseInt(somTallas[tk])||0; totalPz+=pz;
     var found=invSombreros.find(function(x){ return _somTipo(x)===tipo&&x.marca===marca&&x.calidad===calidad&&x.horma===horma&&x.talla===tk&&x.color===color; });
-    if(found){ found.piezas=(found.piezas||0)+pz; if(costo) found.costo=costo; if(precioTienda) found.precioTienda=precioTienda; found.fecha=fecha; }
-    else { invSombreros.push({fecha:fecha,tipo:tipo,marca:marca,calidad:calidad,horma:horma,talla:tk,color:color,piezas:pz,costo:costo,precioTienda:precioTienda}); nuevas++; }
+    if(esSal){
+      if(found){ found.piezas=Math.max(0,(found.piezas||0)-pz); found.fecha=fecha; }
+      else { sinStock.push(tk); }
+    } else {
+      if(found){ found.piezas=(found.piezas||0)+pz; if(costo) found.costo=costo; if(precioTienda) found.precioTienda=precioTienda; found.fecha=fecha; }
+      else { invSombreros.push({fecha:fecha,tipo:tipo,marca:marca,calidad:calidad,horma:horma,talla:tk,color:color,piezas:pz,costo:costo,precioTienda:precioTienda}); nuevas++; }
+    }
+    // Registrar el movimiento (por talla)
+    try{ if(typeof movData!=='undefined'){ movData.unshift({fecha:fecha, tipo:tipoMov, categoria:'Sombrero', modelo:modelo, talla:tk, qty:pz, nota:ref, marca:marca, calidad:calidad, horma:horma, color:color}); } }catch(e){}
   });
   save('inv_sombreros', invSombreros);
-  if(typeof logInventario==='function') logInventario('Alta manual '+tipo+': '+[marca,calidad,horma,color].filter(Boolean).join(' ')+' · '+tallas.length+' talla(s) · '+totalPz+' pzs');
-  if(typeof mostrarToast==='function') mostrarToast('✅ '+totalPz+' pzs agregadas en '+tallas.length+' talla(s)','green');
+  try{ if(typeof saveMov==='function'){ saveMov(); } else { save('inventario_movimientos', movData); } }catch(e){}
+  if(typeof logInventario==='function') logInventario(tipoMov+' '+tipo+': '+modelo+' · '+tallas.length+' talla(s) · '+totalPz+' pzs'+(ref?(' · '+ref):''));
+  if(typeof mostrarToast==='function') mostrarToast('✅ '+(esSal?'Salida':'Entrada')+' registrada: '+totalPz+' pzs en '+tallas.length+' talla(s)','green');
+  if(esSal && sinStock.length && typeof mostrarToast==='function') mostrarToast('⚠️ Sin stock para restar en talla(s): '+sinStock.join(', '),'red');
   somTallas={};
   renderFormSombrero();
   renderStockSombreros();
+  try{ if(typeof renderMovimientos==='function') renderMovimientos(); }catch(e){}
+  try{ if(typeof renderMovsRecientes==='function') renderMovsRecientes(); }catch(e){}
   try{ if(typeof renderInvKpis==='function') renderInvKpis(); }catch(e){}
 }
 /* ═══ Hormas más vendidas (prioridad en "Tallas por Pedir") ═══ */
@@ -5308,11 +5327,12 @@ let prioridadHormas = JSON.parse(JSON.stringify(PRIORIDAD_HORMAS_DEF));
 try{ var _ph=JSON.parse(localStorage.getItem('inv_prioridad_hormas')||'null'); if(Array.isArray(_ph)) prioridadHormas=_ph; }catch(e){}
 function _savePrioridad(){ save('inv_prioridad_hormas', prioridadHormas); renderTallasPorPedir(); }
 // Devuelve 0,1,2… si es prioritaria; -1 si no
-function _rangoPrioridad(calidad,horma){
+function _rangoPrioridad(marca,calidad,horma){
   var n=function(x){ return String(x||'').toLowerCase().trim(); };
   for(var i=0;i<prioridadHormas.length;i++){
     var p=prioridadHormas[i];
-    if(n(p.calidad)===n(calidad) && n(p.horma)===n(horma)) return i;
+    var marcaOk = !n(p.marca) || n(p.marca)===n(marca);
+    if(marcaOk && n(p.calidad)===n(calidad) && n(p.horma)===n(horma)) return i;
   }
   return -1;
 }
@@ -5335,19 +5355,22 @@ function renderGestionPrioridad(){
     +'<p style="color:var(--text2);font-size:11px;margin:0 0 14px">Estas salen primero en "Tallas por Pedir", en el orden que las acomodes. Usa ▲▼ para cambiar la prioridad.</p>';
   prioridadHormas.forEach(function(p,i){
     var arriba=(i>0), abajo=(i<prioridadHormas.length-1);
-    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">'
       +'<span style="background:var(--accent2);color:#0f0f13;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:700">#'+(i+1)+'</span>'
       +'<div style="display:flex;flex-direction:column;gap:2px">'
         +'<button '+(arriba?'onclick="priMover('+i+',-1)" style="'+btn+'"':'disabled style="'+off+'"')+'>▲</button>'
         +'<button '+(abajo?'onclick="priMover('+i+',1)" style="'+btn+'"':'disabled style="'+off+'"')+'>▼</button>'
       +'</div>'
-      +'<select onchange="priSet('+i+',\'calidad\',this.value)" style="flex:1;'+inp+'">'+(invOpciones.calidades||[]).map(function(x){return '<option'+(p.calidad===x?' selected':'')+'>'+_invEsc(x)+'</option>';}).join('')+'</select>'
-      +'<select onchange="priSet('+i+',\'horma\',this.value)" style="flex:1.3;'+inp+'">'+(invOpciones.hormas||[]).map(function(x){return '<option'+(p.horma===x?' selected':'')+'>'+_invEsc(x)+'</option>';}).join('')+'</select>'
+      +'<div style="display:flex;gap:5px;flex:1;min-width:190px;flex-wrap:wrap">'
+        +'<select onchange="priSet('+i+',\'marca\',this.value)" style="flex:1;min-width:95px;'+inp+'"><option value=""'+(!p.marca?' selected':'')+'>— cualquier marca —</option>'+(invOpciones.marcas||[]).map(function(x){return '<option'+(p.marca===x?' selected':'')+'>'+_invEsc(x)+'</option>';}).join('')+'</select>'
+        +'<select onchange="priSet('+i+',\'calidad\',this.value)" style="flex:1;min-width:80px;'+inp+'">'+(invOpciones.calidades||[]).map(function(x){return '<option'+(p.calidad===x?' selected':'')+'>'+_invEsc(x)+'</option>';}).join('')+'</select>'
+        +'<select onchange="priSet('+i+',\'horma\',this.value)" style="flex:1.2;min-width:90px;'+inp+'">'+(invOpciones.hormas||[]).map(function(x){return '<option'+(p.horma===x?' selected':'')+'>'+_invEsc(x)+'</option>';}).join('')+'</select>'
+      +'</div>'
       +'<button onclick="priQuitar('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:15px">✕</button>'
       +'</div>';
   });
   h+='<div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:8px;text-align:right">'
-    +'<button onclick="priAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:12px">+ Agregar horma</button></div>'
+    +'<button onclick="priAgregar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:12px">+ Agregar prioridad</button></div>'
     +'<div style="text-align:right;margin-top:12px"><button onclick="_priCerrar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 20px;cursor:pointer;font-weight:700">Listo</button></div>';
   box.innerHTML=h;
 }
@@ -5358,10 +5381,26 @@ function priQuitar(i){ prioridadHormas.splice(i,1); _savePrioridad(); renderGest
 function priAgregar(){
   var cal=(invOpciones.calidades||[])[0]||'', hor=(invOpciones.hormas||[])[0]||'';
   if(!cal || !hor){ if(typeof mostrarToast==='function') mostrarToast('Primero agrega calidades y hormas','blue'); return; }
-  prioridadHormas.push({calidad:cal, horma:hor});
+  prioridadHormas.push({marca:'', calidad:cal, horma:hor});
   _savePrioridad(); renderGestionPrioridad();
 }
 
+function _tpEsc(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function verStockTalla(marca, calidad, horma, talla){
+  var rows=(invSombreros||[]).filter(function(s){ return (s.marca||'')===marca && (s.calidad||'')===calidad && (s.horma||'')===horma && String(s.talla)===String(talla); });
+  var total=rows.reduce(function(a,s){return a+(s.piezas||0);},0);
+  var body='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">'+_invEsc([marca,calidad,horma].filter(Boolean).join(' '))+' · <b>Talla '+_invEsc(talla)+' cm</b></div>';
+  if(!rows.length){
+    body+='<div style="font-size:13px;color:var(--red);padding:10px;border:1px dashed var(--red);border-radius:8px;text-align:center">Sin registro de esta talla — <b>0 piezas</b>.<br>Hay que pedirla.</div>';
+  } else {
+    body+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">Total: <span style="color:'+(total<=0?'var(--red)':(total<=2?'#e8934b':'var(--green)'))+'">'+total+' pzs</span></div>';
+    rows.sort(function(a,b){ return (a.color||'').localeCompare(b.color||'','es'); }).forEach(function(s){
+      var pz=s.piezas||0; var col=pz<=0?'var(--red)':(pz<=2?'#e8934b':'var(--green)');
+      body+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border:1px solid var(--border);border-radius:7px;margin-bottom:5px;background:var(--surface2);font-size:12px"><span>🎨 '+_invEsc(s.color||'(sin color)')+'</span><span style="font-weight:700;color:'+col+'">'+pz+' pzs</span></div>';
+    });
+  }
+  _nomOverlay('📦 Stock — Talla '+_invEsc(talla), body);
+}
 function renderTallasPorPedir(){
   var c=document.getElementById('inv-tallas-pedir'); if(!c) return;
   var TALLAS=INV_TALLAS.map(function(t){return t.cm;});
@@ -5374,7 +5413,7 @@ function renderTallasPorPedir(){
   });
   var lista=Object.keys(combos).map(function(k){
     var o=combos[k];
-    o.rango=_rangoPrioridad(o.calidad,o.horma);
+    o.rango=_rangoPrioridad(o.marca,o.calidad,o.horma);
     return o;
   });
   if(!lista.length){ c.innerHTML='<div style="color:var(--text2);font-size:12px;padding:10px">Agrega sombreros para ver qué tallas te faltan por pedir.</div>'; return; }
@@ -5389,7 +5428,7 @@ function renderTallasPorPedir(){
   var h='<div style="font-size:11px;color:var(--text2);margin-bottom:6px">Por cada Marca + Calidad + Horma: las tallas que te faltan (0 piezas) y las de bajo stock, del rango 53 a 62.</div>';
   if(prioridadHormas.length){
     h+='<div style="font-size:11px;color:var(--accent2);background:rgba(224,168,58,.08);border:1px solid rgba(224,168,58,.25);border-radius:7px;padding:7px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
-      +'<span>⭐ <b>Prioridad</b> (tus más vendidas): '+prioridadHormas.map(function(p,i){ return (i+1)+'. '+_invEsc(p.calidad+' '+p.horma); }).join(' · ')+'</span>'
+      +'<span>⭐ <b>Prioridad</b> (tus más vendidas): '+prioridadHormas.map(function(p,i){ return (i+1)+'. '+_invEsc((p.marca?p.marca+' ':'')+p.calidad+' '+p.horma); }).join(' · ')+'</span>'
       +(_invEsAdmin&&_invEsAdmin()?'<button onclick="abrirGestionPrioridad()" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:10px;white-space:nowrap">⚙️ Cambiar</button>':'')
       +'</div>';
   }
@@ -5404,15 +5443,16 @@ function renderTallasPorPedir(){
     var tq=o.tallas;
     var faltan=TALLAS.filter(function(t){ return !tq[t] || tq[t]<=0; });
     var bajo=TALLAS.filter(function(t){ return tq[t]>0 && tq[t]<=2; });
+    var _tallaLink=function(t){ return '<span onclick="verStockTalla(\''+_tpEsc(o.marca)+'\',\''+_tpEsc(o.calidad)+'\',\''+_tpEsc(o.horma)+'\',\''+_tpEsc(t)+'\')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">'+t+'</span>'; };
     var titulo=o.marca+' · '+o.calidad+' · '+o.horma;
     h+='<div style="border:1px solid '+(pri?'rgba(224,168,58,.45)':'var(--border)')+';border-radius:8px;margin-bottom:8px;padding:9px 11px;'+(pri?'background:rgba(224,168,58,.05)':'')+'">'
       +'<div style="font-weight:700;font-size:12px;color:var(--accent2);margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
         +(pri?'<span style="background:var(--accent2);color:#0f0f13;border-radius:4px;padding:1px 6px;font-size:10px">⭐ #'+(o.rango+1)+' más vendida</span>':'')
         +'<span>🎩 '+_invEsc(titulo)+'</span>'
       +'</div>';
-    if(faltan.length){ h+='<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--red);font-weight:600">🔴 Faltan por pedir: </span>'+faltan.join(', ')+'</div>'; }
+    if(faltan.length){ h+='<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--red);font-weight:600">🔴 Faltan por pedir: </span>'+faltan.map(_tallaLink).join(', ')+'</div>'; }
     else { h+='<div style="font-size:11px;color:var(--green);margin-bottom:3px">✅ Tienes todas las tallas 53-62</div>'; }
-    if(bajo.length){ h+='<div style="font-size:11px"><span style="color:#e8b84b;font-weight:600">⚠️ Bajo stock (1-2 pzs): </span>'+bajo.join(', ')+'</div>'; }
+    if(bajo.length){ h+='<div style="font-size:11px"><span style="color:#e8b84b;font-weight:600">⚠️ Bajo stock (1-2 pzs): </span>'+bajo.map(_tallaLink).join(', ')+'</div>'; }
     h+='</div>';
   });
   c.innerHTML=h;
@@ -5457,6 +5497,29 @@ function invEliminarSeleccionados(){
   if(typeof mostrarToast==='function') mostrarToast('Registros eliminados','blue');
   logInventario('Eliminó '+ids.length+' sombrero(s) del inventario');
 }
+function editarSombreroColor(i, val){
+  var s=invSombreros[i]; if(!s) return;
+  var antes=s.color||'(sin color)';
+  var nuevo=val||'';
+  if((s.color||'')===nuevo) return;
+  var gemelo=invSombreros.find(function(x,j){ return j!==i && _somTipo(x)===_somTipo(s) && x.marca===s.marca && x.calidad===s.calidad && x.horma===s.horma && x.talla===s.talla && (x.color||'')===nuevo; });
+  if(gemelo){
+    gemelo.piezas=(gemelo.piezas||0)+(s.piezas||0);
+    if(s.costo) gemelo.costo=s.costo;
+    if(s.precioTienda) gemelo.precioTienda=s.precioTienda;
+    invSombreros.splice(i,1);
+    save('inv_sombreros', invSombreros);
+    if(typeof logInventario==='function') logInventario('Cambió color de '+[s.marca,s.calidad,s.horma,s.talla].filter(Boolean).join(' ')+': '+antes+' → '+(nuevo||'(sin color)')+' (fusionado)');
+    renderStockSombreros();
+    if(typeof mostrarToast==='function') mostrarToast('✅ Color cambiado y fusionado con el registro existente','green');
+  } else {
+    s.color=nuevo;
+    save('inv_sombreros', invSombreros);
+    if(typeof logInventario==='function') logInventario('Cambió color de '+[s.marca,s.calidad,s.horma,s.talla].filter(Boolean).join(' ')+': '+antes+' → '+(nuevo||'(sin color)'));
+    if(typeof mostrarToast==='function') mostrarToast('✅ Color actualizado','green');
+  }
+  try{ if(typeof renderInvKpis==='function') renderInvKpis(); }catch(e){}
+}
 function editarSombreroPiezas(i,val){
   var s=invSombreros[i]; if(!s) return;
   var q=parseInt(val); if(isNaN(q)||q<0) q=0;
@@ -5493,6 +5556,125 @@ function somCambiarTipo(i){
   if(typeof renderTallasPorPedir==='function') renderTallasPorPedir();
 }
 function _somTipo(s){ return (s && s.tipo) ? s.tipo : 'Sombrero'; }
+function _invNorm(s){ return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function _invSearchItems(){
+  var out=[];
+  try{ (invSombreros||[]).forEach(function(s){ var lbl=((typeof _somTipo==='function'?_somTipo(s):'')+' '+(s.marca||'')+' '+(s.calidad||'')+' '+(s.horma||'')+' '+(s.talla?('T'+s.talla):'')+' '+(s.color||'')).replace(/\s+/g,' ').trim(); out.push({label:lbl, cat:'🎩 '+(typeof _somTipo==='function'?_somTipo(s):'Sombrero'), pz:(s.piezas||0)}); }); }catch(e){}
+  try{ (invAccesorios||[]).forEach(function(a){ out.push({label:(a.nombre||''), cat:'🪶 Accesorio'+(a.grupo?(' · '+a.grupo):''), pz:(a.piezas||0)}); }); }catch(e){}
+  try{ (invKits||[]).forEach(function(k){ out.push({label:(k.nombre||''), cat:'🎁 Kit', pz:(k.piezas||0)}); }); }catch(e){}
+  try{ (invOperacion||[]).forEach(function(o){ out.push({label:(o.nombre||''), cat:'📦 Operación', pz:(o.piezas||0)}); }); }catch(e){}
+  try{ if(typeof _invRegistrarSecciones==='function') _invRegistrarSecciones();
+    (invSeccionesCustom||[]).forEach(function(sec){ var items=(invSecData&&invSecData[sec.id])||[]; items.forEach(function(it){ out.push({label:(it.nombre||''), cat:(_invEsc?_invEsc(sec.icono||'📁'):'📁')+' '+(sec.titulo||'Sección'), pz:(it.piezas||0)}); }); });
+  }catch(e){}
+  return out;
+}
+function invBuscar(q){
+  var cont=document.getElementById('inv-search-results');
+  var cats=document.getElementById('inv-stock-cats');
+  if(!cont) return;
+  var query=_invNorm(q).trim();
+  if(!query){ cont.style.display='none'; cont.innerHTML=''; if(cats) cats.style.display=''; return; }
+  if(cats) cats.style.display='none';
+  var esc=_invEsc;
+
+  // 1) Sombreros / Texanas -> agrupar por Marca > Modelo (horma + calidad) > tallas
+  var somMatch=[];
+  (invSombreros||[]).forEach(function(s,i){
+    var lbl=(_somTipo(s)+' '+(s.marca||'')+' '+(s.calidad||'')+' '+(s.horma||'')+' '+(s.talla?('t'+s.talla+' '+s.talla+'cm'):'')+' '+(s.color||''));
+    if(_invNorm(lbl).indexOf(query)>=0) somMatch.push({s:s,i:i});
+  });
+  var byMarca={};
+  somMatch.forEach(function(x){
+    var mc=x.s.marca||'(Sin marca)';
+    var md=((x.s.horma||'(Sin horma)')+(x.s.calidad?(' '+x.s.calidad):'')).trim();
+    if(!byMarca[mc]) byMarca[mc]={};
+    if(!byMarca[mc][md]) byMarca[mc][md]=[];
+    byMarca[mc][md].push(x);
+  });
+
+  // 2) Otros (accesorios / kits / operacion / secciones)
+  var otros=[];
+  try{ otros=_invSearchItems().filter(function(x){ return x.cat && x.cat.indexOf('🎩')<0 && x.label && _invNorm(x.label).indexOf(query)>=0; }); }catch(e){}
+
+  var total=somMatch.length+otros.length;
+  var h='<div style="font-size:12px;color:var(--text2);margin-bottom:8px">'+total+' resultado(s) para "'+esc(q)+'"</div>';
+  if(!total){
+    h+='<div style="color:var(--text2);font-size:12px;padding:12px;text-align:center;border:1px dashed var(--border);border-radius:8px">Sin coincidencias. Revisa como esta escrito el nombre/marca.</div>';
+    cont.innerHTML=h; cont.style.display='block'; return;
+  }
+
+  Object.keys(byMarca).sort(function(a,b){ return a.localeCompare(b,'es'); }).forEach(function(mc){
+    var modelos=byMarca[mc];
+    var mcCount=0, mcPz=0;
+    Object.keys(modelos).forEach(function(md){ modelos[md].forEach(function(x){ mcCount++; mcPz+=(x.s.piezas||0); }); });
+    var gid='srchM'+mc.replace(/[^a-zA-Z0-9]/g,'');
+    h+='<div style="border:1px solid var(--accent2);border-radius:10px;margin-bottom:8px;overflow:hidden">'
+      +'<div onclick="invToggleGrupo(\''+gid+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(224,168,58,.12);cursor:pointer">'
+      +'<span style="font-weight:700;font-size:13px;color:var(--accent2)"><span id="'+gid+'-arrow">▾</span> '+esc(mc)+'</span>'
+      +'<span style="font-size:11px;color:var(--text2)">'+mcCount+' · '+mcPz+' pzs</span></div>'
+      +'<div id="'+gid+'" style="display:block;padding:8px 10px">';
+    Object.keys(modelos).sort(function(a,b){ return a.localeCompare(b,'es'); }).forEach(function(md){
+      var arr=modelos[md].slice().sort(function(a,b){
+        var ca=(a.s.color||'').toLowerCase(), cb=(b.s.color||'').toLowerCase();
+        if(ca!==cb) return ca.localeCompare(cb,'es');
+        return (parseInt(a.s.talla)||0)-(parseInt(b.s.talla)||0);
+      });
+      h+='<div style="margin-bottom:9px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">'+esc(md)+'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
+      arr.forEach(function(x){
+        var s=x.s, pz=(s.piezas||0);
+        var col=pz<=0?'var(--red)':(pz<=2?'#e8934b':'var(--green)');
+        var tallaTxt=s.talla?('T'+esc(s.talla)):'(s/t)';
+        h+='<button onclick="invIrDetalle('+x.i+')" title="Ver / editar en inventario" '
+          +'style="display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+col+';border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text)">'
+          +'<span style="font-size:12px;font-weight:700">'+tallaTxt+'</span>'
+          +(s.color?'<span style="font-size:10px;color:var(--text2)">'+esc(s.color)+'</span>':'')
+          +'<span style="font-size:13px;font-weight:800;color:'+col+'">'+pz+'</span>'
+          +'<span style="font-size:9px;color:var(--text2)">pzs</span>'
+        +'</button>';
+      });
+      h+='</div></div>';
+    });
+    h+='</div></div>';
+  });
+
+  if(otros.length){
+    otros.sort(function(a,b){ return (b.pz||0)-(a.pz||0); });
+    h+='<div style="font-size:11px;color:var(--text2);margin:12px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Otros · '+otros.length+'</div>';
+    otros.slice(0,200).forEach(function(x){
+      var col=x.pz<=0?'var(--red)':(x.pz<=2?'#e8934b':'var(--green)');
+      var etq=x.pz<=0?'AGOTADO':(x.pz<=2?'BAJO':'');
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface2)">'
+        +'<div style="min-width:0"><div style="font-size:13px;font-weight:600">'+esc(x.label||'(sin nombre)')+'</div><div style="font-size:10px;color:var(--text2)">'+x.cat+'</div></div>'
+        +'<div style="text-align:right;white-space:nowrap"><span style="font-weight:700;font-size:15px;color:'+col+'">'+x.pz+'</span> <span style="font-size:10px;color:var(--text2)">pzs</span>'+(etq?('<div style="font-size:9px;color:'+col+';font-weight:700">'+etq+'</div>'):'')+'</div>'
+      +'</div>';
+    });
+  }
+  cont.innerHTML=h; cont.style.display='block';
+}
+function invIrDetalle(idx){
+  var s=(invSombreros||[])[idx]; if(!s) return;
+  var tp=_somTipo(s), mc=s.marca||'(Sin marca)', cd=s.calidad||'(Sin calidad)', hr=s.horma||'(Sin horma)';
+  var _sid=function(str){ return 'g'+str.replace(/[^a-zA-Z0-9]/g,''); };
+  var cats=document.getElementById('inv-stock-cats'); if(cats) cats.style.display='';
+  var sec=document.getElementById('sec-somb'); var secA=document.getElementById('sec-somb-arrow');
+  if(sec){ sec.style.display='block'; if(secA) secA.textContent='▾'; }
+  ['T'+tp, 'M'+tp+mc, 'C'+tp+mc+cd, 'H'+tp+mc+cd+hr].forEach(function(k){
+    var g=document.getElementById(_sid(k)); var a=document.getElementById(_sid(k)+'-arrow');
+    if(g){ g.style.display='block'; if(a) a.textContent='▾'; }
+  });
+  setTimeout(function(){
+    var row=document.getElementById('somrow-'+idx);
+    if(row){
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+      row.style.transition='background .3s';
+      var old=row.style.background;
+      row.style.background='rgba(224,168,58,.4)';
+      setTimeout(function(){ row.style.background=old||''; }, 1600);
+    }
+  }, 70);
+}
 function renderStockSombreros(){
   var t=document.getElementById('inv-stock-sombreros'); if(!t) return;
   var admin=(typeof _invEsAdmin==='function')?_invEsAdmin():true;
@@ -5556,7 +5738,11 @@ function renderStockSombreros(){
           +'<div id="'+cid+'" style="display:'+(tOpen?'block':'none')+'">';
 
         hormas.forEach(function(hr){
-          var items=arbol[tp][mc][cd][hr];
+          var items=arbol[tp][mc][cd][hr].slice().sort(function(a,b){
+            var ca=(a.s.color||'').toLowerCase(), cb=(b.s.color||'').toLowerCase();
+            if(ca!==cb) return ca.localeCompare(cb,'es');
+            return (parseInt(a.s.talla)||0)-(parseInt(b.s.talla)||0);
+          });
           var hid=_sid('H'+tp+mc+cd+hr);
           h+='<div style="margin-bottom:5px">'
             +'<div onclick="invToggleGrupo(\''+hid+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:4px 4px;cursor:pointer;background:rgba(255,255,255,.02);border-radius:6px">'
@@ -5570,11 +5756,17 @@ function renderStockSombreros(){
             +((admin&&!selMode)?'<th style="text-align:center;width:28px">Tipo</th>':'')+'</tr></thead><tbody>';
           items.forEach(function(x){
             var s=x.s;
-            h+='<tr style="border-bottom:1px solid var(--border)">';
+            h+='<tr id="somrow-'+x.i+'" style="border-bottom:1px solid var(--border)">';
             if(selMode){ h+='<td style="text-align:center"><input type="checkbox" '+(_invSel[x.i]?'checked':'')+' onchange="invSelToggle('+x.i+')" style="cursor:pointer"></td>'; }
             h+='<td style="padding:4px 3px;color:var(--text2)">'+_invEsc(s.fecha)+'</td>'
               +'<td>'+(s.talla?_invEsc(s.talla)+' cm ('+_invTallaPulg(s.talla)+'")':'—')+'</td>'
-              +'<td>'+_invEsc(s.color)+'</td>'
+              +'<td>'+(admin
+                ? '<select onchange="editarSombreroColor('+x.i+',this.value)" style="background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:2px 4px;font-size:11px;color:var(--text);max-width:120px">'
+                    +'<option value=""'+(!s.color?' selected':'')+'>—</option>'
+                    +(invOpciones.colores||[]).map(function(cc){ return '<option'+((s.color||'')===cc?' selected':'')+'>'+_invEsc(cc)+'</option>'; }).join('')
+                    +((s.color && (invOpciones.colores||[]).indexOf(s.color)<0)?'<option selected>'+_invEsc(s.color)+'</option>':'')
+                  +'</select>'
+                : _invEsc(s.color))+'</td>'
               +(admin
                 ? '<td style="text-align:right"><input type="number" value="'+(s.piezas||0)+'" min="0" onchange="editarSombreroPiezas('+x.i+',this.value)" style="width:52px;background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:3px 4px;font-size:11px;color:var(--accent2);text-align:center;font-weight:700"></td>'
                 : '<td style="text-align:right;font-weight:700;color:var(--accent2)">'+(s.piezas||0)+'</td>');
@@ -5607,8 +5799,8 @@ function invToggleGrupo(gid){
   var show=(e.style.display==='none');
   e.style.display=show?'block':'none';
   if(ar) ar.textContent=show?'▾':'▸';
-  // Abre (o cierra) TODO lo que está adentro, para no dar cuatro clics
-  _invCascada(e, show);
+  // Al ABRIR muestra solo el nivel siguiente (colapsado). Al CERRAR, cierra todo lo de adentro.
+  if(!show) _invCascada(e, false);
 }
 // Aplica el mismo estado a todos los grupos anidados
 function _invCascada(cont, abrir){
@@ -5699,7 +5891,18 @@ function invAgregarOpc(key){ var v=(document.getElementById('newopc-'+key)?.valu
 
 function initInventario() {
   try{ _precioSembrarDesdeNotas(false); }catch(e){}
-  try{ renderDeletePassAdmin(); renderFormSombrero(); renderStockSombreros(); renderAccesorios(); invCatRender('kits'); invCatRender('operacion'); renderFormMovimiento(); renderMovsRecientes(); renderTallasPorPedir(); renderInvKpis(); _invRegistrarSecciones(); renderSeccionesCustom(); }catch(e){ console.warn(e); }
+  try{ renderDeletePassAdmin(); }catch(e){ console.warn(e); }
+  try{ renderFormSombrero(); }catch(e){ console.warn(e); }
+  try{ renderStockSombreros(); }catch(e){ console.warn(e); }
+  try{ renderAccesorios(); }catch(e){ console.warn(e); }
+  try{ invCatRender('kits'); }catch(e){ console.warn(e); }
+  try{ invCatRender('operacion'); }catch(e){ console.warn(e); }
+  try{ renderFormMovimiento(); }catch(e){ console.warn(e); }
+  try{ renderMovsRecientes(); }catch(e){ console.warn(e); }
+  try{ renderTallasPorPedir(); }catch(e){ console.warn(e); }
+  try{ renderInvKpis(); }catch(e){ console.warn(e); }
+  try{ _invRegistrarSecciones(); }catch(e){ console.warn(e); }
+  try{ renderSeccionesCustom(); }catch(e){ console.warn(e); }
   try{
     ['inv-stock','inv-agregar','inv-alertas','inv-proveedores','inv-pedidos','inv-movimientos'].forEach(function(t){ var d=document.getElementById(t); if(d) d.style.display=(t==='inv-stock')?'block':'none'; });
     document.querySelectorAll('#page-inventario .pill').forEach(function(p){ p.classList.remove('active'); var oc=p.getAttribute('onclick')||''; if(oc.indexOf("'inv-stock'")>=0) p.classList.add('active'); });
@@ -5737,7 +5940,7 @@ function showInvTab(el, id) {
   const d=document.getElementById(id); if(d) d.style.display='block';
   document.querySelectorAll('#page-inventario .pill').forEach(p=>p.classList.remove('active'));
   if(el && el.classList) el.classList.add('active');
-  if(id==='inv-alertas') renderAlertas();
+  if(id==='inv-alertas'){ try{ renderAlertas(); }catch(e){ console.warn(e); } try{ renderTallasPorPedir(); }catch(e){ console.warn(e); } }
   if(id==='inv-movimientos') renderMovimientos();
   if(id==='inv-proveedores'){ try{ _precioSembrarDesdeNotas(false); }catch(e){} renderCompras_init(); try{ renderDevProv(); }catch(e){} try{ _fechaHoySiVacio('nc-fecha'); }catch(e){} }
   if(id==='inv-pedidos'){ pedInit(); }
@@ -11813,6 +12016,22 @@ function mgSet(campo, val){
   saveMetaGrupal();
   renderMetaGrupal();
 }
+function mgSetFecha(campo, val){
+  if(!_mgEsAdmin()){ alert('Solo Fer puede cambiar la meta.'); renderMetaGrupal(); return; }
+  if(val) mgCfg[campo]=val; else delete mgCfg[campo];
+  saveMetaGrupal();
+  renderMetaGrupal();
+}
+function mgLimpiarFechas(){
+  if(!_mgEsAdmin()) return;
+  delete mgCfg.inicio; delete mgCfg.fin;
+  saveMetaGrupal(); renderMetaGrupal();
+}
+function _mgParseFecha(iso){ var p=(iso||'').split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+function _mgVentasPeriodo(ini, fin){
+  var L=(typeof state!=='undefined' && state.fisicaEntries) ? state.fisicaEntries : [];
+  return L.filter(function(x){ var f=(x.fecha||'').slice(0,10); return f && f>=ini && f<=fin; });
+}
 // Fer asigna qué usuario es Liz y cuál es Lulú
 function mgSetUsuario(quien, uid){
   if(!_mgEsAdmin()) return;
@@ -11838,7 +12057,8 @@ function _mgVentasMes(mes){
 
 // El cálculo del mes
 function _mgCalculo(mes){
-  var V=_mgVentasMes(mes);
+  var usarPeriodo = !!(mgCfg.inicio && mgCfg.fin);
+  var V = usarPeriodo ? _mgVentasPeriodo(mgCfg.inicio, mgCfg.fin) : _mgVentasMes(mes);
   var piezas = V.reduce(function(a,x){ return a+(parseInt(x.cantidad,10)||1); }, 0);
   var vendido = V.reduce(function(a,x){ return a+(parseFloat(x.precio)||0); }, 0);
 
@@ -11853,13 +12073,24 @@ function _mgCalculo(mes){
   var bonoCadaUna = llego ? (mgCfg.bono||0) : 0;
   var totalCadaUna = comisionCadaUna + bonoCadaUna;
 
-  // Días del mes / ritmo
-  var p=mes.split('-');
-  var diasMes=new Date(+p[0], +p[1], 0).getDate();
-  var hoy=new Date();
-  var esActual = (_pgMesActual()===mes);
-  var diaHoy = esActual ? hoy.getDate() : diasMes;
-  var diasRestan = Math.max(0, diasMes-diaHoy);
+  // Días y ritmo
+  var diasMes, diaHoy, diasRestan, esActual;
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  if(usarPeriodo){
+    var day=86400000;
+    var iD=_mgParseFecha(mgCfg.inicio), fD=_mgParseFecha(mgCfg.fin);
+    diasMes = Math.max(1, Math.round((fD-iD)/day)+1);
+    var transc = Math.round((hoy-iD)/day)+1;
+    diaHoy = Math.min(diasMes, Math.max(1, transc));
+    diasRestan = Math.max(0, Math.round((fD-hoy)/day));
+    esActual = (hoy>=iD && hoy<=fD);
+  } else {
+    var p=mes.split('-');
+    diasMes=new Date(+p[0], +p[1], 0).getDate();
+    esActual = (_pgMesActual()===mes);
+    diaHoy = esActual ? hoy.getDate() : diasMes;
+    diasRestan = Math.max(0, diasMes-diaHoy);
+  }
 
   return {
     mes:mes, ventas:V, piezas:piezas, vendido:vendido,
@@ -11869,7 +12100,7 @@ function _mgCalculo(mes){
     bonoCadaUna:bonoCadaUna,
     totalCadaUna:totalCadaUna,
     totalPagar: totalCadaUna * MG_COLABS.length,
-    diasMes:diasMes, diasRestan:diasRestan, esActual:esActual,
+    diasMes:diasMes, diasRestan:diasRestan, esActual:esActual, usarPeriodo:usarPeriodo,
     porDia: diasRestan>0 ? (faltan/diasRestan) : 0,
     ritmo: diaHoy>0 ? (piezas/diaHoy) : 0
   };
@@ -12081,6 +12312,22 @@ function asisCambiarDia(delta){
   _asisFecha=d.toISOString().slice(0,10); renderAsistencia();
 }
 function asisIrHoy(){ _asisFecha=_asisHoy(); renderAsistencia(); }
+function asisIrAFecha(iso){ _asisFecha=iso; var o=document.getElementById('nom-ov'); if(o) o.remove(); renderAsistencia(); var el=document.getElementById('asis-panel'); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth'}); }
+var ASIS_MAX_DESAYUNO=30, ASIS_MAX_COMIDA=30; // minutos permitidos
+function _asisCheckDescanso(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var r=asistencia[f] && asistencia[f][empId]; if(!r) return;
+  var cfg=({desFin:{ini:'desIni', max:ASIS_MAX_DESAYUNO, nom:'desayuno'}, comFin:{ini:'comIni', max:ASIS_MAX_COMIDA, nom:'comida'}})[slot]; if(!cfg) return;
+  var ini=_asisMin(r[cfg.ini]), fin=_asisMin(r[slot]); if(ini==null||fin==null) return;
+  var dur=fin-ini; if(dur<=cfg.max) return;
+  var exceso=dur-cfg.max;
+  var L=(typeof empleadasData!=='undefined'?empleadasData:[]); var nombre=''; for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nombre=L[i].nombre; break; } }
+  var primer=(nombre||'').split(' ')[0];
+  var uid=(typeof _nomUsuarioDeEmp==='function')?_nomUsuarioDeEmp(nombre):null;
+  if(uid) notificarUsuario(uid, '🟠 Te pasaste del tiempo de '+cfg.nom+': tomaste '+dur+' min ('+cfg.max+' permitidos, '+exceso+' de más).');
+  notificarUsuario('admin', '🟠 '+primer+' se pasó en '+cfg.nom+' el '+f+': '+dur+' min ('+exceso+' de más).');
+  try{ renderNotifBanner(); }catch(e){}
+}
 function asisSet(empId, slot, val){
   var f=_asisFecha||_asisHoy();
   if(!asistencia[f]) asistencia[f]={};
@@ -12098,6 +12345,7 @@ function _asisGuardarConGeo(empId, slot, hora, geo){
   if(geo) asistencia[f][empId]._geo[slot]=geo; else delete asistencia[f][empId]._geo[slot];
   saveAsistencia();
   if(slot==='entrada'){ try{ _asisCheckRetardo(empId, hora); }catch(e){} }
+  if(slot==='desFin' || slot==='comFin'){ try{ _asisCheckDescanso(empId, slot); }catch(e){} }
   renderAsistencia();
   if(typeof mostrarToast==='function') mostrarToast('✅ Marcado: '+hora,'green');
 }
@@ -12183,6 +12431,7 @@ function _asisRenderHistorico(){
   +'</div>';
   emps.forEach(function(e){
     var sch=asisHorarios[e.id];
+    if(!sch) return;
     var dias=[];
     Object.keys(asistencia).filter(function(f){ return f.slice(0,7)===mes; }).sort().forEach(function(f){
       var r=asistencia[f] && asistencia[f][e.id]; if(!r) return;
@@ -12206,13 +12455,19 @@ function _asisRenderHistorico(){
         }
       }
       var horas=_asisHorasTrabajadas(r);
-      body+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-top:1px solid var(--border);flex-wrap:wrap">'
-        +'<span style="min-width:64px">'+_asisFechaCorta(o.f)+'</span>'
-        +'<span>Ent: <b>'+(r.entrada||'--')+'</b> · Sal: <b>'+(r.salida||'--')+'</b>'+(horas?(' · '+horas):'')+'</span>'
-        +'<span style="color:'+col+';font-weight:600">'+estado+'</span>'
-      +'</div>'
-      + ((r._geo && r._geo.entrada)?('<div style="font-size:10px;padding-left:4px;margin-top:-1px">Entró desde: '+_asisGeoBadge(r._geo.entrada)+'</div>'):'')
-      + (r.permiso?('<div style="font-size:10px;color:var(--text2);padding-left:4px">📝 '+_ncEsc(r.permiso)+'</div>'):'');
+      var marks='Ent <b>'+(r.entrada||'--')+'</b>';
+      if(r.desIni||r.desFin){ var dd=(_asisMin(r.desFin)!=null&&_asisMin(r.desIni)!=null)?(_asisMin(r.desFin)-_asisMin(r.desIni)):null; marks+=' · Des '+(r.desIni||'--')+'–'+(r.desFin||'--')+(dd!=null?(dd>30?(' <span style="color:#e8934b">('+dd+'m ⚠)</span>'):(' ('+dd+'m)')):''); }
+      if(r.comIni||r.comFin){ var cc=(_asisMin(r.comFin)!=null&&_asisMin(r.comIni)!=null)?(_asisMin(r.comFin)-_asisMin(r.comIni)):null; marks+=' · Com '+(r.comIni||'--')+'–'+(r.comFin||'--')+(cc!=null?(cc>30?(' <span style="color:#e8934b">('+cc+'m ⚠)</span>'):(' ('+cc+'m)')):''); }
+      marks+=' · Sal <b>'+(r.salida||'--')+'</b>'+(horas?(' · '+horas+' trab.'):'');
+      body+='<div style="border-top:1px solid var(--border);padding:5px 0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px">'
+          +'<span style="font-weight:600">'+_asisFechaCorta(o.f)+'</span>'
+          +'<span style="color:'+col+';font-weight:600">'+estado+' <button onclick="asisIrAFecha(\''+o.f+'\')" title="Editar este día" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px">✏️</button></span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+marks+'</div>'
+        + ((r._geo && r._geo.entrada)?('<div style="font-size:10px;margin-top:1px">Entró desde: '+_asisGeoBadge(r._geo.entrada)+'</div>'):'')
+        + (r.permiso?('<div style="font-size:10px;color:var(--text2)">📝 '+_ncEsc(r.permiso)+'</div>'):'')
+      +'</div>';
     });
     body+='</div>';
   });
@@ -12396,7 +12651,7 @@ function renderAsistencia(){
   +'</div>';
 
   var emps;
-  if(esAdmin){ emps=todasEmps; }
+  if(esAdmin){ emps=todasEmps.filter(function(e){ return asisHorarios[e.id]; }); }
   else {
     var mia=_asisEmpDeUsuario();
     if(mia){ emps=[mia]; }
@@ -12522,6 +12777,17 @@ function renderMetaGrupal(){
       +'<span>💰 Comisión: <b style="color:var(--accent2)">'+(mgCfg.comisionPct/MG_COLABS.length)+'%</b> para cada una</span>';
   }
   h+='</div>';
+  if(esAdmin){
+    var _dinp='background:#0f0f13;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:11px;color:var(--accent2)';
+    var _hayP=!!(mgCfg.inicio&&mgCfg.fin);
+    h+='<div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:11px;color:var(--text2);margin-bottom:'+(_hayP?'4px':'12px')+';border-top:1px dashed var(--border);padding-top:10px">'
+      +'<span>📅 Meta del <input type="date" value="'+(mgCfg.inicio||'')+'" onchange="mgSetFecha(\'inicio\',this.value)" style="'+_dinp+'"> al <input type="date" value="'+(mgCfg.fin||'')+'" onchange="mgSetFecha(\'fin\',this.value)" style="'+_dinp+'"></span>'
+      + (_hayP?'<button onclick="mgLimpiarFechas()" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:10px">✕ Usar el mes</button>':'')
+    +'</div>';
+    if(_hayP) h+='<div style="text-align:center;font-size:10px;color:var(--accent2);margin-bottom:12px">✓ Meta por periodo: se cuentan las ventas y los días entre esas fechas (ignora el mes de arriba).</div>';
+  } else if(mgCfg.inicio && mgCfg.fin){
+    h+='<div style="text-align:center;font-size:11px;color:var(--text2);margin-bottom:12px">📅 Meta del '+mgCfg.inicio+' al '+mgCfg.fin+'</div>';
+  }
 
   // Fer asigna qué usuario es cada colaboradora
   if(esAdmin){
