@@ -367,7 +367,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v268</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v270</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -738,6 +738,7 @@
           2. Abre el archivo, selecciona todas las filas de datos, cópialas (Ctrl+C) y pega aquí abajo (Ctrl+V)<br>
           3. Detecta: fecha · modelo · talla · precio · tipo oferta/normal · cálculos ML automáticos</span>
         </div>
+        <div id="vd-aviso-fechas" style="background:rgba(201,150,58,.08);border:1px solid rgba(201,150,58,.25);border-radius:8px;padding:10px 12px;margin-bottom:10px"></div>
         <label class="btn btn-accent btn-sm" style="cursor:pointer;display:inline-block;margin-bottom:8px">📤 Subir archivo Excel (.xlsx)<input type="file" accept=".xlsx,.xls,.csv" onchange="onMLFile(this)" style="display:none"></label>
         <span id="ml-file-name" style="font-size:11px;color:var(--text2);margin-left:8px"></span>
         <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px"><div style="height:1px;flex:1;background:var(--border)"></div><span style="font-size:10px;color:var(--text2)">o pega el reporte abajo</span><div style="height:1px;flex:1;background:var(--border)"></div></div>
@@ -1030,7 +1031,7 @@
   <!-- ═══════════ COSTOS Y MARGEN ═══════════ -->
   <div class="page" id="page-costos">
     <div style="font-size:11px;background:rgba(91,138,244,.1);border:1px solid rgba(91,138,244,.25);color:var(--blue);padding:10px 14px;border-radius:8px;margin-bottom:16px">
-      ℹ️ Selecciona un modelo, ajusta el precio, elige los componentes y presiona <b>Guardar en modelo</b>. Todo queda guardado automáticamente. · ML: 19.5% comisión + envío + 6.9% IVA + 2.16% ISR · Adelanto: 1.8%
+      ℹ️ Selecciona un modelo, ajusta el precio, elige los componentes y presiona <b>Guardar en modelo</b>. Todo queda guardado automáticamente. · ML: 19.5% comisión + envío + 6.9% IVA + 2.16% ISR · Adelanto: 1.8% · <span style="color:#3ecf8e;font-weight:700">En verde ✓ = ese modelo ya tiene precio guardado.</span>
     </div>
 
     <!-- Buscador de modelo -->
@@ -3481,13 +3482,23 @@ function filtrarModelos() {
     dd.style.display = 'block';
     return;
   }
-  dd.innerHTML = lista.map(m=>`
-    <div onclick="seleccionarModelo('${m.n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',${m.precio})"
-      style="padding:10px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:8px"
-      onmouseover="this.style.background='rgba(201,150,58,0.12)'" onmouseout="this.style.background=''">
-      <span style="flex:1;line-height:1.4;color:#e8e6f0">${m.n}</span>
-      <span style="color:#e8b84b;font-weight:700;white-space:nowrap;flex-shrink:0">$${m.precio.toLocaleString('es-MX',{minimumFractionDigits:0})}</span>
-    </div>`).join('');
+  dd.innerHTML = lista.map(m=>{
+    const reg = (typeof modelosGuardados!=='undefined' && modelosGuardados && modelosGuardados[m.n]) ? modelosGuardados[m.n] : null;
+    const baseBg = reg ? 'rgba(62,207,142,0.12)' : '';
+    const nameColor = reg ? '#3ecf8e' : '#e8e6f0';
+    const check = reg ? '✓ ' : '';
+    const priceCol = reg ? '#3ecf8e' : '#e8b84b';
+    const priceVal = reg ? (Number(reg.precio)||0) : m.precio;
+    const priceMark = reg ? ' ✓' : '';
+    const nEsc = m.n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+    <div onclick="seleccionarModelo('${nEsc}',${m.precio})"
+      style="padding:10px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:8px;background:${baseBg}"
+      onmouseover="this.style.background='rgba(201,150,58,0.2)'" onmouseout="this.style.background='${baseBg}'">
+      <span style="flex:1;line-height:1.4;color:${nameColor}">${check}${m.n}</span>
+      <span style="color:${priceCol};font-weight:700;white-space:nowrap;flex-shrink:0">$${priceVal.toLocaleString('es-MX',{minimumFractionDigits:0})}${priceMark}</span>
+    </div>`;
+  }).join('');
   dd.style.display = 'block';
 }
 
@@ -3663,6 +3674,7 @@ function guardarEnModelo() {
   const conf=document.getElementById('save-confirm');
   if(conf){ conf.style.display='block'; setTimeout(()=>conf.style.display='none',2500); }
   renderModelosGuardados();
+  try{ var _dd=document.getElementById('modelo-dropdown'); if(_dd && _dd.style.display==='block' && typeof filtrarModelos==='function') filtrarModelos(); }catch(e){}
 }
 
 function renderModelosGuardados() {
@@ -11557,8 +11569,30 @@ function getVentasMes(mesKey) {
   return ventasData.filter(v=>(v.fecha||'').startsWith(mesKey));
 }
 
+function renderAvisoFechas(){
+  var el=document.getElementById('vd-aviso-fechas'); if(!el) return;
+  var v=(typeof ventasData!=='undefined'&&ventasData)?ventasData:[];
+  v=v.filter(function(x){ return !(x._dev||x.tipo==='Devolución'); });
+  var fechas=v.map(function(x){return (x.fecha||'')+'';}).filter(function(s){return /^\d{4}-\d{2}-\d{2}/.test(s);}).map(function(s){return s.slice(0,10);});
+  if(!fechas.length){ el.innerHTML='<span style="font-size:11px;color:var(--text2)">Aún no tienes ventas cargadas. Sube tu primer reporte para empezar.</span>'; return; }
+  fechas.sort();
+  var minF=fechas[0], maxF=fechas[fechas.length-1];
+  var fmt=function(s){ var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; };
+  var MM=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var mc={};
+  fechas.forEach(function(s){ var k=s.slice(0,7); mc[k]=(mc[k]||0)+1; });
+  var keys=Object.keys(mc).sort().reverse();
+  var chips=keys.slice(0,8).map(function(k){
+    var y=k.slice(0,4), m=parseInt(k.slice(5,7))||1;
+    return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;margin:2px;font-size:10px"><b style="color:var(--accent2)">'+MM[m-1]+' '+y+'</b>: '+mc[k]+'</span>';
+  }).join('');
+  el.innerHTML='<div style="font-size:11px;color:var(--text)"><b style="color:var(--green)">📅 Ya tienes '+fechas.length.toLocaleString('es-MX')+' ventas cargadas</b> · del <b>'+fmt(minF)+'</b> al <b>'+fmt(maxF)+'</b>.</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-top:3px">Última venta registrada: <b style="color:var(--accent2)">'+fmt(maxF)+'</b>. Puedes volver a subir sin miedo: las ventas repetidas se omiten solas por su número de venta.</div>'
+    +'<div style="margin-top:6px">'+chips+(keys.length>8?'<span style="font-size:10px;color:var(--text2);margin-left:4px">+'+(keys.length-8)+' meses más</span>':'')+'</div>';
+}
 function renderVentasDiarias() {
   recomputeDATA();
+  try{ renderAvisoFechas(); }catch(e){}
   const mesKey = getMesFiltro();
   const [year, month] = mesKey.split('-').map(Number);
   const ventas = getVentasMes(mesKey);
