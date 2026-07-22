@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v272</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v273</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -3363,7 +3363,13 @@ const _MODELOS_ML_RAW = [{"n":"Caja Tombstone Más 3 Plumas Para Sombrero","prec
 const MODELOS_ML = (function(){ var seen=Object.create(null), out=[]; (_MODELOS_ML_RAW||[]).forEach(function(m){ var k=(m.n||''); if(!(k in seen)){ seen[k]={n:m.n, precio:m.precio||0, oferta:m.oferta||0, sku:m.sku||''}; out.push(seen[k]); } else { var e=seen[k]; if((m.precio||0)>e.precio) e.precio=m.precio||0; if((m.oferta||0)>e.oferta) e.oferta=m.oferta||0; if(!e.sku && m.sku) e.sku=m.sku; } }); out.sort(function(a,b){ return (a.n||'').localeCompare(b.n||'','es'); }); return out; })();
 
 let modeloActual = null;
-let modelosGuardados = JSON.parse(localStorage.getItem('modelos_guardados')||'{}');
+let modelosGuardados = (function(){
+  var raw; try{ raw=JSON.parse(localStorage.getItem('modelos_guardados')||'[]'); }catch(e){ raw=[]; }
+  if(Array.isArray(raw)) return raw;
+  var arr=[]; try{ Object.keys(raw||{}).forEach(function(k){ var v=(raw[k]&&typeof raw[k]==='object')?raw[k]:{}; if(!v.nombre) v.nombre=k; arr.push(v); }); }catch(e){}
+  try{ localStorage.setItem('modelos_guardados', JSON.stringify(arr)); }catch(e){}
+  return arr;
+})();
 
 function _escAttr(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function cargarComponentes(){
@@ -3486,7 +3492,7 @@ function filtrarModelos() {
     return;
   }
   dd.innerHTML = lista.map(m=>{
-    const reg = (typeof modelosGuardados!=='undefined' && modelosGuardados && modelosGuardados[m.n]) ? modelosGuardados[m.n] : null;
+    const reg = ((Array.isArray(modelosGuardados)?modelosGuardados:[]).find(function(x){return x && x.nombre===m.n;})) || null;
     const baseBg = reg ? 'rgba(62,207,142,0.12)' : '';
     const nameColor = reg ? '#3ecf8e' : '#e8e6f0';
     const check = reg ? '✓ ' : '';
@@ -3547,7 +3553,7 @@ function seleccionarModelo(nombre, precio) {
   }
 
   // Load saved components if any
-  const saved = modelosGuardados[nombre];
+  const saved = (Array.isArray(modelosGuardados)?modelosGuardados:[]).find(function(x){return x && x.nombre===nombre;});
   if(saved && saved.componentes && saved.componentes.length) {
     document.querySelectorAll('#componentes-list input[type=checkbox]').forEach(cb=>cb.checked=false);
     saved.componentes.forEach(n=>{
@@ -3667,11 +3673,14 @@ function guardarEnModelo() {
   const util=neto_real-costo;
   const margen=precio>0?(util/precio*100):0;
 
-  modelosGuardados[nombre]={
-    precio, precio_normal:precio, componentes:compNombres, costo:Math.round(costo),
+  var _nm={
+    nombre:nombre, precio, precio_normal:precio, componentes:compNombres, costo:Math.round(costo),
     neto_real:Math.round(neto_real), utilidad:Math.round(util), margen:margen.toFixed(1),
     fecha:new Date().toLocaleDateString('es-MX')
   };
+  if(!Array.isArray(modelosGuardados)) modelosGuardados=[];
+  var _ix=modelosGuardados.findIndex(function(x){return x && x.nombre===nombre;});
+  if(_ix>=0) modelosGuardados[_ix]=_nm; else modelosGuardados.push(_nm);
   save('modelos_guardados', modelosGuardados);
 
   const conf=document.getElementById('save-confirm');
@@ -3683,10 +3692,10 @@ function guardarEnModelo() {
 function renderModelosGuardados() {
   const tbody=document.getElementById('modelos-tbody');
   if(!tbody) return;
-  const keys=Object.keys(modelosGuardados);
-  if(!keys.length){ tbody.innerHTML='<tr><td colspan="7" style="color:var(--text2);text-align:center;padding:16px">Sin modelos guardados aún</td></tr>'; return; }
-  tbody.innerHTML=keys.map(k=>{
-    const m=modelosGuardados[k];
+  const arr=Array.isArray(modelosGuardados)?modelosGuardados:[];
+  if(!arr.length){ tbody.innerHTML='<tr><td colspan="7" style="color:var(--text2);text-align:center;padding:16px">Sin modelos guardados aún</td></tr>'; return; }
+  tbody.innerHTML=arr.map(m=>{
+    const k=(m&&m.nombre)||'';
     return `<tr>
       <td style="max-width:220px;font-size:11px">${k}</td>
       <td class="num">$${(m.precio||0).toLocaleString()}</td>
@@ -3700,7 +3709,7 @@ function renderModelosGuardados() {
 }
 
 function eliminarModelo(nombre) {
-  delete modelosGuardados[nombre];
+  modelosGuardados=(Array.isArray(modelosGuardados)?modelosGuardados:[]).filter(function(x){return !(x && x.nombre===nombre);});
   save('modelos_guardados', modelosGuardados);
   renderModelosGuardados();
 }
@@ -13786,6 +13795,7 @@ function importarRespaldo(event) {
   reader.onload = function(e) {
     try {
       const backup = JSON.parse(e.target.result);
+      try{ if(backup && backup.datos && backup.datos.modelos_guardados && !Array.isArray(backup.datos.modelos_guardados)){ var _o=backup.datos.modelos_guardados, _a=[]; Object.keys(_o).forEach(function(k){ var v=(_o[k]&&typeof _o[k]==='object')?_o[k]:{}; if(!v.nombre) v.nombre=k; _a.push(v); }); backup.datos.modelos_guardados=_a; } }catch(e){}
 
       // Validate it's our backup
       if(!backup._app || !backup.datos) {
