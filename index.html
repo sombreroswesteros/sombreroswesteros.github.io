@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v273</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v274</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -1051,6 +1051,7 @@
         <input type="number" id="calc-precio" value="1541" oninput="calcMargen()" style="font-size:16px;font-weight:700">
       </div>
       <div id="precio-hint" style="display:none;font-size:11px;margin-top:4px;gap:8px;flex-wrap:wrap"></div>
+      <div id="precios-canal" style="display:none;margin-top:8px"></div>
     </div>
 
     <div class="grid g2">
@@ -3520,6 +3521,39 @@ document.addEventListener('click', function(e){
   }
 });
 
+function _preciosRecientesCanal(nombre){
+  var norm=function(s){return (s==null?'':String(s)).toLowerCase().trim();};
+  var target=norm(nombre);
+  var ult=function(arr,filtro){ var cc=(arr||[]).filter(filtro).slice().sort(function(a,b){return (String(b.fecha||'')).localeCompare(String(a.fecha||''));}); return cc.length?cc[0]:null; };
+  var out={mlBase:null,mlOferta:null,fisica:null};
+  try{ var vd=(typeof ventasData!=='undefined'&&ventasData)?ventasData:[];
+    var b=ult(vd,function(x){return norm(x.modelo)===target && !(x._dev||x.tipo==='Devolución') && x.tipo!=='Promoción';});
+    var o=ult(vd,function(x){return norm(x.modelo)===target && x.tipo==='Promoción';});
+    out.mlBase=b?{precio:b.precio,fecha:b.fecha}:null; out.mlOferta=o?{precio:o.precio,fecha:o.fecha}:null;
+  }catch(e){}
+  try{ var fe=(typeof state!=='undefined'&&state&&state.fisicaEntries)?state.fisicaEntries:[];
+    var f=ult(fe,function(x){return norm(x.modelo)===target;});
+    out.fisica=f?{precio:(f.precioUnit||f.precio),fecha:f.fecha}:null;
+  }catch(e){}
+  return out;
+}
+function _renderPreciosCanal(nombre){
+  var box=document.getElementById('precios-canal'); if(!box) return;
+  var pc=_preciosRecientesCanal(nombre);
+  var fmt=function(p){return '$'+Number(p||0).toLocaleString('es-MX',{minimumFractionDigits:2});};
+  var esc=(typeof _invEsc==='function')?_invEsc:function(s){return s;};
+  var chip=function(label,info,color){
+    if(!info || info.precio==null){ return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:11px;color:var(--text2)">'+label+': —</span>'; }
+    return '<button type="button" onclick="var e=document.getElementById(\'calc-precio\'); if(e){e.value='+Number(info.precio)+'; calcMargen();}" title="Usar este precio ('+esc(info.fecha||'')+')" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+color+';border-radius:8px;padding:5px 9px;font-size:11px;color:var(--text);cursor:pointer">'+label+': <b>'+fmt(info.precio)+'</b> <span style="opacity:.55;font-size:10px">usar</span></button>';
+  };
+  box.innerHTML='<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:2px 0 5px">\ud83d\udca1 Precios recientes por canal \u00b7 clic para usar</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+    + chip('ML Base (\u00falt. normal)', pc.mlBase, 'var(--green)')
+    + chip('ML Oferta (\u00falt. promo)', pc.mlOferta, 'var(--red)')
+    + chip('Tienda f\u00edsica (\u00falt.)', pc.fisica, 'var(--blue)')
+    +'</div>';
+  box.style.display='block';
+}
 function seleccionarModelo(nombre, precio) {
   // Find model in MODELOS_ML to get offer price
   const modelData = MODELOS_ML.find(m=>m.n===nombre);
@@ -3562,6 +3596,12 @@ function seleccionarModelo(nombre, precio) {
       if(cb) cb.checked=true;
     });
   }
+  if(saved && Number(saved.precio)>0){
+    var _cp=document.getElementById('calc-precio'); if(_cp) _cp.value=saved.precio;
+    var _ph=document.getElementById('precio-hint');
+    if(_ph){ _ph.style.display='flex'; _ph.innerHTML='<span style="color:var(--green);font-weight:700">Tu precio guardado: $'+Number(saved.precio).toLocaleString('es-MX',{minimumFractionDigits:2})+'</span> '+_ph.innerHTML; }
+  }
+  try{ _renderPreciosCanal(nombre); }catch(e){}
   calcMargen();
 }
 
@@ -3570,6 +3610,7 @@ function limpiarModelo() {
   document.getElementById('modelo-search').value='';
   document.getElementById('modelo-seleccionado').style.display='none';
   document.getElementById('precio-hint').style.display='none';
+  var _pcx=document.getElementById('precios-canal'); if(_pcx) _pcx.style.display='none';
   limpiarComponentes();
 }
 
