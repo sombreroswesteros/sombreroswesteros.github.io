@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v275</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v279</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -479,6 +479,17 @@
           <div class="card-sub">Todos los canales</div>
         </div>
       </div>
+    </div>
+
+    <!-- Utilidad Real -->
+    <div class="card admin-only" style="margin-bottom:16px;border:1px solid rgba(62,207,142,.3);background:linear-gradient(135deg,rgba(62,207,142,.06),rgba(201,150,58,.04))">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>📈 Utilidad Real · neto − costo capturado</div>
+      <div id="util-dash-kpis" style="margin-top:8px"></div>
+      <div class="grid g2" style="margin-top:14px">
+        <div><div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Utilidad real por mes (ML)</div><div class="chart-wrap"><canvas id="chartUtilMes"></canvas></div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Top modelos por utilidad (ML)</div><div class="chart-wrap"><canvas id="chartUtilTop"></canvas></div></div>
+      </div>
+      <div id="util-dash-nota" style="margin-top:10px;font-size:11px;color:var(--text2)"></div>
     </div>
 
     <!-- KPIs fila 2 -->
@@ -3199,6 +3210,7 @@ function initDashboard() {
     {plugins:{legend:{display:true,position:'right',labels:{color:'#9896a8',font:{size:10},boxWidth:10}}},scales:{x:{display:false},y:{display:false}}});
 
   // Monthly table dashboard
+  try{ renderUtilidadDash(); }catch(e){}
   const tbody = document.getElementById('tbl-monthly-dash');
   if(tbody) {
     tbody.innerHTML = DATA.monthly.map(m=>`
@@ -3238,6 +3250,7 @@ function initVentas() {
     _s('avt-real', $(Math.round(T.real)));
     _s('avt-ord', T.ord.toLocaleString('es-MX'));
   } catch(e){ console.warn('analisis ml kpis', e); }
+  try{ _utilInsertar('page-ventas','ML','Utilidad Real (ML)'); }catch(e){}
   const labels = DATA.monthly.map(m=>m.label);
   const netoReal = DATA.monthly.map(m=>+(m.neto*0.982).toFixed(2));
   const brutos = DATA.monthly.map(m=>m.bruto);
@@ -3759,7 +3772,159 @@ function eliminarModelo(nombre) {
   renderModelosGuardados();
 }
 
+function _urNorm(s){ return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().replace(/[-\s]+$/,''); }
+function _urCostos(){
+  var arr=(Array.isArray(modelosGuardados)?modelosGuardados:[]).map(function(m){return {n:_urNorm(m.nombre), costo:Number(m.costo)||0, orig:m.nombre};}).filter(function(x){return x.n;});
+  arr.sort(function(a,b){return b.n.length-a.n.length;});
+  return arr;
+}
+function _urCostoDe(modelo, lista){
+  var t=_urNorm(modelo); if(!t) return null;
+  for(var i=0;i<lista.length;i++){ var mn=lista[i].n; if(t.indexOf(mn)===0 || mn.indexOf(t)===0) return lista[i]; }
+  return null;
+}
+function _urCalcular(){
+  var lista=_urCostos();
+  var ch={ML:{v:0,m:0,neto:0,costo:0}, SH:{v:0,m:0,neto:0,costo:0}, FI:{v:0,m:0,neto:0,costo:0}};
+  var porModelo={}, porMes={}, devs=0;
+  try{ if(typeof loadShopifyData==='function') loadShopifyData(); }catch(e){}
+  try{ (typeof ventasData!=='undefined'&&ventasData?ventasData:[]).forEach(function(x){
+    if(x._dev||x.tipo==='Devolución'){devs++;return;}
+    var p=Number(x.precio)||0, q=parseInt(x.qty)||1; if(p<=0) return;
+    ch.ML.v+=q;
+    var cc=_urCostoDe(x.modelo, lista);
+    if(cc){ var neto=calcMLFees(p).neto_real*q, costo=cc.costo*q; ch.ML.m+=q; ch.ML.neto+=neto; ch.ML.costo+=costo;
+      var k=cc.orig; porModelo[k]=porModelo[k]||{u:0,neto:0,costo:0}; porModelo[k].u+=q; porModelo[k].neto+=neto; porModelo[k].costo+=costo;
+      var mes=((x.fecha||'')+'').slice(0,7); porMes[mes]=porMes[mes]||{u:0,neto:0,costo:0}; porMes[mes].u+=q; porMes[mes].neto+=neto; porMes[mes].costo+=costo;
+    }
+  }); }catch(e){}
+  try{ var sh=(typeof shopifyData!=='undefined'&&shopifyData&&shopifyData.pedidos)?shopifyData.pedidos:[];
+    var smap=_shopMapObj();
+    var modelosNom=(Array.isArray(modelosGuardados)?modelosGuardados:[]).map(function(mm){return mm.nombre;}).filter(Boolean);
+    var costoX={}; (Array.isArray(modelosGuardados)?modelosGuardados:[]).forEach(function(mm){ if(mm&&mm.nombre!=null) costoX[mm.nombre]=Number(mm.costo)||0; });
+    var modTok=_shopModTok(modelosNom), sugC={};
+    sh.forEach(function(pd){ var pi=Number(pd.precioItem||pd.precioOferta||0), env=Number(pd.envio)||0; if(pi<=0) return; ch.SH.v+=1;
+      var nm=((pd.modelo||pd.producto||'')+'').trim(); if(!nm) return;
+      var mod; if(Object.prototype.hasOwnProperty.call(smap,nm)){ mod=smap[nm]; } else { if(!(nm in sugC)) sugC[nm]=_shopSugerir(nm,modTok); mod=sugC[nm]; }
+      if(mod && Object.prototype.hasOwnProperty.call(costoX,mod)){ ch.SH.m+=1; ch.SH.neto+=(pi-env); ch.SH.costo+=costoX[mod]; }
+    });
+  }catch(e){}
+  try{ var fe=(typeof state!=='undefined'&&state&&state.fisicaEntries)?state.fisicaEntries:[];
+    fe.forEach(function(x){ var p=Number(x.precio)||0, q=parseInt(x.cantidad)||1, com=Number(x.comision)||0; if(p<=0) return; ch.FI.v+=q; var cc=_urCostoDe(x.modelo,lista); if(cc){ ch.FI.m+=q; ch.FI.neto+=(p-com); ch.FI.costo+=cc.costo*q; } });
+  }catch(e){}
+  return {ch:ch, porModelo:porModelo, porMes:porMes, devs:devs};
+}
+function renderUtilidadDash(){
+  var box=document.getElementById('util-dash-kpis'); if(!box) return;
+  var R=_urCalcular(); var ch=R.ch;
+  var utilML=ch.ML.neto-ch.ML.costo, utilSH=ch.SH.neto-ch.SH.costo, utilFI=ch.FI.neto-ch.FI.costo;
+  var totU=utilML+utilSH+utilFI, totNeto=ch.ML.neto+ch.SH.neto+ch.FI.neto;
+  var m=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var esc=(typeof _invEsc==='function')?_invEsc:function(s){return s;};
+  var pct=function(a,b){return (b>0?(a/b*100):0).toFixed(1)+'%';};
+  box.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end">'
+    +'<div><div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Utilidad real total</div><div style="font-size:30px;font-weight:800;color:var(--green);line-height:1.15">'+m(totU)+'</div><div style="font-size:11px;color:var(--text2)">Margen real: <b style="color:var(--accent2)">'+pct(totU,totNeto)+'</b></div></div>'
+    +'<div class="scroll-x" style="flex:1;min-width:300px"><table class="tbl"><thead><tr><th>Canal</th><th class="num">Pzs c/costo</th><th class="num">Utilidad real</th><th class="num">Margen</th></tr></thead><tbody>'
+      +'<tr><td>Mercado Libre</td><td class="num">'+ch.ML.m+' / '+ch.ML.v+'</td><td class="num" style="color:var(--green);font-weight:700">'+m(utilML)+'</td><td class="num">'+pct(utilML,ch.ML.neto)+'</td></tr>'
+      +'<tr><td>Shopify/TikTok</td><td class="num">'+ch.SH.m+' / '+ch.SH.v+'</td><td class="num" style="color:var(--green);font-weight:700">'+m(utilSH)+'</td><td class="num">'+pct(utilSH,ch.SH.neto)+'</td></tr>'
+      +'<tr><td>Tienda física</td><td class="num">'+ch.FI.m+' / '+ch.FI.v+'</td><td class="num" style="color:var(--green);font-weight:700">'+m(utilFI)+'</td><td class="num">'+pct(utilFI,ch.FI.neto)+'</td></tr>'
+    +'</tbody></table></div></div>';
+  try{ var _smap=_shopMapObj(), _sh=(typeof shopifyData!=='undefined'&&shopifyData&&shopifyData.pedidos)?shopifyData.pedidos:[], _sin=0; _sh.forEach(function(p){ var nm=((p.modelo||p.producto||'')+'').trim(); if(nm && !_smap[nm]) _sin++; });
+    box.innerHTML += '<div style="margin-top:10px"><button onclick="abrirEmparejarShopify()" style="background:rgba(91,138,244,.15);border:1px solid rgba(91,138,244,.4);color:var(--blue);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">🔗 Emparejar Shopify/TikTok con tus modelos</button>'+(_sin>0?' <span style="font-size:11px;color:var(--text2)">('+_sin+' pedidos sin emparejar)</span>':' <span style="font-size:11px;color:var(--green)">✓ todo emparejado</span>')+'</div>';
+  }catch(e){}
+  var nota=document.getElementById('util-dash-nota');
+  if(nota) nota.innerHTML='<b style="color:var(--accent2)">ℹ️</b> Utilidad real = neto − costo capturado, solo de ventas con costo. ML empareja al '+pct(ch.ML.m,ch.ML.v)+'; Shopify/TikTok y Tienda física emparejan poco (nombres distintos), por eso casi no suman todavía. Devoluciones ML excluidas: '+R.devs+'.';
+  var MES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  try{
+    var meses=Object.keys(R.porMes).filter(function(k){return k;}).sort();
+    var labM=meses.map(function(k){var pp=k.split('-');return (MES[(parseInt(pp[1])||1)-1]||'')+" '"+(pp[0]||'').slice(2);});
+    var datM=meses.map(function(k){return Math.round(R.porMes[k].neto-R.porMes[k].costo);});
+    if(typeof makeChart==='function') makeChart('chartUtilMes','bar',labM,[{label:'Utilidad real',data:datM,backgroundColor:'rgba(62,207,142,0.7)',borderRadius:4}],{plugins:{legend:{display:false}}});
+  }catch(e){}
+  try{
+    var mods=Object.keys(R.porModelo).map(function(k){return {n:k,util:R.porModelo[k].neto-R.porModelo[k].costo};}).sort(function(a,b){return b.util-a.util;}).slice(0,8);
+    var labT=mods.map(function(x){var s=esc(x.n); return s.length>28?s.slice(0,28)+'…':s;});
+    var datT=mods.map(function(x){return Math.round(x.util);});
+    if(typeof makeChart==='function') makeChart('chartUtilTop','bar',labT,[{label:'Utilidad',data:datT,backgroundColor:'rgba(201,150,58,0.78)',borderRadius:4}],
+      {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9896a8',font:{size:9},callback:function(v){return '$'+Math.round(v/1000)+'k';}}},y:{grid:{display:false},ticks:{color:'#9896a8',font:{size:9}}}}});
+  }catch(e){}
+}
+
+
 // ═══ NÓMINA ═══
+function _utilInsertar(pageId, canal, titulo, mesKey){
+  var pg=document.getElementById(pageId); if(!pg) return;
+  var R; try{ R=_urCalcular(); }catch(e){ return; }
+  var neto,costo,sub;
+  if(mesKey && canal==='ML'){ var pm=(R.porMes&&R.porMes[mesKey])||{neto:0,costo:0,u:0}; neto=pm.neto; costo=pm.costo; sub=(pm.u||0)+' pzs con costo (este mes)'; }
+  else { var cc=(R.ch&&R.ch[canal])||{neto:0,costo:0,m:0,v:0}; neto=cc.neto; costo=cc.costo; sub=(cc.m||0)+' / '+(cc.v||0)+' pzs con costo'; }
+  var util=neto-costo, mm=function(n){return '$'+Math.round(n||0).toLocaleString('es-MX');};
+  var pct=(neto>0?(util/neto*100):0).toFixed(1)+'%';
+  var id='utilcard-'+pageId, el=document.getElementById(id);
+  if(!el){ el=document.createElement('div'); el.id=id; el.className='card admin-only'; pg.insertBefore(el, pg.firstChild); }
+  el.style.cssText='margin-bottom:16px;border:1px solid rgba(62,207,142,.3);background:linear-gradient(135deg,rgba(62,207,142,.08),rgba(201,150,58,.04));display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px';
+  el.innerHTML='<div><div class="card-label" style="color:var(--green)">\ud83d\udcc8 '+titulo+' \u00b7 neto \u2212 costo</div><div class="card-value green">'+mm(util)+'</div></div>'
+    +'<div style="text-align:right;font-size:12px;color:var(--text2)">Margen real: <b style="color:var(--accent2)">'+pct+'</b><br>'+sub+'</div>';
+}
+function _shopMapArr(){ var a=leer('shopify_map',[]); return Array.isArray(a)?a:[]; }
+function _shopMapObj(){ var o={}; _shopMapArr().forEach(function(x){ if(x&&x.shopify!=null) o[x.shopify]=x.modelo; }); return o; }
+function _shopDistintos(){
+  var sh=(typeof shopifyData!=='undefined'&&shopifyData&&shopifyData.pedidos)?shopifyData.pedidos:[];
+  var cnt={}; sh.forEach(function(p){ var nm=((p.modelo||p.producto||'')+'').trim(); if(!nm) return; cnt[nm]=(cnt[nm]||0)+1; });
+  return Object.keys(cnt).map(function(k){return {nombre:k, ct:cnt[k]};}).sort(function(a,b){return b.ct-a.ct;});
+}
+function _shopTokens(s){ return _urNorm(s).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(function(t){return t.length>=2;}); }
+function _shopModTok(modelos){ return modelos.map(function(mn){ var set={}; _shopTokens(mn).forEach(function(t){set[t]=1;}); return {n:mn,t:set}; }); }
+var _SHOP_KW={chaparral:1,johnson:1,roper:1,tombstone:1,denver:1,este:1,oeste:1,panter:1,belico:1,fantasma:1,'5000x':1,'1000x':1,'100x':1,'50x':1,'20x':1,'15x':1,estuche:1,panama:1,sahuayo:1,italy:1,carin:1,leon:1,huetameno:1,sinaloa:1,pluma:1,metalica:1,stetson:1};
+function _shopSugerir(shopName, modTok){
+  var st=_shopTokens(shopName); if(!st.length) return '';
+  var best='',bs=0;
+  for(var i=0;i<modTok.length;i++){ var setm=modTok[i].t, score=0;
+    for(var j=0;j<st.length;j++){ if(setm[st[j]]) score+=(_SHOP_KW[st[j]]?2:1); }
+    if(score>bs){ bs=score; best=modTok[i].n; }
+  }
+  return bs>=3? best : '';
+}
+function abrirEmparejarShopify(){
+  if(document.getElementById('shopmatch-overlay')) return;
+  try{ if(typeof loadShopifyData==='function') loadShopifyData(); }catch(e){}
+  var esc=(typeof _invEsc==='function')?_invEsc:function(s){return s;};
+  var q=function(s){return esc(s).replace(/"/g,'&quot;');};
+  var dist=_shopDistintos();
+  var modelos=(Array.isArray(modelosGuardados)?modelosGuardados:[]).map(function(m){return m.nombre;}).filter(Boolean);
+  var modTok=_shopModTok(modelos);
+  var modelosSort=modelos.slice().sort(function(a,b){return a.localeCompare(b,'es');});
+  var smap=_shopMapObj();
+  var rows=dist.map(function(o,i){
+    var actual=(o.nombre in smap)?smap[o.nombre]:_shopSugerir(o.nombre,modTok);
+    var sug=(o.nombre in smap)?'':_shopSugerir(o.nombre,modTok);
+    var opts='<option value="">— sin emparejar —</option>'+modelosSort.map(function(mn){ return '<option value="'+q(mn)+'"'+(mn===actual?' selected':'')+'>'+esc(mn)+'</option>'; }).join('');
+    var badge=(!(o.nombre in smap) && sug)?' <span style="font-size:9px;background:rgba(91,138,244,.2);color:var(--blue);padding:1px 5px;border-radius:4px">sugerido</span>':'';
+    return '<tr><td style="font-size:11px;padding:6px;border-bottom:1px solid var(--border);vertical-align:top"><b>'+esc(o.nombre)+'</b> <span style="color:var(--text2)">('+o.ct+')</span>'+badge+'</td>'
+      +'<td style="padding:6px;border-bottom:1px solid var(--border)"><select id="shopmatch-'+i+'" data-shop="'+q(o.nombre)+'" style="width:100%;background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:5px 6px;font-size:11px;color:var(--text)">'+opts+'</select></td></tr>';
+  }).join('');
+  var ov=document.createElement('div'); ov.id='shopmatch-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto';
+  ov.onclick=function(e){ if(e.target===ov) cerrarEmparejarShopify(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:860px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="color:var(--accent2);font-size:16px;margin:0">🔗 Emparejar Shopify/TikTok con tus modelos</h3><button onclick="cerrarEmparejarShopify()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1">×</button></div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:12px">Ya se emparejan solos con <b>sugerencias</b> (marcadas). Aquí solo corrige las que estén mal — están ordenadas por las que más se venden, así arreglas primero lo importante. Lo que pongas manual manda; guarda al terminar.</div>'
+    +'<div style="max-height:56vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:10px;color:var(--text2);padding:4px 6px;text-transform:uppercase">Producto Shopify (veces)</th><th style="text-align:left;font-size:10px;color:var(--text2);padding:4px 6px;text-transform:uppercase">Tu modelo</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-accent" onclick="guardarEmparejarShopify()" style="flex:1">💾 Guardar</button><button class="btn btn-secondary" onclick="cerrarEmparejarShopify()">Cancelar</button></div></div>';
+  document.body.appendChild(ov);
+}
+function cerrarEmparejarShopify(){ var o=document.getElementById('shopmatch-overlay'); if(o) o.remove(); }
+function guardarEmparejarShopify(){
+  var arr=[];
+  document.querySelectorAll('#shopmatch-overlay select[id^="shopmatch-"]').forEach(function(sel){
+    var shop=sel.getAttribute('data-shop');
+    if(shop!=null) arr.push({shopify:shop, modelo:sel.value||''});
+  });
+  save('shopify_map', arr);
+  cerrarEmparejarShopify();
+  try{ if(typeof mostrarToast==='function') mostrarToast('✅ Emparejamiento guardado','green'); }catch(e){}
+  try{ renderUtilidadDash(); }catch(e){}
+}
 function getEmpleados(){
   var lista=(typeof empleadasData!=='undefined' && empleadasData && empleadasData.length)?empleadasData:EMPLEADOS_DEFAULT;
   return lista.map(function(e){ return { nombre:e.nombre||'', salario_mensual:parseFloat(e.salario!=null?e.salario:e.salario_mensual)||0, frecuencia:e.frecuencia||'Mensual', area:e.area||'' }; });
@@ -11651,6 +11816,7 @@ function renderVentasDiarias() {
   recomputeDATA();
   try{ renderAvisoFechas(); }catch(e){}
   const mesKey = getMesFiltro();
+  try{ _utilInsertar('page-ventas-diarias','ML','Utilidad Real del mes (ML)', mesKey); }catch(e){}
   const [year, month] = mesKey.split('-').map(Number);
   const ventas = getVentasMes(mesKey);
 
@@ -13786,7 +13952,7 @@ const BACKUP_KEYS = [
   'inventario_proveedores',
   'inventario_clientes',
   'docs_historial',
-  'docs_folio', 'gastos_tienda_entries', 'shopify_data', 'shopify_data_v2', 'shopify_canales',
+  'docs_folio', 'gastos_tienda_entries', 'shopify_data', 'shopify_data_v2', 'shopify_canales', 'shopify_map',
   // — agregadas: faltaban en el respaldo —
   'admin_datos_fiscales', 'caja_chica_config', 'caja_chica_movs', 'compras_credito_abonos', 'compras_credito_cfg', 'compras_devoluciones', 'compras_folio_siglas', 'compras_pedidos', 'compras_precios', 'compras_proveedores', 'compras_tipos_material', 'envios_paqueteria', 'erp_pin_borrado', 'erp_usuarios_extra', 'erp_usuarios_override', 'facturar_concepto', 'facturar_emisor_sel', 'facturar_receptor', 'inv_dormido_meses', 'inv_grupos_acc', 'inv_prioridad_hormas', 'inventario_compras', 'shop_prod_costos', 'gastos_fijos', 'gf_dia_pago', 'por_cobrar', 'pagos_check', 'meta_colchon_pct', 'canal_cfg', 'pagos_desde', 'meta_grupal', 'meta_grupal_pagos', 'tienda_linea', 'tienda_linea_pagos', 'tl_pct'
 ];
@@ -18064,6 +18230,7 @@ function renderShopifyPage(){
     renderShopifyGraficas(meses, porMes, porCanal, totalBruto);
     renderShopifyPedidosTabla();
     initMargenShopify(true);
+    try{ _utilInsertar('page-shopify','SH','Utilidad Real (Shopify/TikTok)'); }catch(e){}
   }, 80);
 
   showShopifyTab('resumen');
