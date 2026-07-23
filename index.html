@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v284</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v285</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -15586,7 +15586,7 @@ function verEstadoCuenta(id){
   }).join('');
   var selSty='background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px';
   var ov=document.getElementById('caja-estado-ov'); if(ov) ov.remove();
-  ov=document.createElement('div'); ov.id='caja-estado-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov=document.createElement('div'); ov.id='caja-estado-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
   ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'
@@ -15650,9 +15650,10 @@ function _estadoRenderBody(){
           +'<td style="padding:6px 6px;white-space:nowrap;color:var(--text2);vertical-align:top">'+escapeHTML(m.fecha||'')+'</td>'
           +'<td style="padding:6px 6px"><span style="color:var(--text)">'+escapeHTML(m.categoria||'')+'</span> '+_cajaAmbitoBadge(m.ambito)+(m.concepto?'<div style="font-size:10px;color:var(--text2);margin-top:2px">'+escapeHTML(m.concepto)+'</div>':'')+'</td>'
           +'<td style="padding:6px 6px;text-align:right;color:'+color+';font-weight:700;white-space:nowrap;vertical-align:top">'+signo+_cajaM(parseFloat(m.monto)||0)+'</td>'
+          +'<td style="padding:6px 2px 6px 6px;text-align:right;white-space:nowrap;vertical-align:top"><button onclick="editarMovCaja(\''+m.id+'\')" class="btn btn-secondary btn-sm" style="padding:2px 7px;font-size:11px" title="Editar">✏️</button> <button onclick="borrarMovCaja(\''+m.id+'\')" class="btn btn-danger btn-sm" style="padding:2px 7px;font-size:11px" title="Eliminar">✕</button></td>'
         +'</tr>';
       });
-      body+='<tr><td colspan="3" style="padding:6px;text-align:right;font-size:11px;color:var(--text2)">Entradas '+_cajaM(ent)+' · Salidas '+_cajaM(sal)+'</td></tr>';
+      body+='<tr><td colspan="4" style="padding:6px;text-align:right;font-size:11px;color:var(--text2)">Entradas '+_cajaM(ent)+' · Salidas '+_cajaM(sal)+'</td></tr>';
       body+='</table></div>';
     });
   }
@@ -15982,6 +15983,7 @@ function guardarEdicionMovCaja(){
   if(typeof mostrarToast==='function') mostrarToast('Movimiento actualizado ✓','green');
   initCaja();
   try{ renderGastosPropiosLista(); }catch(e){} try{ renderPropiosTab(); }catch(e){} try{ renderHogarTab(); }catch(e){}
+  try{ if(document.getElementById('caja-estado-ov')) _estadoRenderBody(); }catch(e){}
 }
 function borrarMovCaja(id){
   var m=cajaMovs.find(function(x){ return x.id===id; }); if(!m) return;
@@ -15992,6 +15994,7 @@ function borrarMovCaja(id){
     mostrarToast('Movimiento eliminado','red');
     initCaja();
     try{ renderGastosPropiosLista(); }catch(e){} try{ renderPropiosTab(); }catch(e){} try{ renderHogarTab(); }catch(e){}
+    try{ if(document.getElementById('caja-estado-ov')) _estadoRenderBody(); }catch(e){}
   });
 }
 
