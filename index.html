@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v285</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v294</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -9599,6 +9599,18 @@ function _gfCerrar(){ var o=document.getElementById('gf-overlay'); if(o) o.remov
 
 function renderGestionGastos(){
   var box=document.getElementById('gf-box'); if(!box) return;
+  // ── Preservar estado antes de reconstruir (para no "brincar" al inicio al editar) ──
+  var _gfOv=document.getElementById('gf-overlay');
+  var _gfScroll=_gfOv?_gfOv.scrollTop:0;
+  var _gfBusEl=document.getElementById('gf-buscar');
+  var _gfQ=_gfBusEl?_gfBusEl.value:'';
+  var _gfAE=document.activeElement;
+  var _gfFocusIdx=-1, _gfSelA=null, _gfSelB=null, _gfEraBuscar=false;
+  if(_gfAE && box.contains(_gfAE)){
+    if(_gfAE.id==='gf-buscar'){ _gfEraBuscar=true; }
+    else { var _gfAll=box.querySelectorAll('input,select,button,textarea'); _gfFocusIdx=Array.prototype.indexOf.call(_gfAll,_gfAE); }
+    try{ _gfSelA=_gfAE.selectionStart; _gfSelB=_gfAE.selectionEnd; }catch(e){}
+  }
   var inp='background:#0f0f13;border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:13px;color:var(--text)';
   var total=GASTOS.reduce(function(a,g){ return a+g.items.reduce(function(x,i){return x+_gfMensual(i);},0); },0);
 
@@ -9693,6 +9705,20 @@ function renderGestionGastos(){
       +'<button onclick="_gfCerrar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 22px;cursor:pointer;font-weight:700">Listo</button>'
     +'</div>';
   box.innerHTML=h;
+  // ── Restaurar búsqueda, filtro, scroll y foco ──
+  try{
+    var _nb=document.getElementById('gf-buscar');
+    if(_nb && _gfQ){ _nb.value=_gfQ; }
+    if(_gfQ){ try{ gfFiltrar(_gfQ); }catch(e){} }
+    if(_gfOv) _gfOv.scrollTop=_gfScroll;
+    if(_gfEraBuscar && _nb){ _nb.focus(); try{ _nb.selectionStart=_nb.selectionEnd=_nb.value.length; }catch(e){} }
+    else if(_gfFocusIdx>=0){
+      var _nAll=box.querySelectorAll('input,select,button,textarea');
+      var _el=_nAll[_gfFocusIdx];
+      if(_el){ _el.focus(); if(_gfSelA!=null){ try{ _el.selectionStart=_gfSelA; _el.selectionEnd=_gfSelB; }catch(e){} } }
+    }
+    if(_gfOv) _gfOv.scrollTop=_gfScroll;
+  }catch(e){}
 }
 
 function gfSetCat(ci,val){ if(GASTOS[ci]){ GASTOS[ci].cat=val; saveGastosFijos(); } }   // sin redibujar: el cursor se quedaría afuera
@@ -9849,6 +9875,28 @@ function _pgPagosDelMes(mes){
           dia:+pp[2],
           fecha:c.due
         });
+      }
+    });
+  }catch(e){}
+  // ── Pagos de tarjetas de crédito (según su corte/pago) ──
+  try{
+    (typeof cajaCuentas!=='undefined'?cajaCuentas:[]).forEach(function(cta){
+      if((cta.tipo==='credito'||cta.tipo==='linea') && cta.corte && (cta.pago || cta.pagoDias)){
+        var porMes=_tarjetaPagosPorMes(cta);
+        var info=porMes[mes];
+        if(info && info.monto>0){
+          var fechaPago=info.fecha||(anio+'-'+String(nm).padStart(2,'0')+'-'+String(Math.min(parseInt(cta.pago,10)||1, ultimo)).padStart(2,'0'));
+          var diaPago=parseInt(fechaPago.slice(8,10),10)||1;
+          out.push({
+            id:'tarjeta|'+cta.id+'|'+mes,
+            cat:'💳 Tarjetas de crédito',
+            nombre:'Pago '+cta.nombre,
+            monto:info.monto,
+            frec:'mensual',
+            dia:diaPago,
+            fecha:fechaPago
+          });
+        }
       }
     });
   }catch(e){}
@@ -14088,7 +14136,7 @@ const BACKUP_KEYS = [
   'docs_historial',
   'docs_folio', 'gastos_tienda_entries', 'shopify_data', 'shopify_data_v2', 'shopify_canales', 'shopify_map',
   // — agregadas: faltaban en el respaldo —
-  'admin_datos_fiscales', 'caja_chica_config', 'caja_chica_movs', 'compras_credito_abonos', 'compras_credito_cfg', 'compras_devoluciones', 'compras_folio_siglas', 'compras_pedidos', 'compras_precios', 'compras_proveedores', 'compras_tipos_material', 'envios_paqueteria', 'erp_pin_borrado', 'erp_usuarios_extra', 'erp_usuarios_override', 'facturar_concepto', 'facturar_emisor_sel', 'facturar_receptor', 'inv_dormido_meses', 'inv_grupos_acc', 'inv_prioridad_hormas', 'inventario_compras', 'shop_prod_costos', 'gastos_fijos', 'gf_dia_pago', 'por_cobrar', 'pagos_check', 'meta_colchon_pct', 'canal_cfg', 'pagos_desde', 'meta_grupal', 'meta_grupal_pagos', 'tienda_linea', 'tienda_linea_pagos', 'tl_pct', 'notificaciones', 'avisos_enviados'
+  'admin_datos_fiscales', 'caja_chica_config', 'caja_chica_movs', 'compras_credito_abonos', 'compras_credito_cfg', 'compras_devoluciones', 'compras_folio_siglas', 'compras_pedidos', 'compras_precios', 'compras_proveedores', 'compras_tipos_material', 'envios_paqueteria', 'erp_pin_borrado', 'erp_usuarios_extra', 'erp_usuarios_override', 'facturar_concepto', 'facturar_emisor_sel', 'facturar_receptor', 'inv_dormido_meses', 'inv_grupos_acc', 'inv_prioridad_hormas', 'inventario_compras', 'shop_prod_costos', 'gastos_fijos', 'gf_dia_pago', 'por_cobrar', 'pagos_check', 'meta_colchon_pct', 'canal_cfg', 'pagos_desde', 'meta_grupal', 'meta_grupal_pagos', 'tienda_linea', 'tienda_linea_pagos', 'tl_pct', 'notificaciones', 'avisos_enviados', 'caja_cuentas'
 ];
 
 function exportarRespaldo() {
@@ -15493,6 +15541,9 @@ function _cajaSaldoRow(label, val, color){
 function _cajaTotales(){
   var movs=_cajaMovsValidos(), ent=0, sal=0, inv=0, entNeg=0, entExt=0, salNeg=0, salHogar=0, salProp=0;
   movs.forEach(function(m){
+    if(m.tipo==='traspaso') return;   // los traspasos no son ni entrada ni salida (dinero interno)
+    if(m._abonoTarjeta) return;       // un pago/abono a tarjeta no es ingreso ni gasto real
+    if(m.noSaldo) return;             // compra histórica de tarjeta: cuenta en el pago mensual, no aquí
     var mt=parseFloat(m.monto)||0;
     var amb=m.ambito||'negocio'; if(amb==='externo') amb='propios';
     if(m.tipo==='entrada'){ ent+=mt; if(m.categoria==='Inversión Jorge') inv+=mt; if(amb==='negocio') entNeg+=mt; else entExt+=mt; }
@@ -15514,19 +15565,59 @@ let cajaCuentas = (function(){ try{ var v=JSON.parse(localStorage.getItem('caja_
   return [ mk('Cartera (efectivo)','efectivo'), mk('BBVA','debito'), mk('NU','debito'), mk('BANAMEX','debito'), mk('SPIN','debito'), mk('NU','credito'), mk('MELI WESTEROS','credito'), mk('MELI KA FE','credito'), mk('DIDI','credito'), mk('APLAZO','linea') ];
 })();
 function _cajaSaveCuentas(){ save('caja_cuentas', cajaCuentas); }
-function _cajaAplicarCuenta(mov, signo){
-  if(!mov || !mov.cuentaId) return;
-  var c=cajaCuentas.find(function(x){ return x.id===mov.cuentaId; }); if(!c) return;
-  var monto=(parseFloat(mov.monto)||0)*signo;
-  if(mov.tipo==='salida'){
+function _cajaAutoUsado(c){ return (c.tipo==='credito'||c.tipo==='linea') && c.autoUsado===true; }
+// Deuda usada calculada: compras + disposiciones − pagos/abonos
+function _cajaUsadoCalc(card){
+  var compras=0, pagos=0;
+  (typeof cajaMovs!=='undefined'?cajaMovs:[]).forEach(function(m){
+    var mt=parseFloat(m.monto)||0;
+    if(m.tipo==='salida' && m.cuentaId===card.id){ compras+=mt; }
+    else if(m.tipo==='traspaso' && m.cuentaId===card.id){ compras+=mt; }   // disposición de efectivo desde la tarjeta
+    else if(m.tipo==='entrada' && m._abonoTarjeta && m.cuentaId===card.id){ pagos+=mt; }
+    else if(m.tipo==='traspaso' && m.cuentaDestino===card.id){ pagos+=mt; } // pago desde otra cuenta
+  });
+  return Math.max(0, compras - pagos);
+}
+// Recalcula la deuda de todas las tarjetas en modo automático
+function _recalcularUsadoTarjetas(){
+  var cambio=false;
+  (cajaCuentas||[]).forEach(function(c){
+    if(_cajaAutoUsado(c)){
+      var u=_cajaUsadoCalc(c);
+      if(c.usado!==u){ c.usado=u; cambio=true; }
+      if(c.tipo==='linea'){ var lim=parseFloat(c.limite)||0; var d=Math.max(0, lim-u); if(c.disponible!==d){ c.disponible=d; cambio=true; } }
+    }
+  });
+  if(cambio){ try{ _cajaSaveCuentas(); }catch(e){} }
+}
+function _cajaAplicarUno(cuentaId, tipo, montoBase, signo){
+  var c=cajaCuentas.find(function(x){ return x.id===cuentaId; }); if(!c) return;
+  if(_cajaAutoUsado(c)) return;   // tarjetas en modo automático: la deuda se recalcula sola, no incremental
+  var monto=(parseFloat(montoBase)||0)*signo;
+  if(tipo==='salida'){
+    // sale dinero: efectivo/débito baja saldo; crédito sube deuda; línea baja disponible
     if(c.tipo==='credito'){ c.usado=(parseFloat(c.usado)||0)+monto; }
     else if(c.tipo==='linea'){ c.disponible=(parseFloat(c.disponible)||0)-monto; }
     else { c.saldo=(parseFloat(c.saldo)||0)-monto; }
   } else {
+    // entra dinero / se paga: efectivo/débito sube saldo; crédito baja deuda; línea sube disponible
     if(c.tipo==='credito'){ c.usado=(parseFloat(c.usado)||0)-monto; }
     else if(c.tipo==='linea'){ c.disponible=(parseFloat(c.disponible)||0)+monto; }
     else { c.saldo=(parseFloat(c.saldo)||0)+monto; }
   }
+}
+function _cajaAplicarCuenta(mov, signo){
+  if(!mov) return;
+  if(mov.noSaldo) return;   // compras históricas: ya están contadas en el saldo usado, no lo tocan
+  if(mov.tipo==='traspaso'){
+    // Sale de la cuenta origen (como salida) y entra/paga en la destino (como entrada)
+    if(mov.cuentaId) _cajaAplicarUno(mov.cuentaId, 'salida', mov.monto, signo);
+    if(mov.cuentaDestino) _cajaAplicarUno(mov.cuentaDestino, 'entrada', mov.monto, signo);
+    _cajaSaveCuentas();
+    return;
+  }
+  if(!mov.cuentaId) return;
+  _cajaAplicarUno(mov.cuentaId, mov.tipo, mov.monto, signo);
   _cajaSaveCuentas();
 }
 function _cajaGrupoLabel(t){ return ({efectivo:'💵 Efectivo',debito:'💳 Débito',credito:'🏦 Tarjetas de crédito',linea:'📄 Créditos'})[t]||t; }
@@ -15564,18 +15655,121 @@ function _cajaCuentasHTML(){
     + resumen
   +'</div>';
 }
+// ═══ CICLO DE TARJETA DE CRÉDITO (corte/pago + meses sin intereses) ═══
+// Recorre una fecha al siguiente día hábil si cae sábado o domingo
+function _sigDiaHabil(dt){
+  var d=dt.getDay();
+  if(d===6) dt.setDate(dt.getDate()+2);       // sábado → lunes
+  else if(d===0) dt.setDate(dt.getDate()+1);  // domingo → lunes
+  return dt;
+}
+function _isoDe(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+// Fecha de pago real de un ciclo cuyo CORTE cae en (cy, cm[1-12]).
+// Si la tarjeta tiene "pagoDias", la fecha = corte + pagoDias (ajustada por fin de semana).
+// Si no, usa el día fijo de pago (también ajustado por fin de semana).
+function _pagoDateDeCiclo(card, cy, cm){
+  var corte=parseInt(card.corte,10)||1;
+  var diasPlazo=parseInt(card.pagoDias,10);
+  if(diasPlazo>0){
+    var cutDay=Math.min(corte, new Date(cy, cm, 0).getDate());
+    var dt=new Date(cy, cm-1, cutDay);
+    dt.setDate(dt.getDate()+diasPlazo);
+    return _sigDiaHabil(dt);
+  }
+  var pago=parseInt(card.pago,10)||1;
+  var py=cy, pm=cm;
+  if(pago<corte){ pm++; if(pm>12){ pm=1; py++; } }
+  var pd=Math.min(pago, new Date(py, pm, 0).getDate());
+  return _sigDiaHabil(new Date(py, pm-1, pd));
+}
+// Devuelve { 'YYYY-MM' (mes del pago): {monto, detalle:[...], fecha:'YYYY-MM-DD'} }
+function _tarjetaPagosPorMes(card){
+  var res={};
+  if(!card || !card.corte || !(card.pago || card.pagoDias)) return res;
+  var corte=parseInt(card.corte,10);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var _hoyK=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  var movs=(typeof cajaMovs!=='undefined'?cajaMovs:[]).filter(function(m){
+    return m.cuentaId===card.id && m.tipo==='salida';   // solo compras reales (no traspasos ni entradas)
+  });
+  movs.forEach(function(m){
+    var fp=(m.fecha||'').split('-'); if(fp.length<3) return;
+    var y=+fp[0], mo=+fp[1], da=+fp[2];
+    if(!y||!mo||!da) return;
+    var total=parseFloat(m.monto)||0; if(total<=0) return;
+    var n=Math.max(1, parseInt(m.pagos,10)||1);
+    // Ciclo en que cae la compra: si el día <= corte, cierra este mes; si no, el siguiente
+    var cierreY=y, cierreM=mo;
+    if(da>corte){ cierreM++; if(cierreM>12){ cierreM=1; cierreY++; } }
+    var cuota=Math.round(total/n);
+    for(var k=0;k<n;k++){
+      var ccM=cierreM+k, ccY=cierreY; while(ccM>12){ ccM-=12; ccY++; }
+      var pagoDt=_pagoDateDeCiclo(card, ccY, ccM);
+      var key=pagoDt.getFullYear()+'-'+String(pagoDt.getMonth()+1).padStart(2,'0');
+      // Compra de contado con pago ya vencido → se junta al mes actual (pago pendiente)
+      if(n===1 && key<_hoyK){ key=_hoyK; var p2=_hoyK.split('-'); pagoDt=_pagoDateDeCiclo(card, +p2[0], +p2[1]); }
+      if(!res[key]) res[key]={monto:0, detalle:[], fecha:_isoDe(pagoDt)};
+      res[key].monto+=cuota;
+      res[key].detalle.push({ concepto:(m.concepto||m.categoria||'Compra'), monto:cuota, ambito:(m.ambito||'negocio'), msi:(n>1?((k+1)+'/'+n):'') });
+    }
+  });
+  return res;
+}
+// Próximo pago pendiente (desde el mes actual en adelante)
+function _tarjetaProxPago(card){
+  var porMes=_tarjetaPagosPorMes(card);
+  var claves=Object.keys(porMes).filter(function(k){ return porMes[k].monto>0; }).sort();
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var mesActual=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  var elegido=null;
+  for(var i=0;i<claves.length;i++){ if(claves[i]>=mesActual){ elegido=claves[i]; break; } }
+  if(!elegido) return null;
+  var fecha=porMes[elegido].fecha;
+  var fpp=fecha.split('-'); var fp=new Date(+fpp[0], (+fpp[1])-1, +fpp[2]);
+  var dias=Math.round((fp-hoy)/86400000);
+  return { mesKey:elegido, fecha:fecha, monto:porMes[elegido].monto, dias:dias, detalle:porMes[elegido].detalle, todos:porMes };
+}
+function _diaEsp(n){ return n+' de cada mes'; }
+// Fecha bonita: "5 jul 2026"
+function _fechaBonita(iso){
+  if(!iso) return '';
+  var p=String(iso).split('-'); if(p.length<3) return iso;
+  var mc=(typeof MESES_CORTO!=='undefined')?MESES_CORTO:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return (+p[2])+' '+(mc[(+p[1])-1]||'').toLowerCase()+' '+p[0];
+}
+// Plan de pagos de UNA compra: cuándo empieza a cobrarse y cuándo termina
+function _compraPlanPago(card, mov){
+  if(!card || !card.corte || !(card.pago || card.pagoDias)) return null;
+  var corte=parseInt(card.corte,10);
+  var fp=(mov.fecha||'').split('-'); if(fp.length<3) return null;
+  var y=+fp[0], mo=+fp[1], da=+fp[2]; if(!y||!mo||!da) return null;
+  var n=Math.max(1, parseInt(mov.pagos,10)||1);
+  // Ciclo de cierre
+  var cy=y, cm=mo; if(da>corte){ cm++; if(cm>12){ cm=1; cy++; } }
+  function fechaCuota(k){
+    var ccM=cm+k, ccY=cy; while(ccM>12){ ccM-=12; ccY++; }
+    return _isoDe(_pagoDateDeCiclo(card, ccY, ccM));
+  }
+  var primera=fechaCuota(0), ultima=fechaCuota(n-1);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var cuotaActual=0;
+  for(var k=0;k<n;k++){ var f=fechaCuota(k).split('-'); var fd=new Date(+f[0], (+f[1])-1, +f[2]); if(fd<=hoy) cuotaActual=k+1; }
+  return { n:n, cuota:Math.round((parseFloat(mov.monto)||0)/n), inicio:mov.fecha, primera:primera, ultima:ultima, cuotaActual:cuotaActual };
+}
+
 // ═══ ESTADO DE CUENTA (movimientos de una tarjeta, por mes, con filtros) ═══
 var _estadoCtaId=null, _estadoMes='todos', _estadoTipo='todos';
 function verEstadoCuenta(id){
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   var c=cajaCuentas.find(function(x){ return x.id===id; }); if(!c) return;
   _estadoCtaId=id; _estadoMes='todos'; _estadoTipo='todos';
   var lbl={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito (línea)'};
   var resumenTxt='';
   if(c.tipo==='efectivo'||c.tipo==='debito'){ resumenTxt='Saldo actual: <b style="color:var(--green)">'+_cajaM(parseFloat(c.saldo)||0)+'</b>'; }
   else { var lim=parseFloat(c.limite)||0, us=parseFloat(c.usado)||0; resumenTxt='Usado <b style="color:var(--red)">'+_cajaM(us)+'</b> de '+_cajaM(lim)+' · Disponible <b>'+_cajaM(Math.max(0,lim-us))+'</b>'; }
-  // Lista de meses disponibles (para el filtro)
+  // Lista de meses disponibles (para el filtro) — incluye traspasos donde esta cuenta es origen o destino
   var mesesSet={}, mesesArr=[];
-  cajaMovs.filter(function(m){ return m.cuentaId===id; }).forEach(function(m){
+  cajaMovs.filter(function(m){ return m.cuentaId===id || m.cuentaDestino===id; }).forEach(function(m){
     var k=((m.fecha||'').slice(0,7))||'sinfecha';
     if(!mesesSet[k]){ mesesSet[k]=1; mesesArr.push(k); }
   });
@@ -15585,6 +15779,15 @@ function verEstadoCuenta(id){
     return '<option value="'+k+'">'+t+'</option>';
   }).join('');
   var selSty='background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px';
+  // ── Bloque de ciclo/pago para tarjetas de crédito ──
+  var cicloHTML=_estadoCicloHTML(c);
+  var esCred=(c.tipo==='credito'||c.tipo==='linea');
+  var accionesHTML = esCred
+    ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+      +'<button onclick="abrirAgregarCompra(\''+c.id+'\')" class="btn btn-accent btn-sm" style="flex:1;min-width:150px">➕ Agregar compra / cargo</button>'
+      +'<button onclick="abrirPagoTarjeta(\''+c.id+'\')" class="btn btn-secondary btn-sm" style="flex:1;min-width:150px;border-color:var(--green);color:var(--green)">✅ Registrar pago (abono)</button>'
+      +'</div>'
+    : '';
   var ov=document.getElementById('caja-estado-ov'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='caja-estado-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
@@ -15594,6 +15797,8 @@ function verEstadoCuenta(id){
       +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(lbl[c.tipo]||c.tipo)+' · '+resumenTxt+'</div></div>'
       +'<button onclick="var o=document.getElementById(\'caja-estado-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer;line-height:1">×</button>'
     +'</div>'
+    + cicloHTML
+    + accionesHTML
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
       +'<div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:2px">Mes</label><select id="estado-f-mes" onchange="_estadoSetFiltro(\'mes\',this.value)" style="'+selSty+'">'+mesOpts+'</select></div>'
       +'<div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:2px">Movimiento</label><select id="estado-f-tipo" onchange="_estadoSetFiltro(\'tipo\',this.value)" style="'+selSty+'"><option value="todos">Todos</option><option value="entrada">Solo entradas</option><option value="salida">Solo salidas</option></select></div>'
@@ -15607,18 +15812,224 @@ function _estadoSetFiltro(cual, val){
   if(cual==='mes') _estadoMes=val; else if(cual==='tipo') _estadoTipo=val;
   _estadoRenderBody();
 }
+// ── Agregar una compra/cargo a una tarjeta de crédito (para itemizar el saldo ya usado) ──
+function abrirAgregarCompra(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
+  var lbl='font-size:11px;color:var(--text2)';
+  var catOpts=CAJA_CATS_SALIDA.map(function(x){ return '<option value="'+escapeHTML(x)+'">'+escapeHTML(x)+'</option>'; }).join('');
+  var mesesOpts=''; for(var mM=1;mM<=24;mM++){ mesesOpts+='<option value="'+mM+'">'+(mM===1?'1 (de contado)':mM+' meses')+'</option>'; }
+  var ov=document.getElementById('caja-compra-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='caja-compra-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100002;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:18px;max-height:90vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;color:var(--accent2);font-size:16px">➕ Compra en '+escapeHTML(c.nombre)+'</h3><button onclick="var o=document.getElementById(\'caja-compra-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 12px">Captura una compra que hiciste con esta tarjeta. Si fue a meses, ponlo y se reparte en los pagos.</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      +'<div><label style="'+lbl+'">Fecha de la compra</label><input id="cp-fecha" type="date" value="'+_hoyISO()+'" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Monto total</label><input id="cp-monto" type="number" min="0" step="0.01" placeholder="0.00" style="'+inp+'"></div>'
+    +'</div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">Concepto / en qué gastaste</label><input id="cp-concepto" type="text" placeholder="ej. Despensa, gasolina, material…" style="'+inp+'"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      +'<div><label style="'+lbl+'">Categoría</label><select id="cp-cat" style="'+inp+'">'+catOpts+'</select></div>'
+      +'<div><label style="'+lbl+'">Tipo de gasto</label><select id="cp-ambito" style="'+inp+'"><option value="negocio">🏪 Negocio</option><option value="hogar">🏠 Hogar</option><option value="propios">🧍 Propio</option></select></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      +'<div><label style="'+lbl+'">¿A cuántos meses?</label><select id="cp-meses" style="'+inp+'">'+mesesOpts+'</select></div>'
+      +'<div><label style="'+lbl+'">Interés</label><select id="cp-interes" style="'+inp+'"><option value="sin">Sin interés</option><option value="con">Con interés</option></select></div>'
+    +'</div>'
+    + (_cajaAutoUsado(c)
+        ? '<div style="margin-top:12px;font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px">🧮 La deuda de esta tarjeta se <b>calcula sola</b>: esta compra se sumará automáticamente a tu deuda usada.</div>'
+        : '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:11px;color:var(--text2);cursor:pointer">'
+          +'<input type="checkbox" id="cp-yausado" checked style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent)">'
+          +'<span>Esta compra <b>ya está incluida</b> en el saldo usado que capturé (no vuelvas a sumarla a la deuda). Deja palomeado para tus compras viejas; quítalo solo si es una compra nueva de hoy.</span>'
+        +'</label>')
+    +'<div style="text-align:right;margin-top:14px"><button onclick="guardarCompraTarjeta(\''+c.id+'\')" class="btn btn-accent">💾 Guardar compra</button></div>'
+    +'<div id="cp-msg" style="font-size:12px;margin-top:8px;min-height:14px;text-align:right"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function guardarCompraTarjeta(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  var monto=parseFloat(g('cp-monto'))||0;
+  var msg=document.getElementById('cp-msg');
+  if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon un monto válido.'; } return; }
+  var yaUsado = _cajaAutoUsado(c) ? true : (document.getElementById('cp-yausado')||{}).checked;
+  var mov={
+    id:'cm'+Date.now()+'_cp'+Math.floor(Math.random()*1000),
+    fecha:g('cp-fecha')||_hoyISO(), tipo:'salida',
+    categoria:g('cp-cat')||'Otro gasto', concepto:(g('cp-concepto').trim()||g('cp-cat')||'Compra'),
+    monto:monto, cuentaId:cardId, cuentaNombre:c.nombre,
+    ambito:g('cp-ambito')||'negocio',
+    pagos:parseInt(g('cp-meses'),10)||1, interes:g('cp-interes')||'sin',
+    noSaldo: !!yaUsado
+  };
+  cajaMovs.push(mov);
+  _cajaAplicarCuenta(mov, +1);   // si noSaldo=true, no toca el saldo
+  _cajaSaveMovs();
+  var o=document.getElementById('caja-compra-ov'); if(o) o.remove();
+  mostrarToast('Compra agregada ✓','green');
+  try{ initCaja(); }catch(e){}
+  verEstadoCuenta(cardId);
+}
+// ── Registrar un pago/abono a la tarjeta (libera saldo) ──
+function abrirPagoTarjeta(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
+  var lbl='font-size:11px;color:var(--text2)';
+  var usado=parseFloat(c.usado)||0;
+  var origenOpts='<option value="">— Pago externo (no descontar de otra cuenta) —</option>'+cajaCuentas.filter(function(x){ return x.id!==cardId; }).map(function(x){ var l={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito'}; return '<option value="'+x.id+'">'+escapeHTML(x.nombre)+' ('+(l[x.tipo]||x.tipo)+')</option>'; }).join('');
+  var ov=document.getElementById('caja-pagotarj-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='caja-pagotarj-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100002;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:90vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;color:var(--green);font-size:16px">✅ Pago a '+escapeHTML(c.nombre)+'</h3><button onclick="var o=document.getElementById(\'caja-pagotarj-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 6px">Deuda actual: <b style="color:var(--red)">'+_cajaM(usado)+'</b>. Al registrar el pago, se libera saldo de tu tarjeta.</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">'
+      +'<div><label style="'+lbl+'">Fecha del pago</label><input id="pt-fecha" type="date" value="'+_hoyISO()+'" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Monto del pago</label><input id="pt-monto" type="number" min="0" step="0.01" placeholder="0.00" style="'+inp+'"></div>'
+    +'</div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">¿De dónde sale el pago?</label><select id="pt-origen" style="'+inp+'">'+origenOpts+'</select></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">Concepto (opcional)</label><input id="pt-concepto" type="text" placeholder="ej. Pago quincenal" style="'+inp+'"></div>'
+    +'<div style="text-align:right;margin-top:14px"><button onclick="guardarPagoTarjeta(\''+c.id+'\')" class="btn btn-accent" style="background:var(--green);border-color:var(--green)">💾 Registrar pago</button></div>'
+    +'<div id="pt-msg" style="font-size:12px;margin-top:8px;min-height:14px;text-align:right"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function guardarPagoTarjeta(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  var monto=parseFloat(g('pt-monto'))||0;
+  var msg=document.getElementById('pt-msg');
+  if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon un monto válido.'; } return; }
+  var origen=g('pt-origen');
+  var fecha=g('pt-fecha')||_hoyISO();
+  var concepto=g('pt-concepto').trim()||('Pago a '+c.nombre);
+  var mov;
+  if(origen){
+    // Traspaso: sale de la cuenta origen y abona a la tarjeta
+    var co=cajaCuentas.find(function(x){return x.id===origen;});
+    mov={ id:'cm'+Date.now()+'_pt', fecha:fecha, tipo:'traspaso', categoria:'Pago tarjeta', concepto:concepto, monto:monto, cuentaId:origen, cuentaNombre:co?co.nombre:'', cuentaDestino:cardId, cuentaDestinoNombre:c.nombre, ambito:'negocio' };
+  } else {
+    // Pago externo: solo abona a la tarjeta (entra, baja la deuda)
+    mov={ id:'cm'+Date.now()+'_pt', fecha:fecha, tipo:'entrada', categoria:'Pago tarjeta', concepto:concepto, monto:monto, cuentaId:cardId, cuentaNombre:c.nombre, ambito:'negocio', _abonoTarjeta:true };
+  }
+  cajaMovs.push(mov);
+  _cajaAplicarCuenta(mov, +1);
+  _cajaSaveMovs();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
+  var o=document.getElementById('caja-pagotarj-ov'); if(o) o.remove();
+  _notificarLiberacion(c, monto);
+  try{ initCaja(); }catch(e){}
+  verEstadoCuenta(cardId);
+}
+// Notificación/aviso al liberar saldo con un pago a tarjeta
+function _notificarLiberacion(card, montoPagado){
+  var lim=parseFloat(card.limite)||0, us=parseFloat(card.usado)||0;
+  var dispo=(lim>0?Math.max(0,lim-us):(parseFloat(card.disponible)||0));
+  var txt='💳 Liberaste '+_cajaM(montoPagado)+' de '+card.nombre+' con tu pago. Disponible ahora: '+_cajaM(dispo)+'.';
+  if(typeof mostrarToast==='function') mostrarToast('🎉 '+txt,'green');
+  try{
+    if(typeof currentUser!=='undefined' && currentUser && typeof notificarUsuario==='function'){
+      notificarUsuario(currentUser.id, txt);
+      if(typeof renderNotifBanner==='function') renderNotifBanner();
+    }
+  }catch(e){}
+}
+function _estadoCicloHTML(c){
+  if(!c || (c.tipo!=='credito' && c.tipo!=='linea')) return '';
+  var ambNom={negocio:'🏪 Negocio', hogar:'🏠 Hogar', propios:'🧍 Propios'};
+  if(!c.corte || !(c.pago || c.pagoDias)){
+    return '<div style="margin-top:10px;background:var(--surface2);border:1px dashed var(--accent);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--text2)">'
+      +'🗓️ Ponle el <b>día de corte</b> y la <b>fecha de pago</b> (día fijo o días después del corte) a esta tarjeta (botón ⚙️ Gestionar → editar) para que te calcule y te recuerde el pago de cada mes.</div>';
+  }
+  var prox=_tarjetaProxPago(c);
+  var MES=MESES_ES;
+  var pagoTxt = (parseInt(c.pagoDias,10)>0) ? ('corte + '+c.pagoDias+' días') : ('día '+c.pago);
+  var h='<div style="margin-top:10px;background:linear-gradient(135deg,rgba(201,150,58,.12),rgba(139,68,246,.10));border:1px solid var(--accent);border-radius:11px;padding:12px 14px">'
+    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--text2)">'
+      +'<span>✂️ Corte: <b style="color:var(--text)">día '+c.corte+'</b></span>'
+      +'<span>💳 Pago: <b style="color:var(--text)">'+pagoTxt+'</b></span>'
+    +'</div>';
+  if(prox && prox.monto>0){
+    var fp=prox.fecha.split('-'); var fTxt=(+fp[2])+' '+(MES[(+fp[1])-1]||'').toLowerCase()+' '+fp[0];
+    var diasTxt = prox.dias<0 ? ('⚠️ vencido hace '+Math.abs(prox.dias)+' día'+(Math.abs(prox.dias)===1?'':'s'))
+      : (prox.dias===0 ? '¡es hoy!' : ('faltan '+prox.dias+' día'+(prox.dias===1?'':'s')));
+    var colDias = prox.dias<0?'var(--red)':(prox.dias<=3?'var(--accent2)':'var(--green)');
+    h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)">'
+      +'<div style="font-size:11px;color:var(--text2)">Próximo pago</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">'
+        +'<span style="font-size:22px;font-weight:800;color:var(--red)">'+_cajaM(prox.monto)+'</span>'
+        +'<span style="font-size:12px;color:'+colDias+'">'+fTxt+' · '+diasTxt+'</span>'
+      +'</div>';
+    // Desglose por ámbito del próximo pago
+    var porAmb={};
+    prox.detalle.forEach(function(d){ var a=(d.ambito==='externo'?'propios':(d.ambito||'negocio')); porAmb[a]=(porAmb[a]||0)+d.monto; });
+    var ambKeys=Object.keys(porAmb);
+    if(ambKeys.length){
+      h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+ambKeys.map(function(a){
+        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:2px 7px">'+(ambNom[a]||a)+': <b>'+_cajaM(porAmb[a])+'</b></span>';
+      }).join('')+'</div>';
+    }
+    // Detalle de compras del próximo pago (COMPLETO, para cotejar la suma)
+    if(prox.detalle.length){
+      var nCont=prox.detalle.filter(function(d){ return !d.msi; }).length;
+      var nMsi=prox.detalle.length-nCont;
+      h+='<div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+        +'<span style="font-size:11px;color:var(--text2)">Incluye ('+prox.detalle.length+' conceptos):</span>'
+        +'<span style="font-size:10px">'
+          +'<span style="background:rgba(91,138,244,.18);color:#7ea8ff;border:1px solid rgba(91,138,244,.4);border-radius:6px;padding:2px 7px">💵 Contado: '+nCont+'</span> '
+          +'<span style="background:rgba(201,150,58,.15);color:var(--accent2);border:1px solid rgba(201,150,58,.4);border-radius:6px;padding:2px 7px">📆 Meses: '+nMsi+'</span>'
+        +'</span>'
+      +'</div>';
+      var _sumaDet=0;
+      h+=prox.detalle.map(function(d){
+        _sumaDet+=d.monto;
+        var esCont=!d.msi;
+        var tag = esCont
+          ? ' <span style="background:rgba(91,138,244,.18);color:#7ea8ff;border-radius:5px;padding:1px 6px;font-size:9px;font-weight:700">💵 CONTADO</span>'
+          : ' <span style="color:var(--accent2);font-size:10px">('+d.msi+' MSI)</span>';
+        var fila = esCont ? 'background:rgba(91,138,244,.07);border-left:2px solid #5b8af4' : 'border-left:2px solid transparent';
+        return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 6px;'+fila+';border-bottom:1px solid rgba(255,255,255,.04)">'
+          +'<span>'+escapeHTML(d.concepto)+tag+'</span>'
+          +'<span style="color:'+(esCont?'#7ea8ff':'var(--red)')+';font-weight:600;white-space:nowrap">'+_cajaM(d.monto)+'</span></div>';
+      }).join('');
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 6px 0;margin-top:2px;border-top:1px solid var(--border);font-weight:800"><span>Suma del pago</span><span style="color:var(--red)">'+_cajaM(_sumaDet)+'</span></div>';
+    }
+    h+='</div>';
+    // Calendario de próximos meses (MSI)
+    var claves=Object.keys(prox.todos).filter(function(k){ return prox.todos[k].monto>0 && k>prox.mesKey; }).sort().slice(0,6);
+    if(claves.length){
+      h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Meses que siguen (compras a meses):</div>';
+      h+='<div style="display:flex;gap:6px;flex-wrap:wrap">'+claves.map(function(k){
+        var pk=k.split('-'); var t=(MES[(+pk[1])-1]||'').slice(0,3)+' '+pk[0].slice(2);
+        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:3px 8px">'+t+': <b style="color:var(--red)">'+_cajaM(prox.todos[k].monto)+'</b></span>';
+      }).join('')+'</div></div>';
+    }
+  } else {
+    h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">Sin pagos pendientes calculados. Registra compras con esta tarjeta y aquí verás cuánto y cuándo pagar.</div>';
+  }
+  h+='<div style="font-size:9px;color:var(--text2);margin-top:8px">Este pago ya aparece en tu página de Gastos y cuenta en tus pagos del mes.</div>';
+  h+='</div>';
+  return h;
+}
 function _estadoRenderBody(){
   var cont=document.getElementById('estado-cuerpo'); if(!cont) return;
   var id=_estadoCtaId;
+  var _card=cajaCuentas.find(function(x){ return x.id===id; });
+  // dirIn(m)=true si para ESTA cuenta el dinero entra (entrada o traspaso-destino)
+  var dirIn=function(m){ return (m.tipo==='traspaso') ? (m.cuentaDestino===id) : (m.tipo==='entrada'); };
   var movs=cajaMovs.filter(function(m){
-    if(m.cuentaId!==id) return false;
-    if(_estadoTipo==='entrada' && m.tipo!=='entrada') return false;
-    if(_estadoTipo==='salida' && m.tipo==='entrada') return false;
+    var mine = (m.cuentaId===id) || (m.tipo==='traspaso' && m.cuentaDestino===id);
+    if(!mine) return false;
+    if(_estadoTipo==='entrada' && !dirIn(m)) return false;
+    if(_estadoTipo==='salida' && dirIn(m)) return false;
     if(_estadoMes!=='todos'){ var k=((m.fecha||'').slice(0,7))||'sinfecha'; if(k!==_estadoMes) return false; }
     return true;
   }).sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); });
   var totEnt=0, totSal=0;
-  movs.forEach(function(m){ var mt=parseFloat(m.monto)||0; if(m.tipo==='entrada') totEnt+=mt; else totSal+=mt; });
+  movs.forEach(function(m){ var mt=parseFloat(m.monto)||0; if(dirIn(m)) totEnt+=mt; else totSal+=mt; });
   var resumen='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-top:10px">'
     +'<span>Entradas: <b style="color:var(--green)">'+_cajaM(totEnt)+'</b></span>'
     +'<span>Salidas: <b style="color:var(--red)">'+_cajaM(totSal)+'</b></span>'
@@ -15632,7 +16043,7 @@ function _estadoRenderBody(){
     movs.forEach(function(m){ var k=((m.fecha||'').slice(0,7))||'sinfecha'; if(!grupos[k]){ grupos[k]=[]; orden.push(k); } grupos[k].push(m); });
     orden.forEach(function(k){
       var arr=grupos[k];
-      var ent=0, sal=0; arr.forEach(function(m){ var mt=parseFloat(m.monto)||0; if(m.tipo==='entrada') ent+=mt; else sal+=mt; });
+      var ent=0, sal=0; arr.forEach(function(m){ var mt=parseFloat(m.monto)||0; if(dirIn(m)) ent+=mt; else sal+=mt; });
       var neto=ent-sal;
       var titulo;
       if(k==='sinfecha'){ titulo='Sin fecha'; }
@@ -15644,13 +16055,44 @@ function _estadoRenderBody(){
         +'</div>'
         +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:2px">';
       arr.forEach(function(m){
-        var color=m.tipo==='entrada'?'var(--green)':'var(--red)';
-        var signo=m.tipo==='entrada'?'+':'−';
+        var esTrasp=(m.tipo==='traspaso');
+        var entra=dirIn(m);
+        var color=entra?'var(--green)':'var(--red)';
+        var signo=entra?'+':'−';
+        var catTxt, subTxt;
+        if(esTrasp){
+          var otro = entra ? (m.cuentaNombre||'otra cuenta') : (m.cuentaDestinoNombre||'otra cuenta');
+          catTxt='🔄 Traspaso <span style="font-size:10px;color:var(--accent2)">'+(entra?('← '+escapeHTML(otro)):('→ '+escapeHTML(otro)))+'</span>';
+          subTxt=m.concepto?escapeHTML(m.concepto):'';
+        } else {
+          catTxt='<span style="color:var(--text)">'+escapeHTML(m.categoria||'')+'</span> '+_cajaAmbitoBadge(m.ambito);
+          subTxt=m.concepto?escapeHTML(m.concepto):'';
+          // Plan de pagos de la compra (inicio = día de compra, fin = última cuota)
+          if(_card && (_card.tipo==='credito'||_card.tipo==='linea') && m.tipo==='salida' && !m._abonoTarjeta){
+            var _plan=_compraPlanPago(_card, m);
+            if(_plan){
+              var _pt, _ptCol;
+              if(_plan.n>1){
+                _pt='📅 A '+_plan.n+' meses · '+_cajaM(_plan.cuota)+'/mes · comprada '+_fechaBonita(_plan.inicio)
+                  +' → terminas de pagar '+_fechaBonita(_plan.ultima)
+                  +(_plan.cuotaActual>0?(' · vas '+_plan.cuotaActual+'/'+_plan.n):' · aún no empieza a cobrarse');
+                _ptCol='var(--accent2)';
+              } else {
+                _pt='💵 Contado · se paga el '+_fechaBonita(_plan.primera);
+                _ptCol='#7ea8ff';
+              }
+              subTxt += (subTxt?'<br>':'')+'<span style="color:'+_ptCol+';font-size:10px">'+_pt+'</span>';
+            }
+          }
+        }
+        var acciones = esTrasp
+          ? '<button onclick="borrarMovCaja(\''+m.id+'\')" class="btn btn-danger btn-sm" style="padding:2px 7px;font-size:11px" title="Eliminar">✕</button>'
+          : '<button onclick="editarMovCaja(\''+m.id+'\')" class="btn btn-secondary btn-sm" style="padding:2px 7px;font-size:11px" title="Editar">✏️</button> <button onclick="borrarMovCaja(\''+m.id+'\')" class="btn btn-danger btn-sm" style="padding:2px 7px;font-size:11px" title="Eliminar">✕</button>';
         body+='<tr style="border-bottom:1px solid var(--border)">'
           +'<td style="padding:6px 6px;white-space:nowrap;color:var(--text2);vertical-align:top">'+escapeHTML(m.fecha||'')+'</td>'
-          +'<td style="padding:6px 6px"><span style="color:var(--text)">'+escapeHTML(m.categoria||'')+'</span> '+_cajaAmbitoBadge(m.ambito)+(m.concepto?'<div style="font-size:10px;color:var(--text2);margin-top:2px">'+escapeHTML(m.concepto)+'</div>':'')+'</td>'
+          +'<td style="padding:6px 6px">'+catTxt+(subTxt?'<div style="font-size:10px;color:var(--text2);margin-top:2px">'+subTxt+'</div>':'')+'</td>'
           +'<td style="padding:6px 6px;text-align:right;color:'+color+';font-weight:700;white-space:nowrap;vertical-align:top">'+signo+_cajaM(parseFloat(m.monto)||0)+'</td>'
-          +'<td style="padding:6px 2px 6px 6px;text-align:right;white-space:nowrap;vertical-align:top"><button onclick="editarMovCaja(\''+m.id+'\')" class="btn btn-secondary btn-sm" style="padding:2px 7px;font-size:11px" title="Editar">✏️</button> <button onclick="borrarMovCaja(\''+m.id+'\')" class="btn btn-danger btn-sm" style="padding:2px 7px;font-size:11px" title="Eliminar">✕</button></td>'
+          +'<td style="padding:6px 2px 6px 6px;text-align:right;white-space:nowrap;vertical-align:top">'+acciones+'</td>'
         +'</tr>';
       });
       body+='<tr><td colspan="4" style="padding:6px;text-align:right;font-size:11px;color:var(--text2)">Entradas '+_cajaM(ent)+' · Salidas '+_cajaM(sal)+'</td></tr>';
@@ -15694,12 +16136,51 @@ function _cajaCuentaModal(){
   document.body.appendChild(ov);
   _cajaCuentaModalRender(c);
 }
+function _ccCorteFields(c, lbl, inp){
+  var diaOpts=function(sel){ var o='<option value="">—</option>'; for(var d=1; d<=31; d++){ o+='<option value="'+d+'"'+((parseInt(sel,10)===d)?' selected':'')+'>'+d+'</option>'; } return o; };
+  var diasOpts='<option value="">—</option>'; for(var dd=1; dd<=31; dd++){ diasOpts+='<option value="'+dd+'"'+((parseInt(c.pagoDias,10)===dd)?' selected':'')+'>'+dd+' días</option>'; }
+  return '<div style="margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px">'
+    +'<div style="font-size:11px;color:var(--accent2);font-weight:700;margin-bottom:2px">🗓️ Ciclo de la tarjeta (para recordarte el pago)</div>'
+    +'<div style="font-size:10px;color:var(--text2);margin-bottom:8px">Pon el día de <b>corte</b>. Para la fecha de pago tienes dos opciones: un <b>día fijo</b>, o los <b>días después del corte</b> (así lo calculo cada mes y lo recorro al lunes si cae en fin de semana).</div>'
+    +'<div><label style="'+lbl+'">Día de corte</label><select id="cc-f-corte" style="'+inp+'">'+diaOpts(c.corte)+'</select></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+      +'<div><label style="'+lbl+'">Días después del corte</label><select id="cc-f-pagodias" style="'+inp+'">'+diasOpts+'</select></div>'
+      +'<div><label style="'+lbl+'">o Día de pago fijo</label><select id="cc-f-pago" style="'+inp+'">'+diaOpts(c.pago)+'</select></div>'
+    +'</div>'
+    +'<div style="font-size:9px;color:var(--text2);margin-top:6px">Si pones los <b>días después del corte</b>, esos mandan (ej. corte 13 + 10 días = pago 23; si el 23 es sábado o domingo, pasa al lunes). Si lo dejas vacío, uso el día fijo.</div>'
+  +'</div>';
+}
 function _cajaCuentaModalSync(){
   var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
   var tipo=g('cc-f-tipo')||'debito';
+  var autoUsado=!!(document.getElementById('cc-f-autousado')||{}).checked;
   var limite=parseFloat(g('cc-f-limite'))||0, usado=parseFloat(g('cc-f-usado'))||0;
   var disponible = (tipo==='linea') ? Math.max(0, limite-usado) : (parseFloat(g('cc-f-disponible'))||0);
-  return { nombre:g('cc-f-nombre'), tipo:tipo, saldo:parseFloat(g('cc-f-saldo'))||0, limite:limite, usado:usado, disponible:disponible, interes:parseFloat(g('cc-f-interes'))||0, frecuencia:g('cc-f-frecuencia') };
+  return { nombre:g('cc-f-nombre'), tipo:tipo, saldo:parseFloat(g('cc-f-saldo'))||0, limite:limite, usado:usado, disponible:disponible, interes:parseFloat(g('cc-f-interes'))||0, frecuencia:g('cc-f-frecuencia'), corte:parseInt(g('cc-f-corte'),10)||null, pago:parseInt(g('cc-f-pago'),10)||null, pagoDias:parseInt(g('cc-f-pagodias'),10)||null, autoUsado:autoUsado };
+}
+function _ccUsadoBlock(c, lbl, inp){
+  var auto=(c.autoUsado===true);
+  var usadoCalc=(typeof _cajaUsadoCalc==='function' && c.id) ? _cajaUsadoCalc(c) : (parseFloat(c.usado)||0);
+  return '<div style="margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 11px">'
+    +'<label style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--text2);cursor:pointer">'
+      +'<input type="checkbox" id="cc-f-autousado"'+(auto?' checked':'')+' onchange="_ccToggleAutoUsado()" style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent)">'
+      +'<span>🧮 <b>Calcular la deuda sola</b> con las compras y pagos que registro (tú solo pones el límite). Actívalo cuando ya hayas capturado las compras de esta tarjeta.</span>'
+    +'</label>'
+    +'<div id="cc-usado-auto" style="margin-top:8px;display:'+(auto?'block':'none')+'">'
+      +'<label style="'+lbl+'">Deuda usada (calculada de tus compras)</label>'
+      +'<div style="background:#0f0f13;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-top:3px;font-size:14px;color:var(--red);font-weight:700">'+_cajaM(usadoCalc)+'</div>'
+    +'</div>'
+    +'<div id="cc-usado-manual" style="margin-top:8px;display:'+(auto?'none':'block')+'">'
+      +'<label style="'+lbl+'">Ya usado (deuda) — manual</label>'
+      +'<input id="cc-f-usado" type="number" step="0.01" value="'+(parseFloat(c.usado)||0)+'" style="'+inp+'">'
+    +'</div>'
+  +'</div>';
+}
+function _ccToggleAutoUsado(){
+  var chk=!!(document.getElementById('cc-f-autousado')||{}).checked;
+  var a=document.getElementById('cc-usado-auto'), m=document.getElementById('cc-usado-manual');
+  if(a) a.style.display=chk?'block':'none';
+  if(m) m.style.display=chk?'none':'block';
 }
 function _cajaCuentaModalRender(c){
   var box=document.getElementById('cc-cuenta-box'); if(!box) return;
@@ -15716,19 +16197,17 @@ function _cajaCuentaModalRender(c){
   if(c.tipo==='efectivo'||c.tipo==='debito'){
     h+='<div style="margin-top:8px"><label style="'+lbl+'">Saldo actual</label><input id="cc-f-saldo" type="number" step="0.01" value="'+(c.saldo||0)+'" style="'+inp+'"></div>';
   } else if(c.tipo==='credito'){
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-      +'<div><label style="'+lbl+'">Límite de crédito</label><input id="cc-f-limite" type="number" step="0.01" value="'+(c.limite||0)+'" style="'+inp+'"></div>'
-      +'<div><label style="'+lbl+'">Ya usado (deuda)</label><input id="cc-f-usado" type="number" step="0.01" value="'+(c.usado||0)+'" style="'+inp+'"></div>'
-    +'</div>';
+    h+='<div style="margin-top:8px"><label style="'+lbl+'">Límite de crédito</label><input id="cc-f-limite" type="number" step="0.01" value="'+(c.limite||0)+'" style="'+inp+'"></div>';
+    h+=_ccUsadoBlock(c, lbl, inp);
+    h+=_ccCorteFields(c, lbl, inp);
   } else if(c.tipo==='linea'){
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-      +'<div><label style="'+lbl+'">Total del crédito</label><input id="cc-f-limite" type="number" step="0.01" value="'+(c.limite||0)+'" style="'+inp+'"></div>'
-      +'<div><label style="'+lbl+'">Ya usado</label><input id="cc-f-usado" type="number" step="0.01" value="'+(c.usado||0)+'" style="'+inp+'"></div>'
-    +'</div>';
+    h+='<div style="margin-top:8px"><label style="'+lbl+'">Total del crédito</label><input id="cc-f-limite" type="number" step="0.01" value="'+(c.limite||0)+'" style="'+inp+'"></div>';
+    h+=_ccUsadoBlock(c, lbl, inp);
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
       +'<div><label style="'+lbl+'">Interés (%)</label><input id="cc-f-interes" type="number" step="0.01" value="'+(c.interes||0)+'" style="'+inp+'"></div>'
       +'<div><label style="'+lbl+'">Cada cuándo pagas</label><input id="cc-f-frecuencia" value="'+esc(c.frecuencia||'')+'" placeholder="ej. quincenal, mensual" style="'+inp+'"></div>'
     +'</div>';
+    h+=_ccCorteFields(c, lbl, inp);
   }
   h+='<div style="text-align:right;margin-top:14px"><button onclick="guardarCuentaCaja()" class="btn btn-accent btn-sm">💾 Guardar</button></div>';
   box.innerHTML=h;
@@ -15736,10 +16215,11 @@ function _cajaCuentaModalRender(c){
 function guardarCuentaCaja(){
   var d=_cajaCuentaModalSync();
   if(!(d.nombre||'').trim()){ alert('Ponle nombre a la cuenta.'); return; }
-  if(_cajaEditId){ var c=cajaCuentas.find(function(x){return x.id===_cajaEditId;}); if(c){ c.nombre=d.nombre; c.tipo=d.tipo; c.saldo=d.saldo; c.limite=d.limite; c.usado=d.usado; c.disponible=d.disponible; c.interes=d.interes; c.frecuencia=d.frecuencia; } }
+  if(_cajaEditId){ var c=cajaCuentas.find(function(x){return x.id===_cajaEditId;}); if(c){ c.nombre=d.nombre; c.tipo=d.tipo; c.saldo=d.saldo; c.limite=d.limite; c.usado=d.usado; c.disponible=d.disponible; c.interes=d.interes; c.frecuencia=d.frecuencia; c.corte=d.corte; c.pago=d.pago; c.pagoDias=d.pagoDias; c.autoUsado=d.autoUsado; } }
   else { d.id='cc'+Date.now()+Math.floor(Math.random()*1000); cajaCuentas.push(d); }
   _cajaSaveCuentas();
   var o=document.getElementById('cc-cuenta-ov'); if(o) o.remove();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   initCaja();
   try{ renderCajaCtasLista(); }catch(e){}
 }
@@ -15756,6 +16236,7 @@ function cajaCuentaChange(){
 }
 function initCaja(){
   var cont=document.getElementById('page-caja'); if(!cont) return;
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   var t=_cajaTotales(), fi=_cajaFecha();
   cont.innerHTML =
     '<div class="card" style="display:none"></div>'+
@@ -15796,6 +16277,7 @@ function initCaja(){
       '</div>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">'+
         '<button class="btn btn-accent" onclick="guardarMovCaja()">Agregar movimiento</button>'+
+        '<button class="btn btn-secondary btn-sm" onclick="abrirTraspaso()">🔄 Traspaso / Pago entre cuentas</button>'+
         '<button class="btn btn-secondary btn-sm" onclick="cajaInversionJorge()">💜 Inversión de Jorge</button>'+
         '<button class="btn btn-secondary btn-sm" onclick="cajaImportarGastos()">⬇️ Importar gastos del ERP</button>'+
       '</div>'+
@@ -15855,6 +16337,67 @@ function guardarMovCaja(){
   initCaja();
 }
 
+// ═══ TRASPASO / PAGO ENTRE CUENTAS ═══
+function _traspOpts(sel){
+  var lbl={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito'};
+  return '<option value="">— Elige cuenta —</option>'+cajaCuentas.map(function(c){ return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+escapeHTML(c.nombre)+' ('+(lbl[c.tipo]||c.tipo)+')</option>'; }).join('');
+}
+function abrirTraspaso(){
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
+  var lbl='font-size:11px;color:var(--text2)';
+  var ov=document.getElementById('caja-trasp-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='caja-trasp-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;color:var(--accent2);font-size:16px">🔄 Traspaso entre cuentas</h3><button onclick="var o=document.getElementById(\'caja-trasp-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 12px">Cuando mueves dinero de una cuenta a otra: pagas una tarjeta con otra, o sacas efectivo. Se descuenta de una y se suma/abona en la otra.</p>'
+    +'<div><label style="'+lbl+'">Fecha</label><input id="tr-fecha" type="date" value="'+_hoyISO()+'" style="'+inp+'"></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">De dónde sale 💸 (origen)</label><select id="tr-origen" style="'+inp+'">'+_traspOpts('')+'</select></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">A dónde va 🎯 (destino)</label><select id="tr-destino" style="'+inp+'">'+_traspOpts('')+'</select></div>'
+    +'<div id="tr-hint" style="font-size:10px;color:var(--text2);margin-top:6px;min-height:14px"></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">Monto</label><input id="tr-monto" type="number" min="0" step="0.01" placeholder="0.00" style="'+inp+'"></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">Concepto (opcional)</label><input id="tr-concepto" type="text" placeholder="ej. Pago tarjeta / Retiro efectivo" style="'+inp+'"></div>'
+    +'<div style="text-align:right;margin-top:16px"><button onclick="guardarTraspaso()" class="btn btn-accent">💾 Guardar traspaso</button></div>'
+    +'<div id="tr-msg" style="font-size:12px;margin-top:8px;min-height:14px;text-align:right"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  var upd=function(){
+    var o=cajaCuentas.find(function(x){return x.id===(document.getElementById('tr-origen')||{}).value;});
+    var d=cajaCuentas.find(function(x){return x.id===(document.getElementById('tr-destino')||{}).value;});
+    var h=document.getElementById('tr-hint'); if(!h) return;
+    if(o&&d){
+      var partes=[];
+      if(d.tipo==='credito'||d.tipo==='linea') partes.push('se abona a la deuda de '+escapeHTML(d.nombre));
+      else partes.push('entra a '+escapeHTML(d.nombre));
+      if(o.tipo==='credito'||o.tipo==='linea') partes.push('aumenta lo usado de '+escapeHTML(o.nombre));
+      else partes.push('baja el saldo de '+escapeHTML(o.nombre));
+      h.innerHTML='✔️ '+partes.join(' · ');
+    } else h.innerHTML='';
+  };
+  document.getElementById('tr-origen').onchange=upd;
+  document.getElementById('tr-destino').onchange=upd;
+}
+function guardarTraspaso(){
+  var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  var origen=g('tr-origen'), destino=g('tr-destino');
+  var monto=parseFloat(g('tr-monto'))||0;
+  var msg=document.getElementById('tr-msg');
+  if(!origen || !destino){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Elige la cuenta de origen y la de destino.'; } return; }
+  if(origen===destino){ if(msg){ msg.style.color='var(--red)'; msg.textContent='El origen y el destino no pueden ser la misma cuenta.'; } return; }
+  if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon un monto válido.'; } return; }
+  var co=cajaCuentas.find(function(x){return x.id===origen;});
+  var cd=cajaCuentas.find(function(x){return x.id===destino;});
+  var concepto=g('tr-concepto').trim() || ('Traspaso: '+(co?co.nombre:'')+' → '+(cd?cd.nombre:''));
+  var mov={ id:'cm'+Date.now()+'_tr', fecha:g('tr-fecha')||_hoyISO(), tipo:'traspaso', categoria:'Traspaso', concepto:concepto, monto:monto, cuentaId:origen, cuentaNombre:co?co.nombre:'', cuentaDestino:destino, cuentaDestinoNombre:cd?cd.nombre:'', ambito:'negocio' };
+  cajaMovs.push(mov);
+  _cajaAplicarCuenta(mov, +1);
+  _cajaSaveMovs();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
+  var o=document.getElementById('caja-trasp-ov'); if(o) o.remove();
+  if(cd && (cd.tipo==='credito'||cd.tipo==='linea')){ _notificarLiberacion(cd, monto); }
+  else { mostrarToast('🔄 Traspaso registrado ✓','green'); }
+  initCaja();
+}
 function cajaInversionJorge(){
   var montoStr=prompt('¿Cuánto invirtió Jorge? (en pesos)');
   if(montoStr===null) return;
@@ -15902,15 +16445,22 @@ function renderCaja(){
       '<th style="padding:8px 6px">Concepto</th><th style="padding:8px 6px;text-align:right">Monto</th><th></th></tr></thead><tbody>'+
     movs.map(function(m){
       var fuera=(m.fecha||'')<fi;
-      var color=m.tipo==='entrada'?'var(--green)':'var(--red)';
-      var signo=m.tipo==='entrada'?'+':'−';
+      var esTrasp=(m.tipo==='traspaso');
+      var color=esTrasp?'var(--accent2)':(m.tipo==='entrada'?'var(--green)':'var(--red)');
+      var signo=esTrasp?'':(m.tipo==='entrada'?'+':'−');
+      var tipoTag=esTrasp?'<span class="tag" style="background:rgba(139,68,246,.2);color:#b0a8f0">🔄 traspaso</span>':'<span class="tag '+(m.tipo==='entrada'?'tag-gold':'')+'">'+m.tipo+'</span>';
+      var catCell=esTrasp?('<span style="font-size:11px;color:var(--text2)">'+escapeHTML(m.cuentaNombre||'')+' → '+escapeHTML(m.cuentaDestinoNombre||'')+'</span>'):(escapeHTML(m.categoria||'')+' '+_cajaAmbitoBadge(m.ambito));
+      var concCell=escapeHTML(m.concepto||'')+((!esTrasp && m.cuentaNombre)?' <span class="tag" style="font-size:10px">'+escapeHTML(m.cuentaNombre)+'</span>':'')+((m.pagos>1)?' <span style="font-size:10px;color:var(--text2)">'+m.pagos+' pagos '+(m.interes==='con'?'c/interés':'s/interés')+'</span>':'');
+      var accGlobal=esTrasp
+        ? ('<button class="btn btn-danger btn-sm" onclick="borrarMovCaja(\''+m.id+'\')">✕</button>')
+        : ('<button class="btn btn-secondary btn-sm" onclick="editarMovCaja(\''+m.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="borrarMovCaja(\''+m.id+'\')">✕</button>');
       return '<tr style="border-bottom:1px solid var(--border);'+(fuera?'opacity:.4':'')+'">'+
         '<td style="padding:7px 6px">'+(m.fecha||'')+(fuera?' <span style="font-size:10px">(antes del inicio)</span>':'')+'</td>'+
-        '<td style="padding:7px 6px"><span class="tag '+(m.tipo==='entrada'?'tag-gold':'')+'">'+m.tipo+'</span></td>'+
-        '<td style="padding:7px 6px">'+escapeHTML(m.categoria||'')+' '+_cajaAmbitoBadge(m.ambito)+'</td>'+
-        '<td style="padding:7px 6px">'+escapeHTML(m.concepto||'')+(m.cuentaNombre?' <span class="tag" style="font-size:10px">'+escapeHTML(m.cuentaNombre)+'</span>':'')+((m.pagos>1)?' <span style="font-size:10px;color:var(--text2)">'+m.pagos+' pagos '+(m.interes==='con'?'c/interés':'s/interés')+'</span>':'')+'</td>'+
+        '<td style="padding:7px 6px">'+tipoTag+'</td>'+
+        '<td style="padding:7px 6px">'+catCell+'</td>'+
+        '<td style="padding:7px 6px">'+concCell+'</td>'+
         '<td style="padding:7px 6px;text-align:right;color:'+color+';font-weight:600">'+signo+$(parseFloat(m.monto)||0)+'</td>'+
-        '<td style="padding:7px 6px;text-align:right;white-space:nowrap">'+(_cajaEditMode?('<button class="btn btn-secondary btn-sm" onclick="editarMovCaja(\''+m.id+'\')">✏️</button> <button class="btn btn-danger btn-sm" onclick="borrarMovCaja(\''+m.id+'\')">✕</button>'):'')+'</td>'+
+        '<td style="padding:7px 6px;text-align:right;white-space:nowrap">'+(_cajaEditMode?accGlobal:'')+'</td>'+
       '</tr>';
     }).join('')+'</tbody>';
 }
@@ -15931,9 +16481,19 @@ function _emRellenarCats(){
   if(cur && cats.indexOf(cur)<0) cats.unshift(cur);
   var e2=function(s){ return (typeof escapeHTML==='function')?escapeHTML(s):(s==null?'':String(s)); };
   sel.innerHTML=cats.map(function(c){ return '<option value="'+e2(c)+'"'+(c===cur?' selected':'')+'>'+e2(c)+'</option>'; }).join('');
+  _emToggleCredito();
+}
+function _emToggleCredito(){
+  var box=document.getElementById('em-credito-box'); if(!box) return;
+  var cid=(document.getElementById('em-cuenta')||{}).value;
+  var t=(document.getElementById('em-tipo')||{}).value;
+  var c=cajaCuentas.find(function(x){ return x.id===cid; });
+  var show=c && (c.tipo==='credito'||c.tipo==='linea') && t==='salida';
+  box.style.display=show?'block':'none';
 }
 function editarMovCaja(id){
   var m=cajaMovs.find(function(x){ return x.id===id; }); if(!m) return;
+  if(m.tipo==='traspaso'){ if(typeof mostrarToast==='function') mostrarToast('Los traspasos no se editan: bórralo y créalo de nuevo con 🔄 Traspaso.','red'); return; }
   _cajaEditMovId=id;
   var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
   var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
@@ -15942,6 +16502,11 @@ function editarMovCaja(id){
   var _emCats=(m.tipo==='entrada'?CAJA_CATS_ENTRADA:CAJA_CATS_SALIDA).slice();
   if(m.categoria && _emCats.indexOf(m.categoria)<0) _emCats.unshift(m.categoria);
   var catOpts=_emCats.map(function(c){ return '<option value="'+esc(c)+'"'+(c===m.categoria?' selected':'')+'>'+esc(c)+'</option>'; }).join('');
+  var _ctaIni=cajaCuentas.find(function(c){ return c.id===m.cuentaId; });
+  var _esCredIni=_ctaIni && (_ctaIni.tipo==='credito'||_ctaIni.tipo==='linea');
+  var _pagIni=parseInt(m.pagos,10)||1;
+  var mesesOpts=''; for(var _mi=1;_mi<=36;_mi++){ mesesOpts+='<option value="'+_mi+'"'+((_pagIni===_mi)?' selected':'')+'>'+(_mi===1?'1 (de contado)':_mi+' meses')+'</option>'; }
+  if(_pagIni>36) mesesOpts='<option value="'+_pagIni+'" selected>'+_pagIni+' meses</option>'+mesesOpts;
   var ov=document.getElementById('caja-editmov-ov'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='caja-editmov-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
@@ -15957,7 +16522,17 @@ function editarMovCaja(id){
       +'<div><label style="'+lbl+'">Monto</label><input id="em-monto" type="number" step="0.01" value="'+(m.monto||0)+'" style="'+inp+'"></div>'
       +'<div><label style="'+lbl+'">Ámbito</label><select id="em-ambito" style="'+inp+'"><option value="negocio"'+((m.ambito||'negocio')==='negocio'?' selected':'')+'>🏪 Negocio</option><option value="hogar"'+(m.ambito==='hogar'?' selected':'')+'>🏠 Hogar</option><option value="propios"'+((m.ambito==='propios'||m.ambito==='externo')?' selected':'')+'>🧍 Gastos propios</option></select></div>'
     +'</div>'
-    +'<div style="margin-top:8px"><label style="'+lbl+'">Cuenta</label><select id="em-cuenta" style="'+inp+'">'+ctaOpts+'</select></div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">Cuenta</label><select id="em-cuenta" onchange="_emToggleCredito()" style="'+inp+'">'+ctaOpts+'</select></div>'
+    +'<div id="em-credito-box" style="margin-top:8px;display:'+((_esCredIni && m.tipo!=='entrada')?'block':'none')+'">'
+      +'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px">'
+        +'<div style="font-size:11px;color:var(--accent2);font-weight:700;margin-bottom:6px">💳 Plan de pago (tarjeta de crédito)</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+          +'<div><label style="'+lbl+'">¿A cuántos meses?</label><select id="em-pagos" style="'+inp+'">'+mesesOpts+'</select></div>'
+          +'<div><label style="'+lbl+'">Interés</label><select id="em-interes" style="'+inp+'"><option value="sin"'+((m.interes!=='con')?' selected':'')+'>Sin interés</option><option value="con"'+((m.interes==='con')?' selected':'')+'>Con interés</option></select></div>'
+        +'</div>'
+        +'<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:11px;color:var(--text2);cursor:pointer"><input type="checkbox" id="em-yausado"'+(m.noSaldo?' checked':'')+' style="margin-top:2px;width:16px;height:16px;accent-color:var(--accent)"><span>Ya está incluida en el saldo usado (no volver a sumarla a la deuda)</span></label>'
+      +'</div>'
+    +'</div>'
     +'<div style="text-align:right;margin-top:16px"><button onclick="guardarEdicionMovCaja()" class="btn btn-accent">💾 Guardar</button></div>'
   +'</div>';
   document.body.appendChild(ov);
@@ -15977,6 +16552,14 @@ function guardarEdicionMovCaja(){
   var cuentaId=g('em-cuenta'); m.cuentaId=cuentaId;
   var cuenta=cajaCuentas.find(function(c){ return c.id===cuentaId; });
   m.cuentaNombre=cuenta?cuenta.nombre:'';
+  // Plan de pago (solo compras a crédito)
+  if(cuenta && (cuenta.tipo==='credito'||cuenta.tipo==='linea') && m.tipo==='salida'){
+    var ep=document.getElementById('em-pagos'); if(ep) m.pagos=parseInt(ep.value,10)||1;
+    var ei=document.getElementById('em-interes'); if(ei) m.interes=ei.value||'sin';
+    var ey=document.getElementById('em-yausado'); m.noSaldo = !!(ey && ey.checked);
+  } else {
+    delete m.pagos; delete m.interes; delete m.noSaldo;
+  }
   _cajaAplicarCuenta(m, +1);
   _cajaSaveMovs();
   var ov=document.getElementById('caja-editmov-ov'); if(ov) ov.remove();
