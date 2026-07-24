@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v294</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v303</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -2868,12 +2868,17 @@ function save(key, val){
 function _subirClave(key, val){
   if(!window.FB_URL){ return; }
   if(!window.FB_IDTOKEN){ _encolar(key,val); return; }
+  var _payload = (typeof _fbLimpiarLlaves==='function') ? _fbLimpiarLlaves(val) : val;
   fetch(window.FB_URL+'/'+(window.FB_NODE||'erp')+'/'+key+'.json?auth='+window.FB_IDTOKEN, {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(val)
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(_payload)
   })
   .then(function(r){
     if(r.ok){ _desencolar(key); }
-    else { _encolar(key,val); if(r.status===401 || r.status===403){ _renovarToken(); } }
+    else {
+      _encolar(key,val);
+      if(r.status===401 || r.status===403){ _renovarToken(); }
+      else if(r.status===400){ try{ console.warn('Nube rechazó la clave "'+key+'" (400). Se reintentará con el dato limpio.'); }catch(e){} }
+    }
   })
   .catch(function(){ _encolar(key,val); });   // sin internet
 }
@@ -2906,12 +2911,33 @@ function _renovarToken(cb){
   .catch(function(){ _renovando=false; _pintarEstadoNube(); });
 }
 
-// Reintenta todo lo que quedó pendiente
+// Reintenta todo lo que quedó pendiente.
+// Importante: reenvía el valor ACTUAL de localStorage (limpio), no el que quedó atorado en la cola,
+// para no repetir para siempre un dato viejo con formato que la nube rechaza (error 400).
 function _reintentarPendientes(){
   var claves=Object.keys(_pendientes);
   if(!claves.length){ _pintarEstadoNube(); return; }
   if(!window.FB_IDTOKEN){ _renovarToken(); _pintarEstadoNube(); return; }
-  claves.forEach(function(k){ _subirClave(k, _pendientes[k]); });
+  claves.forEach(function(k){
+    var v;
+    try{ var raw=localStorage.getItem(k); v = (raw==null) ? _pendientes[k] : JSON.parse(raw); }
+    catch(e){ v=_pendientes[k]; }
+    _subirClave(k, _fbLimpiarLlaves(v));
+  });
+}
+// Deja los datos "a prueba de Firebase": arregla cualquier llave con caracteres prohibidos ( . / # $ [ ] )
+// o vacía, para que nunca se quede algo sin subir por un 400.
+function _fbLimpiarLlaves(val){
+  if(Array.isArray(val)) return val.map(_fbLimpiarLlaves);
+  if(val && typeof val==='object'){
+    var out={};
+    Object.keys(val).forEach(function(k){
+      var nk=(k===''?'_':k).replace(/[.#$\/\[\]]/g,'_');
+      out[nk]=_fbLimpiarLlaves(val[k]);
+    });
+    return out;
+  }
+  return val;
 }
 
 // El indicador dice la VERDAD sobre la nube
@@ -9881,10 +9907,18 @@ function _pgPagosDelMes(mes){
   // ── Pagos de tarjetas de crédito (según su corte/pago) ──
   try{
     (typeof cajaCuentas!=='undefined'?cajaCuentas:[]).forEach(function(cta){
-      if((cta.tipo==='credito'||cta.tipo==='linea') && cta.corte && (cta.pago || cta.pagoDias)){
+      var _estPag=(Array.isArray(cta.estadosPagados)?cta.estadosPagados:[]);
+      if(typeof _esQuincenal==='function' && _esQuincenal(cta)){
+        var porQ=_tarjetaPagosQuincenal(cta);
+        Object.keys(porQ).forEach(function(fk){
+          if(fk.slice(0,7)===mes && porQ[fk].monto>0 && _estPag.indexOf(fk)<0){
+            out.push({ id:'tarjeta|'+cta.id+'|'+fk, cat:'💳 Tarjetas de crédito', nombre:'Pago '+cta.nombre+' (quincena)', monto:porQ[fk].monto, frec:'quincenal', dia:parseInt(fk.slice(8,10),10)||1, fecha:fk });
+          }
+        });
+      } else if((cta.tipo==='credito'||cta.tipo==='linea') && cta.corte && (cta.pago || cta.pagoDias)){
         var porMes=_tarjetaPagosPorMes(cta);
         var info=porMes[mes];
-        if(info && info.monto>0){
+        if(info && info.monto>0 && _estPag.indexOf(mes)<0){
           var fechaPago=info.fecha||(anio+'-'+String(nm).padStart(2,'0')+'-'+String(Math.min(parseInt(cta.pago,10)||1, ultimo)).padStart(2,'0'));
           var diaPago=parseInt(fechaPago.slice(8,10),10)||1;
           out.push({
@@ -15534,6 +15568,7 @@ function _cajaFecha(){ return cajaConfig.fechaInicio || _hoyISO(); }
 function _cajaSaldoIni(){ return parseFloat(cajaConfig.saldoInicial)||0; }
 function _cajaMovsValidos(){ var fi=_cajaFecha(); return cajaMovs.filter(function(m){ return (m.fecha||'')>=fi; }); }
 function _cajaM(n){ return '$'+Math.round(n||0).toLocaleString(); }
+function _cajaM2(n){ return '$'+(Number(n)||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function _cajaSaldoRow(label, val, color){
   var col = color==='green'?'var(--green)':color==='red'?'var(--red)':'var(--text)';
   return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--border)"><span style="font-size:12px;color:var(--text2)">'+label+'</span><b style="font-size:15px;color:'+col+'">'+_cajaM(val)+'</b></div>';
@@ -15543,6 +15578,7 @@ function _cajaTotales(){
   movs.forEach(function(m){
     if(m.tipo==='traspaso') return;   // los traspasos no son ni entrada ni salida (dinero interno)
     if(m._abonoTarjeta) return;       // un pago/abono a tarjeta no es ingreso ni gasto real
+    if(m._reembolso) return;          // un reembolso a la tarjeta no es ingreso real
     if(m.noSaldo) return;             // compra histórica de tarjeta: cuenta en el pago mensual, no aquí
     var mt=parseFloat(m.monto)||0;
     var amb=m.ambito||'negocio'; if(amb==='externo') amb='propios';
@@ -15566,14 +15602,31 @@ let cajaCuentas = (function(){ try{ var v=JSON.parse(localStorage.getItem('caja_
 })();
 function _cajaSaveCuentas(){ save('caja_cuentas', cajaCuentas); }
 function _cajaAutoUsado(c){ return (c.tipo==='credito'||c.tipo==='linea') && c.autoUsado===true; }
-// Deuda usada calculada: compras + disposiciones − pagos/abonos
+// Deuda usada calculada.
+// Con ciclo (corte/pago): deuda = suma de las MENSUALIDADES PENDIENTES (mes actual en adelante,
+//   sin los estados de cuenta ya pagados). Así las mensualidades viejas ya pagadas no se cuentan.
+// Sin ciclo: compras + disposiciones − pagos/abonos.
+function _cajaReembolsos(card){
+  var t=0;
+  (typeof cajaMovs!=='undefined'?cajaMovs:[]).forEach(function(m){ if(m._reembolso && m.cuentaId===card.id) t+=(parseFloat(m.monto)||0); });
+  return t;
+}
 function _cajaUsadoCalc(card){
+  if((card.corte && (card.pago||card.pagoDias)) || _esQuincenal(card)){
+    var porMes=_tarjetaPagos(card);
+    var umbral=_tarjetaUmbral(card);
+    var pagados=_estadosPagados(card);
+    var tot=0;
+    Object.keys(porMes).forEach(function(k){ if(k>=umbral && pagados.indexOf(k)<0) tot+=(porMes[k].monto||0); });
+    tot -= _cajaReembolsos(card);   // los reembolsos/devoluciones bajan la deuda
+    return Math.max(0, Math.round(tot*100)/100);
+  }
   var compras=0, pagos=0;
   (typeof cajaMovs!=='undefined'?cajaMovs:[]).forEach(function(m){
     var mt=parseFloat(m.monto)||0;
     if(m.tipo==='salida' && m.cuentaId===card.id){ compras+=mt; }
     else if(m.tipo==='traspaso' && m.cuentaId===card.id){ compras+=mt; }   // disposición de efectivo desde la tarjeta
-    else if(m.tipo==='entrada' && m._abonoTarjeta && m.cuentaId===card.id){ pagos+=mt; }
+    else if(m.tipo==='entrada' && (m._abonoTarjeta||m._reembolso) && m.cuentaId===card.id){ pagos+=mt; }
     else if(m.tipo==='traspaso' && m.cuentaDestino===card.id){ pagos+=mt; } // pago desde otra cuenta
   });
   return Math.max(0, compras - pagos);
@@ -15625,23 +15678,60 @@ function _cajaCuentaOptions(sel){
   var lbl={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito'};
   return '<option value="">— Sin cuenta —</option>'+cajaCuentas.map(function(c){ return '<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+escapeHTML(c.nombre)+' ('+(lbl[c.tipo]||c.tipo)+')</option>'; }).join('');
 }
+// Identifica el banco de una cuenta por su nombre (para color y agrupación)
+function _cajaBanco(nombre){
+  var n=(nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  if(n.indexOf('cartera')>=0 || n.indexOf('efectivo')>=0) return 'cartera';
+  if(n.indexOf('bbva')>=0) return 'bbva';
+  if(n.indexOf('banamex')>=0) return 'banamex';
+  if(n.indexOf('spin')>=0) return 'spin';
+  if(n.indexOf('meli')>=0 && n.indexOf('westeros')>=0) return 'meliw';
+  if(n.indexOf('meli')>=0 && (n.indexOf('kafe')>=0 || n.indexOf('ka fe')>=0)) return 'melik';
+  if(n.indexOf('didi')>=0) return 'didi';
+  if(n.indexOf('aplazo')>=0) return 'aplazo';
+  if(/(^|[^a-z])nu([^a-z]|$)/.test(n)) return 'nu';
+  return 'otro';
+}
+// Colores por banco: g=degradado, t=color de texto
+var _BANCO_COL={
+  cartera:{g:'linear-gradient(135deg,#3a7d44,#1e5631)',t:'#fff'},
+  bbva:{g:'linear-gradient(135deg,#56ccf2,#2d9cdb)',t:'#fff'},
+  nu:{g:'linear-gradient(135deg,#a020f0,#820ad1)',t:'#fff'},
+  banamex:{g:'linear-gradient(135deg,#e0242f,#a4000f)',t:'#fff'},
+  spin:{g:'linear-gradient(135deg,#8e54e9,#4776e6)',t:'#fff'},
+  meliw:{g:'linear-gradient(135deg,#ffe259,#f6c000)',t:'#4a3800'},
+  melik:{g:'linear-gradient(135deg,#ffe259,#f6c000)',t:'#4a3800'},
+  didi:{g:'linear-gradient(135deg,#ffa64d,#ff6d00)',t:'#fff'},
+  aplazo:{g:'linear-gradient(135deg,#2d6cdf,#123a8f)',t:'#fff'},
+  otro:{g:'linear-gradient(135deg,#5a5a6e,#33333f)',t:'#fff'}
+};
+var _BANCO_ORDEN=['cartera','bbva','nu','banamex','spin','meliw','melik','didi','aplazo','otro'];
 function _cajaCuentasHTML(){
-  var grupos=['efectivo','debito','credito','linea']; var liquidez=0, deuda=0, dispo=0; var tiles='';
-  var grads={efectivo:'linear-gradient(135deg,#3a7d44,#1e5631)',debito:'linear-gradient(135deg,#2b5876,#4e4376)',credito:'linear-gradient(135deg,#8e2de2,#4a00e0)',linea:'linear-gradient(135deg,#c31432,#240b36)'};
+  var liquidez=0, deuda=0, dispo=0; var tiles='';
   var subl={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito (línea)'};
-  grupos.forEach(function(g){
-    cajaCuentas.filter(function(c){ return c.tipo===g; }).forEach(function(c){
-      var val=0, extra='';
-      if(g==='efectivo'||g==='debito'){ val=parseFloat(c.saldo)||0; liquidez+=val; }
-      else if(g==='credito'){ var us=parseFloat(c.usado)||0, lim=parseFloat(c.limite)||0; deuda+=us; var dispc=Math.max(0,lim-us); dispo+=dispc; val=dispc; extra='Total '+_cajaM(lim)+' · Usado '+_cajaM(us); }
-      else { var lim2=parseFloat(c.limite)||0, us2=parseFloat(c.usado)||0, dispL=(lim2>0?Math.max(0,lim2-us2):(parseFloat(c.disponible)||0)); dispo+=dispL; val=dispL; extra=(lim2>0?('Total '+_cajaM(lim2)+' · Usado '+_cajaM(us2)):''); }
-      tiles+='<div onclick="verEstadoCuenta(\''+c.id+'\')" title="Ver estado de cuenta" style="background:'+grads[g]+';border-radius:12px;padding:14px 16px;min-width:170px;flex:1 1 175px;max-width:240px;color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.35);cursor:pointer;transition:transform .1s,box-shadow .1s" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 16px rgba(0,0,0,.45)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.35)\'">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:800;letter-spacing:.4px">'+escapeHTML(c.nombre)+'</span><span style="font-size:16px">💳</span></div>'
-        +'<div style="font-size:10px;opacity:.85;margin-top:2px">'+subl[g]+(extra?(' · '+extra):'')+'</div>'
-        +'<div style="font-size:21px;font-weight:800;margin-top:16px">'+_cajaM(val)+'</div>'
-        +'<div style="font-size:10px;opacity:.8;margin-top:8px;border-top:1px solid rgba(255,255,255,.2);padding-top:6px">📄 Ver estado de cuenta →</div>'
-      +'</div>';
-    });
+  var tipoOrd={efectivo:0,debito:1,credito:2,linea:3};
+  // Ordenar cuentas: agrupadas por banco (según _BANCO_ORDEN), y dentro por tipo (débito antes que crédito)
+  var ordenadas=cajaCuentas.slice().sort(function(a,b){
+    var ba=_BANCO_ORDEN.indexOf(_cajaBanco(a.nombre)), bb=_BANCO_ORDEN.indexOf(_cajaBanco(b.nombre));
+    if(ba<0) ba=99; if(bb<0) bb=99;
+    if(ba!==bb) return ba-bb;
+    var ta=tipoOrd[a.tipo]!=null?tipoOrd[a.tipo]:9, tb=tipoOrd[b.tipo]!=null?tipoOrd[b.tipo]:9;
+    return ta-tb;
+  });
+  ordenadas.forEach(function(c){
+    var g=c.tipo, val=0, extra='';
+    if(g==='efectivo'||g==='debito'){ val=parseFloat(c.saldo)||0; liquidez+=val; }
+    else if(g==='credito'){ var us=parseFloat(c.usado)||0, lim=parseFloat(c.limite)||0; deuda+=us; var dispc=Math.max(0,lim-us); dispo+=dispc; val=dispc; extra='Total '+_cajaM(lim)+' · Usado '+_cajaM(us); }
+    else { var lim2=parseFloat(c.limite)||0, us2=parseFloat(c.usado)||0, dispL=(lim2>0?Math.max(0,lim2-us2):(parseFloat(c.disponible)||0)); dispo+=dispL; val=dispL; extra=(lim2>0?('Total '+_cajaM(lim2)+' · Usado '+_cajaM(us2)):''); }
+    var col=_BANCO_COL[_cajaBanco(c.nombre)]||_BANCO_COL.otro;
+    var esClaro=(col.t!=='#fff');
+    var borde=esClaro?'rgba(0,0,0,.15)':'rgba(255,255,255,.2)';
+    tiles+='<div onclick="verEstadoCuenta(\''+c.id+'\')" title="Ver estado de cuenta" style="background:'+col.g+';border-radius:12px;padding:14px 16px;min-width:170px;flex:1 1 175px;max-width:240px;color:'+col.t+';box-shadow:0 3px 10px rgba(0,0,0,.35);cursor:pointer;transition:transform .1s,box-shadow .1s" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 6px 16px rgba(0,0,0,.45)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.35)\'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:800;letter-spacing:.4px">'+escapeHTML(c.nombre)+'</span><span style="font-size:16px">💳</span></div>'
+      +'<div style="font-size:10px;opacity:.85;margin-top:2px">'+subl[g]+(extra?(' · '+extra):'')+'</div>'
+      +'<div style="font-size:21px;font-weight:800;margin-top:16px">'+_cajaM(val)+'</div>'
+      +'<div style="font-size:10px;opacity:.85;margin-top:8px;border-top:1px solid '+borde+';padding-top:6px">📄 Ver estado de cuenta →</div>'
+    +'</div>';
   });
   var resumen='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:12px">'
     +'<span>💵 Liquidez: <b style="color:var(--green)">'+_cajaM(liquidez)+'</b></span>'
@@ -15701,7 +15791,7 @@ function _tarjetaPagosPorMes(card){
     // Ciclo en que cae la compra: si el día <= corte, cierra este mes; si no, el siguiente
     var cierreY=y, cierreM=mo;
     if(da>corte){ cierreM++; if(cierreM>12){ cierreM=1; cierreY++; } }
-    var cuota=Math.round(total/n);
+    var cuota=Math.round(total/n*100)/100;   // conserva centavos como el banco
     for(var k=0;k<n;k++){
       var ccM=cierreM+k, ccY=cierreY; while(ccM>12){ ccM-=12; ccY++; }
       var pagoDt=_pagoDateDeCiclo(card, ccY, ccM);
@@ -15710,24 +15800,84 @@ function _tarjetaPagosPorMes(card){
       if(n===1 && key<_hoyK){ key=_hoyK; var p2=_hoyK.split('-'); pagoDt=_pagoDateDeCiclo(card, +p2[0], +p2[1]); }
       if(!res[key]) res[key]={monto:0, detalle:[], fecha:_isoDe(pagoDt)};
       res[key].monto+=cuota;
-      res[key].detalle.push({ concepto:(m.concepto||m.categoria||'Compra'), monto:cuota, ambito:(m.ambito||'negocio'), msi:(n>1?((k+1)+'/'+n):'') });
+      res[key].detalle.push({ concepto:(m.concepto||m.categoria||'Compra'), monto:cuota, ambito:(m.ambito||'negocio'), msi:(n>1?((k+1)+'/'+n):''), compra:(m.fecha||'') });
     }
   });
   return res;
 }
-// Próximo pago pendiente (desde el mes actual en adelante)
+// Ordena el detalle de un pago: primero las compras A MESES, luego las de CONTADO; y por fecha de compra
+function _ordenarDetalle(detalle){
+  return (detalle||[]).slice().sort(function(a,b){
+    var ca=a.msi?0:1, cb=b.msi?0:1;          // a meses (0) antes que contado (1)
+    if(ca!==cb) return ca-cb;
+    var fa=(a.compra||''), fb=(b.compra||'');
+    if(fa!==fb) return fa.localeCompare(fb);  // por fecha de compra (más vieja primero)
+    return (a.concepto||'').localeCompare(b.concepto||'');
+  });
+}
+// ── MODO QUINCENAL (tipo Aplazo): pagos cada 15 días desde la fecha de compra, con interés ──
+function _esQuincenal(card){ return card && card.tipo==='linea' && card.formaPago==='quincenal'; }
+// Devuelve { 'YYYY-MM-DD' (fecha de cada pago): {monto, detalle:[...], fecha} }
+function _tarjetaPagosQuincenal(card){
+  var res={};
+  var movs=(typeof cajaMovs!=='undefined'?cajaMovs:[]).filter(function(m){ return m.cuentaId===card.id && m.tipo==='salida'; });
+  movs.forEach(function(m){
+    var fp=(m.fecha||'').split('-'); if(fp.length<3) return;
+    var N=Math.max(1, parseInt(m.pagos,10)||1);
+    var ini=Math.max(0, Math.min(N, parseInt(m.pagadasIni,10)||0));   // quincenas que ya pagó al capturar (saltar)
+    var total=parseFloat(m.monto)||0;
+    var cuota=(parseFloat(m.pagoCuota)>0) ? parseFloat(m.pagoCuota) : Math.round(total/N*100)/100;
+    var base=new Date(+fp[0], (+fp[1])-1, +fp[2]);
+    for(var k=ini;k<N;k++){
+      var dt=new Date(base.getTime()); dt.setDate(dt.getDate()+15*k);
+      var key=_isoDe(dt);
+      if(!res[key]) res[key]={monto:0, detalle:[], fecha:key};
+      res[key].monto+=cuota;
+      res[key].detalle.push({ concepto:(m.concepto||m.categoria||'Compra'), monto:cuota, ambito:(m.ambito||'negocio'), msi:((k+1)+'/'+N), compra:(m.fecha||'') });
+    }
+  });
+  return res;
+}
+// Mapa de pagos según el modo de la tarjeta (mensual o quincenal)
+function _tarjetaPagos(card){ return _esQuincenal(card) ? _tarjetaPagosQuincenal(card) : _tarjetaPagosPorMes(card); }
+// Umbral para decidir qué pagos siguen pendientes.
+// Quincenal (Aplazo): '' → cuenta TODAS las quincenas desde la fecha de compra (no asume nada por la fecha de hoy;
+//   tú controlas cuántas ya pagaste con "ya pagué N" o marcándolas). Mensual: mes actual (las anteriores se asumen pagadas).
+function _tarjetaUmbral(card){ if(_esQuincenal(card)) return ''; var h=new Date(); h.setHours(0,0,0,0); return (h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')); }
+// Estados de cuenta ya pagados (por mes) de una tarjeta
+function _estadosPagados(card){ return (card && Array.isArray(card.estadosPagados)) ? card.estadosPagados : []; }
+function _estadoPagado(card, mesKey){ return _estadosPagados(card).indexOf(mesKey)>=0; }
+// Próximo pago pendiente (desde hoy en adelante, saltando los estados ya pagados)
 function _tarjetaProxPago(card){
-  var porMes=_tarjetaPagosPorMes(card);
+  var porMes=_tarjetaPagos(card);
   var claves=Object.keys(porMes).filter(function(k){ return porMes[k].monto>0; }).sort();
   var hoy=new Date(); hoy.setHours(0,0,0,0);
-  var mesActual=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+  var umbral=_tarjetaUmbral(card);
+  var pagados=_estadosPagados(card);
   var elegido=null;
-  for(var i=0;i<claves.length;i++){ if(claves[i]>=mesActual){ elegido=claves[i]; break; } }
+  for(var i=0;i<claves.length;i++){ if(claves[i]>=umbral && pagados.indexOf(claves[i])<0){ elegido=claves[i]; break; } }
   if(!elegido) return null;
   var fecha=porMes[elegido].fecha;
   var fpp=fecha.split('-'); var fp=new Date(+fpp[0], (+fpp[1])-1, +fpp[2]);
   var dias=Math.round((fp-hoy)/86400000);
-  return { mesKey:elegido, fecha:fecha, monto:porMes[elegido].monto, dias:dias, detalle:porMes[elegido].detalle, todos:porMes };
+  return { mesKey:elegido, fecha:fecha, monto:porMes[elegido].monto, dias:dias, detalle:porMes[elegido].detalle, todos:porMes, quincenal:_esQuincenal(card) };
+}
+// Marca / desmarca un estado de cuenta como pagado
+function _marcarEstadoPagado(cardId, mesKey){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  if(!Array.isArray(c.estadosPagados)) c.estadosPagados=[];
+  if(c.estadosPagados.indexOf(mesKey)<0) c.estadosPagados.push(mesKey);
+  _cajaSaveCuentas();
+  try{ mostrarToast('✓ Estado de cuenta marcado como pagado','green'); }catch(e){}
+  try{ initCaja(); }catch(e){}
+  verEstadoCuenta(cardId);
+}
+function _desmarcarEstadoPagado(cardId, mesKey){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  if(Array.isArray(c.estadosPagados)) c.estadosPagados=c.estadosPagados.filter(function(k){ return k!==mesKey; });
+  _cajaSaveCuentas();
+  try{ initCaja(); }catch(e){}
+  verEstadoCuenta(cardId);
 }
 function _diaEsp(n){ return n+' de cada mes'; }
 // Fecha bonita: "5 jul 2026"
@@ -15784,8 +15934,9 @@ function verEstadoCuenta(id){
   var esCred=(c.tipo==='credito'||c.tipo==='linea');
   var accionesHTML = esCred
     ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
-      +'<button onclick="abrirAgregarCompra(\''+c.id+'\')" class="btn btn-accent btn-sm" style="flex:1;min-width:150px">➕ Agregar compra / cargo</button>'
-      +'<button onclick="abrirPagoTarjeta(\''+c.id+'\')" class="btn btn-secondary btn-sm" style="flex:1;min-width:150px;border-color:var(--green);color:var(--green)">✅ Registrar pago (abono)</button>'
+      +'<button onclick="abrirAgregarCompra(\''+c.id+'\')" class="btn btn-accent btn-sm" style="flex:1;min-width:140px">➕ Agregar compra / cargo</button>'
+      +'<button onclick="abrirPagoTarjeta(\''+c.id+'\')" class="btn btn-secondary btn-sm" style="flex:1;min-width:140px;border-color:var(--green);color:var(--green)">✅ Registrar pago (abono)</button>'
+      +'<button onclick="abrirReembolso(\''+c.id+'\')" class="btn btn-secondary btn-sm" style="flex:1;min-width:140px;border-color:#5b8af4;color:#7ea8ff">↩️ Reembolso / devolución</button>'
       +'</div>'
     : '';
   var ov=document.getElementById('caja-estado-ov'); if(ov) ov.remove();
@@ -15803,10 +15954,36 @@ function verEstadoCuenta(id){
       +'<div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:2px">Mes</label><select id="estado-f-mes" onchange="_estadoSetFiltro(\'mes\',this.value)" style="'+selSty+'">'+mesOpts+'</select></div>'
       +'<div><label style="font-size:10px;color:var(--text2);display:block;margin-bottom:2px">Movimiento</label><select id="estado-f-tipo" onchange="_estadoSetFiltro(\'tipo\',this.value)" style="'+selSty+'"><option value="todos">Todos</option><option value="entrada">Solo entradas</option><option value="salida">Solo salidas</option></select></div>'
     +'</div>'
+    +'<div id="estado-dups"></div>'
     +'<div id="estado-cuerpo"></div>'
   +'</div>';
   document.body.appendChild(ov);
   _estadoRenderBody();
+}
+function _estadoDuplicadosHTML(card){
+  if(!card) return '';
+  var norm=function(s){ return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); };
+  var movs=cajaMovs.filter(function(m){ return m.cuentaId===card.id && m.tipo==='salida'; });
+  var grupos={};
+  movs.forEach(function(m){
+    var key=(m.fecha||'')+'|'+Math.round((parseFloat(m.monto)||0)*100)+'|'+norm(m.concepto);
+    (grupos[key]=grupos[key]||[]).push(m);
+  });
+  var dups=[]; Object.keys(grupos).forEach(function(k){ if(grupos[k].length>=2) dups.push(grupos[k]); });
+  if(!dups.length) return '';
+  var h='<div style="margin-top:10px;background:rgba(244,91,105,.1);border:1px solid var(--red);border-radius:11px;padding:12px 14px">'
+    +'<div style="font-weight:800;color:var(--red);font-size:13px">⚠️ Posibles cargos duplicados ('+dups.length+')</div>'
+    +'<div style="font-size:10px;color:var(--text2);margin:2px 0 8px">Estos movimientos tienen la <b>misma fecha, monto y concepto</b>. Revisa si es un cargo repetido y quita el que sobre (los cambios ajustan tu deuda solos).</div>';
+  dups.forEach(function(g){
+    var m0=g[0];
+    h+='<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px"><span>'+escapeHTML(m0.concepto||m0.categoria||'(sin concepto)')+'</span><span style="color:var(--red);font-weight:700;white-space:nowrap">'+_cajaM2(m0.monto)+'</span></div>'
+      +'<div style="font-size:10px;color:var(--text2);margin-top:2px">Aparece <b>'+g.length+' veces</b> · '+escapeHTML(m0.fecha||'')+'</div>'
+      +'<div style="text-align:right;margin-top:6px"><button onclick="borrarMovCaja(\''+g[g.length-1].id+'\')" class="btn btn-danger btn-sm" style="padding:3px 9px;font-size:11px">✕ Quitar uno</button></div>'
+    +'</div>';
+  });
+  h+='</div>';
+  return h;
 }
 function _estadoSetFiltro(cual, val){
   if(cual==='mes') _estadoMes=val; else if(cual==='tipo') _estadoTipo=val;
@@ -15834,10 +16011,17 @@ function abrirAgregarCompra(cardId){
       +'<div><label style="'+lbl+'">Categoría</label><select id="cp-cat" style="'+inp+'">'+catOpts+'</select></div>'
       +'<div><label style="'+lbl+'">Tipo de gasto</label><select id="cp-ambito" style="'+inp+'"><option value="negocio">🏪 Negocio</option><option value="hogar">🏠 Hogar</option><option value="propios">🧍 Propio</option></select></div>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-      +'<div><label style="'+lbl+'">¿A cuántos meses?</label><select id="cp-meses" style="'+inp+'">'+mesesOpts+'</select></div>'
-      +'<div><label style="'+lbl+'">Interés</label><select id="cp-interes" style="'+inp+'"><option value="sin">Sin interés</option><option value="con">Con interés</option></select></div>'
-    +'</div>'
+    + (_esQuincenal(c)
+        ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+            +'<div><label style="'+lbl+'">¿A cuántas quincenas?</label><input id="cp-quincenas" type="number" min="1" value="1" style="'+inp+'"></div>'
+            +'<div><label style="'+lbl+'">Pago por quincena</label><input id="cp-cuota" type="number" min="0" step="0.01" placeholder="lo que dice Aplazo" style="'+inp+'"></div>'
+          +'</div>'
+          +'<div style="margin-top:8px"><label style="'+lbl+'">¿Cuántas quincenas ya pagaste? (0 si es nueva)</label><input id="cp-pagadas" type="number" min="0" value="0" style="'+inp+'"></div>'
+          +'<div style="font-size:10px;color:var(--text2);margin-top:6px">Pon el <b>pago por quincena</b> que te dice Aplazo y yo calculo el interés y las fechas (cada 15 días desde la compra). Cuento las quincenas <b>desde la fecha de compra</b>; si ya pagaste algunas, dime cuántas y esas ya no se cuentan.</div>'
+        : '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
+            +'<div><label style="'+lbl+'">¿A cuántos meses?</label><select id="cp-meses" style="'+inp+'">'+mesesOpts+'</select></div>'
+            +'<div><label style="'+lbl+'">Interés</label><select id="cp-interes" style="'+inp+'"><option value="sin">Sin interés</option><option value="con">Con interés</option></select></div>'
+          +'</div>')
     + (_cajaAutoUsado(c)
         ? '<div style="margin-top:12px;font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px">🧮 La deuda de esta tarjeta se <b>calcula sola</b>: esta compra se sumará automáticamente a tu deuda usada.</div>'
         : '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:11px;color:var(--text2);cursor:pointer">'
@@ -15856,15 +16040,20 @@ function guardarCompraTarjeta(cardId){
   var msg=document.getElementById('cp-msg');
   if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon un monto válido.'; } return; }
   var yaUsado = _cajaAutoUsado(c) ? true : (document.getElementById('cp-yausado')||{}).checked;
+  var esQ=_esQuincenal(c);
+  var nPer = esQ ? (parseInt(g('cp-quincenas'),10)||1) : (parseInt(g('cp-meses'),10)||1);
+  var cuotaQ = esQ ? (parseFloat(g('cp-cuota'))||0) : 0;
   var mov={
     id:'cm'+Date.now()+'_cp'+Math.floor(Math.random()*1000),
     fecha:g('cp-fecha')||_hoyISO(), tipo:'salida',
     categoria:g('cp-cat')||'Otro gasto', concepto:(g('cp-concepto').trim()||g('cp-cat')||'Compra'),
     monto:monto, cuentaId:cardId, cuentaNombre:c.nombre,
     ambito:g('cp-ambito')||'negocio',
-    pagos:parseInt(g('cp-meses'),10)||1, interes:g('cp-interes')||'sin',
+    pagos:nPer, interes:(esQ?'con':(g('cp-interes')||'sin')),
     noSaldo: !!yaUsado
   };
+  if(esQ && cuotaQ>0) mov.pagoCuota=cuotaQ;
+  if(esQ) mov.pagadasIni=Math.max(0, parseInt(g('cp-pagadas'),10)||0);
   cajaMovs.push(mov);
   _cajaAplicarCuenta(mov, +1);   // si noSaldo=true, no toca el saldo
   _cajaSaveMovs();
@@ -15879,6 +16068,10 @@ function abrirPagoTarjeta(cardId){
   var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
   var lbl='font-size:11px;color:var(--text2)';
   var usado=parseFloat(c.usado)||0;
+  var prox=_tarjetaProxPago(c);
+  var sugerido = prox? prox.monto : 0;
+  var mesLiq = prox? prox.mesKey : '';
+  var mesLiqTxt = mesLiq? ((MESES_ES[(+mesLiq.split('-')[1])-1]||'')+' '+mesLiq.split('-')[0]) : '';
   var origenOpts='<option value="">— Pago externo (no descontar de otra cuenta) —</option>'+cajaCuentas.filter(function(x){ return x.id!==cardId; }).map(function(x){ var l={efectivo:'Efectivo',debito:'Débito',credito:'Crédito',linea:'Crédito'}; return '<option value="'+x.id+'">'+escapeHTML(x.nombre)+' ('+(l[x.tipo]||x.tipo)+')</option>'; }).join('');
   var ov=document.getElementById('caja-pagotarj-ov'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='caja-pagotarj-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100002;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -15886,12 +16079,14 @@ function abrirPagoTarjeta(cardId){
   ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:90vh;overflow-y:auto">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;color:var(--green);font-size:16px">✅ Pago a '+escapeHTML(c.nombre)+'</h3><button onclick="var o=document.getElementById(\'caja-pagotarj-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
     +'<p style="color:var(--text2);font-size:11px;margin:0 0 6px">Deuda actual: <b style="color:var(--red)">'+_cajaM(usado)+'</b>. Al registrar el pago, se libera saldo de tu tarjeta.</p>'
+    + (prox? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;margin-top:6px;font-size:11px;color:var(--text2)">Pago sugerido (estado de cuenta de <b style="color:var(--accent2)">'+mesLiqTxt+'</b>): <b style="color:var(--red)">'+_cajaM2(sugerido)+'</b></div>' : '')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">'
       +'<div><label style="'+lbl+'">Fecha del pago</label><input id="pt-fecha" type="date" value="'+_hoyISO()+'" style="'+inp+'"></div>'
-      +'<div><label style="'+lbl+'">Monto del pago</label><input id="pt-monto" type="number" min="0" step="0.01" placeholder="0.00" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Monto del pago</label><input id="pt-monto" type="number" min="0" step="0.01" value="'+(sugerido>0?sugerido:'')+'" placeholder="0.00" style="'+inp+'"></div>'
     +'</div>'
     +'<div style="margin-top:8px"><label style="'+lbl+'">¿De dónde sale el pago?</label><select id="pt-origen" style="'+inp+'">'+origenOpts+'</select></div>'
     +'<div style="margin-top:8px"><label style="'+lbl+'">Concepto (opcional)</label><input id="pt-concepto" type="text" placeholder="ej. Pago quincenal" style="'+inp+'"></div>'
+    + (prox? '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:var(--text2);cursor:pointer"><input type="checkbox" id="pt-liquida" checked style="width:16px;height:16px;accent-color:var(--green)"><span>Con este pago <b>liquido el estado de cuenta de '+mesLiqTxt+'</b> (avanza al siguiente mes)</span></label><input type="hidden" id="pt-mesliq" value="'+mesLiq+'">' : '')
     +'<div style="text-align:right;margin-top:14px"><button onclick="guardarPagoTarjeta(\''+c.id+'\')" class="btn btn-accent" style="background:var(--green);border-color:var(--green)">💾 Registrar pago</button></div>'
     +'<div id="pt-msg" style="font-size:12px;margin-top:8px;min-height:14px;text-align:right"></div>'
   +'</div>';
@@ -15919,8 +16114,52 @@ function guardarPagoTarjeta(cardId){
   _cajaAplicarCuenta(mov, +1);
   _cajaSaveMovs();
   try{ _recalcularUsadoTarjetas(); }catch(e){}
+  // Liquidar el estado de cuenta (avanza al siguiente mes) si se marcó la casilla
+  var liquidaChk=(document.getElementById('pt-liquida')||{}).checked;
+  var mesLiq=(document.getElementById('pt-mesliq')||{}).value||'';
+  if(liquidaChk && mesLiq){
+    if(!Array.isArray(c.estadosPagados)) c.estadosPagados=[];
+    if(c.estadosPagados.indexOf(mesLiq)<0) c.estadosPagados.push(mesLiq);
+    _cajaSaveCuentas();
+  }
   var o=document.getElementById('caja-pagotarj-ov'); if(o) o.remove();
   _notificarLiberacion(c, monto);
+  try{ initCaja(); }catch(e){}
+  verEstadoCuenta(cardId);
+}
+// ── Registrar un reembolso / devolución a la tarjeta (baja la deuda) ──
+function abrirReembolso(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px;margin-top:3px';
+  var lbl='font-size:11px;color:var(--text2)';
+  var ov=document.getElementById('caja-reemb-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='caja-reemb-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100002;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px;max-height:90vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;color:#7ea8ff;font-size:16px">↩️ Reembolso a '+escapeHTML(c.nombre)+'</h3><button onclick="var o=document.getElementById(\'caja-reemb-ov\'); if(o) o.remove();" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'
+    +'<p style="color:var(--text2);font-size:11px;margin:0 0 12px">Un reembolso o devolución de un producto que regresaste. Te devuelven saldo, así que <b>baja tu deuda</b> de esta tarjeta.</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      +'<div><label style="'+lbl+'">Fecha del reembolso</label><input id="rb-fecha" type="date" value="'+_hoyISO()+'" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">Monto reembolsado</label><input id="rb-monto" type="number" min="0" step="0.01" placeholder="0.00" style="'+inp+'"></div>'
+    +'</div>'
+    +'<div style="margin-top:8px"><label style="'+lbl+'">¿Qué te devolvieron? (concepto)</label><input id="rb-concepto" type="text" placeholder="ej. Devolución de las botas" style="'+inp+'"></div>'
+    +'<div style="text-align:right;margin-top:14px"><button onclick="guardarReembolso(\''+c.id+'\')" class="btn btn-accent" style="background:#5b8af4;border-color:#5b8af4">💾 Registrar reembolso</button></div>'
+    +'<div id="rb-msg" style="font-size:12px;margin-top:8px;min-height:14px;text-align:right"></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function guardarReembolso(cardId){
+  var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
+  var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  var monto=parseFloat(g('rb-monto'))||0;
+  var msg=document.getElementById('rb-msg');
+  if(monto<=0){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Pon un monto válido.'; } return; }
+  var mov={ id:'cm'+Date.now()+'_rb', fecha:g('rb-fecha')||_hoyISO(), tipo:'entrada', categoria:'Reembolso', concepto:(g('rb-concepto').trim()||'Reembolso / devolución'), monto:monto, cuentaId:cardId, cuentaNombre:c.nombre, ambito:'negocio', _reembolso:true };
+  cajaMovs.push(mov);
+  _cajaSaveMovs();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
+  var o=document.getElementById('caja-reemb-ov'); if(o) o.remove();
+  mostrarToast('↩️ Reembolso registrado · bajó tu deuda '+_cajaM2(monto),'green');
   try{ initCaja(); }catch(e){}
   verEstadoCuenta(cardId);
 }
@@ -15940,7 +16179,8 @@ function _notificarLiberacion(card, montoPagado){
 function _estadoCicloHTML(c){
   if(!c || (c.tipo!=='credito' && c.tipo!=='linea')) return '';
   var ambNom={negocio:'🏪 Negocio', hogar:'🏠 Hogar', propios:'🧍 Propios'};
-  if(!c.corte || !(c.pago || c.pagoDias)){
+  var esQ=_esQuincenal(c);
+  if(!esQ && (!c.corte || !(c.pago || c.pagoDias))){
     return '<div style="margin-top:10px;background:var(--surface2);border:1px dashed var(--accent);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--text2)">'
       +'🗓️ Ponle el <b>día de corte</b> y la <b>fecha de pago</b> (día fijo o días después del corte) a esta tarjeta (botón ⚙️ Gestionar → editar) para que te calcule y te recuerde el pago de cada mes.</div>';
   }
@@ -15948,10 +16188,12 @@ function _estadoCicloHTML(c){
   var MES=MESES_ES;
   var pagoTxt = (parseInt(c.pagoDias,10)>0) ? ('corte + '+c.pagoDias+' días') : ('día '+c.pago);
   var h='<div style="margin-top:10px;background:linear-gradient(135deg,rgba(201,150,58,.12),rgba(139,68,246,.10));border:1px solid var(--accent);border-radius:11px;padding:12px 14px">'
-    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--text2)">'
-      +'<span>✂️ Corte: <b style="color:var(--text)">día '+c.corte+'</b></span>'
-      +'<span>💳 Pago: <b style="color:var(--text)">'+pagoTxt+'</b></span>'
-    +'</div>';
+    + (esQ
+        ? '<div style="font-size:11px;color:var(--text2)">🗓️ <b style="color:var(--text)">Pago quincenal</b> · cada 15 días desde la fecha de compra (incluye interés)</div>'
+        : '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--text2)">'
+          +'<span>✂️ Corte: <b style="color:var(--text)">día '+c.corte+'</b></span>'
+          +'<span>💳 Pago: <b style="color:var(--text)">'+pagoTxt+'</b></span>'
+        +'</div>');
   if(prox && prox.monto>0){
     var fp=prox.fecha.split('-'); var fTxt=(+fp[2])+' '+(MES[(+fp[1])-1]||'').toLowerCase()+' '+fp[0];
     var diasTxt = prox.dias<0 ? ('⚠️ vencido hace '+Math.abs(prox.dias)+' día'+(Math.abs(prox.dias)===1?'':'s'))
@@ -15960,7 +16202,7 @@ function _estadoCicloHTML(c){
     h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)">'
       +'<div style="font-size:11px;color:var(--text2)">Próximo pago</div>'
       +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">'
-        +'<span style="font-size:22px;font-weight:800;color:var(--red)">'+_cajaM(prox.monto)+'</span>'
+        +'<span style="font-size:22px;font-weight:800;color:var(--red)">'+_cajaM2(prox.monto)+'</span>'
         +'<span style="font-size:12px;color:'+colDias+'">'+fTxt+' · '+diasTxt+'</span>'
       +'</div>';
     // Desglose por ámbito del próximo pago
@@ -15969,7 +16211,7 @@ function _estadoCicloHTML(c){
     var ambKeys=Object.keys(porAmb);
     if(ambKeys.length){
       h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+ambKeys.map(function(a){
-        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:2px 7px">'+(ambNom[a]||a)+': <b>'+_cajaM(porAmb[a])+'</b></span>';
+        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:2px 7px">'+(ambNom[a]||a)+': <b>'+_cajaM2(porAmb[a])+'</b></span>';
       }).join('')+'</div>';
     }
     // Detalle de compras del próximo pago (COMPLETO, para cotejar la suma)
@@ -15984,7 +16226,7 @@ function _estadoCicloHTML(c){
         +'</span>'
       +'</div>';
       var _sumaDet=0;
-      h+=prox.detalle.map(function(d){
+      h+=_ordenarDetalle(prox.detalle).map(function(d){
         _sumaDet+=d.monto;
         var esCont=!d.msi;
         var tag = esCont
@@ -15993,25 +16235,80 @@ function _estadoCicloHTML(c){
         var fila = esCont ? 'background:rgba(91,138,244,.07);border-left:2px solid #5b8af4' : 'border-left:2px solid transparent';
         return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 6px;'+fila+';border-bottom:1px solid rgba(255,255,255,.04)">'
           +'<span>'+escapeHTML(d.concepto)+tag+'</span>'
-          +'<span style="color:'+(esCont?'#7ea8ff':'var(--red)')+';font-weight:600;white-space:nowrap">'+_cajaM(d.monto)+'</span></div>';
+          +'<span style="color:'+(esCont?'#7ea8ff':'var(--red)')+';font-weight:600;white-space:nowrap">'+_cajaM2(d.monto)+'</span></div>';
       }).join('');
-      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 6px 0;margin-top:2px;border-top:1px solid var(--border);font-weight:800"><span>Suma del pago</span><span style="color:var(--red)">'+_cajaM(_sumaDet)+'</span></div>';
+      h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 6px 0;margin-top:2px;border-top:1px solid var(--border);font-weight:800"><span>Suma del pago</span><span style="color:var(--red)">'+_cajaM2(_sumaDet)+'</span></div>';
     }
     h+='</div>';
-    // Calendario de próximos meses (MSI)
-    var claves=Object.keys(prox.todos).filter(function(k){ return prox.todos[k].monto>0 && k>prox.mesKey; }).sort().slice(0,6);
+    // Calendario de próximos pagos
+    var claves=Object.keys(prox.todos).filter(function(k){ return prox.todos[k].monto>0 && k>prox.mesKey; }).sort().slice(0, esQ?8:6);
     if(claves.length){
-      h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Meses que siguen (compras a meses):</div>';
+      h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+(esQ?'Próximas quincenas:':'Meses que siguen (compras a meses):')+'</div>';
       h+='<div style="display:flex;gap:6px;flex-wrap:wrap">'+claves.map(function(k){
-        var pk=k.split('-'); var t=(MES[(+pk[1])-1]||'').slice(0,3)+' '+pk[0].slice(2);
-        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:3px 8px">'+t+': <b style="color:var(--red)">'+_cajaM(prox.todos[k].monto)+'</b></span>';
+        var pk=k.split('-'); var t = esQ ? ((+pk[2])+' '+(MES[(+pk[1])-1]||'').slice(0,3)) : ((MES[(+pk[1])-1]||'').slice(0,3)+' '+pk[0].slice(2));
+        return '<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:3px 8px">'+t+': <b style="color:var(--red)">'+_cajaM2(prox.todos[k].monto)+'</b></span>';
       }).join('')+'</div></div>';
     }
+    // Botón para marcar como pagado este pago
+    var etiqPago = esQ ? _fechaBonita(prox.fecha) : (MES[(+prox.mesKey.split('-')[1])-1]||'');
+    h+='<div style="margin-top:10px;padding-top:9px;border-top:1px solid var(--border)">'
+      +'<button onclick="_marcarEstadoPagado(\''+c.id+'\',\''+prox.mesKey+'\')" class="btn btn-sm" style="width:100%;background:rgba(62,207,142,.15);border:1px solid var(--green);color:var(--green);padding:8px">✓ Ya pagué '+(esQ?'esta quincena':'este estado de cuenta')+' ('+etiqPago+') → avanzar al siguiente</button>'
+    +'</div>';
   } else {
-    h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">Sin pagos pendientes calculados. Registra compras con esta tarjeta y aquí verás cuánto y cuándo pagar.</div>';
+    var pagadosTodos=_estadosPagados(c);
+    if(pagadosTodos.length){
+      h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:13px;color:var(--green);text-align:center">🎉 ¡Estás al corriente! No hay pagos pendientes por ahora.</div>';
+    } else {
+      h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">Sin pagos pendientes calculados. Registra compras con esta tarjeta y aquí verás cuánto y cuándo pagar.</div>';
+    }
   }
-  h+='<div style="font-size:9px;color:var(--text2);margin-top:8px">Este pago ya aparece en tu página de Gastos y cuenta en tus pagos del mes.</div>';
+  // Pagos ya hechos (histórico) con opción de deshacer
+  var pagados=_estadosPagados(c);
+  if(pagados.length){
+    h+='<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">✅ '+(esQ?'Quincenas pagadas':'Estados de cuenta pagados')+':</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+pagados.slice().sort().reverse().map(function(k){
+        var pk=k.split('-'); var t = (esQ && pk.length>2) ? ((+pk[2])+' '+(MES[(+pk[1])-1]||'').slice(0,3)+' '+pk[0].slice(2)) : ((MES[(+pk[1])-1]||'').slice(0,3)+' '+pk[0].slice(2));
+        return '<span style="font-size:10px;background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.4);color:var(--green);border-radius:6px;padding:3px 8px">'+t+' ✓ <span onclick="_desmarcarEstadoPagado(\''+c.id+'\',\''+k+'\')" style="cursor:pointer;color:var(--text2);text-decoration:underline;margin-left:3px">deshacer</span></span>';
+      }).join('')+'</div></div>';
+  }
+  h+='<div style="font-size:9px;color:var(--text2);margin-top:8px">Este pago ya aparece en tu página de Gastos y cuenta en tus pagos del mes. Al registrar el pago (o marcarlo aquí), avanza al siguiente mes.</div>';
   h+='</div>';
+  return h;
+}
+// Detalle del estado de cuenta de un mes específico (qué compras/mensualidades lo formaron)
+function _estadoDetalleMesHTML(card, mes){
+  if(!card || (card.tipo!=='credito' && card.tipo!=='linea')) return '';
+  if(!card.corte || !(card.pago||card.pagoDias)) return '';
+  var porMes=_tarjetaPagosPorMes(card);
+  var info=porMes[mes]; if(!info || !info.detalle || !info.detalle.length) return '';
+  var MES=MESES_ES;
+  var pk=mes.split('-'); var titulo=(MES[(+pk[1])-1]||'')+' '+pk[0];
+  var pagado=_estadoPagado(card, mes);
+  var fechaTxt = info.fecha ? _fechaBonita(info.fecha) : '';
+  var nCont=info.detalle.filter(function(d){ return !d.msi; }).length;
+  var nMsi=info.detalle.length-nCont;
+  var h='<div style="margin-top:10px;background:'+(pagado?'rgba(62,207,142,.08)':'var(--surface2)')+';border:1px solid '+(pagado?'rgba(62,207,142,.4)':'var(--accent)')+';border-radius:11px;padding:12px 14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+      +'<span style="font-weight:800;color:'+(pagado?'var(--green)':'var(--accent2)')+';font-size:15px">📄 Estado de cuenta · '+titulo+'</span>'
+      +'<span style="font-size:11px;color:'+(pagado?'var(--green)':'var(--text2)')+'">'+(pagado?'✓ PAGADO':'Pendiente')+(fechaTxt?(' · vence '+fechaTxt):'')+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px">'
+      +'<span style="font-size:11px;color:var(--text2)">'+info.detalle.length+' conceptos · 💵 '+nCont+' contado · 📆 '+nMsi+' a meses</span>'
+      +'<span style="font-size:20px;font-weight:800;color:'+(pagado?'var(--green)':'var(--red)')+'">'+_cajaM2(info.monto)+'</span>'
+    +'</div>'
+    +'<div style="margin-top:6px">';
+  _ordenarDetalle(info.detalle).forEach(function(d){
+    var esCont=!d.msi;
+    var tag = esCont
+      ? ' <span style="background:rgba(91,138,244,.18);color:#7ea8ff;border-radius:5px;padding:1px 6px;font-size:9px;font-weight:700">💵 CONTADO</span>'
+      : ' <span style="color:var(--accent2);font-size:10px">('+d.msi+' MSI)</span>';
+    var fila = esCont ? 'background:rgba(91,138,244,.07);border-left:2px solid #5b8af4' : 'border-left:2px solid transparent';
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 6px;'+fila+';border-bottom:1px solid rgba(255,255,255,.04)">'
+      +'<span>'+escapeHTML(d.concepto)+tag+'</span>'
+      +'<span style="color:'+(esCont?'#7ea8ff':(pagado?'var(--green)':'var(--red)'))+';font-weight:600;white-space:nowrap">'+_cajaM2(d.monto)+'</span></div>';
+  });
+  h+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 6px 0;margin-top:2px;border-top:1px solid var(--border);font-weight:800"><span>'+(pagado?'Pagaste':'Total')+'</span><span style="color:'+(pagado?'var(--green)':'var(--red)')+'">'+_cajaM2(info.monto)+'</span></div>';
+  h+='</div></div>';
   return h;
 }
 function _estadoRenderBody(){
@@ -16031,9 +16328,9 @@ function _estadoRenderBody(){
   var totEnt=0, totSal=0;
   movs.forEach(function(m){ var mt=parseFloat(m.monto)||0; if(dirIn(m)) totEnt+=mt; else totSal+=mt; });
   var resumen='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-top:10px">'
-    +'<span>Entradas: <b style="color:var(--green)">'+_cajaM(totEnt)+'</b></span>'
-    +'<span>Salidas: <b style="color:var(--red)">'+_cajaM(totSal)+'</b></span>'
-    +'<span>Neto: <b style="color:'+((totEnt-totSal)>=0?'var(--green)':'var(--red)')+'">'+((totEnt-totSal)>=0?'+':'−')+_cajaM(Math.abs(totEnt-totSal))+'</b></span>'
+    +'<span>Entradas: <b style="color:var(--green)">'+_cajaM2(totEnt)+'</b></span>'
+    +'<span>Salidas: <b style="color:var(--red)">'+_cajaM2(totSal)+'</b></span>'
+    +'<span>Neto: <b style="color:'+((totEnt-totSal)>=0?'var(--green)':'var(--red)')+'">'+((totEnt-totSal)>=0?'+':'−')+_cajaM2(Math.abs(totEnt-totSal))+'</b></span>'
     +'<span>'+movs.length+' movimiento'+(movs.length===1?'':'s')+'</span>'
   +'</div>';
   var body='';
@@ -16051,7 +16348,7 @@ function _estadoRenderBody(){
       body+='<div style="margin-top:14px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px">'
         +'<span style="font-weight:800;color:var(--accent2);font-size:14px">'+titulo+'</span>'
-        +'<span style="font-size:11px;color:var(--text2)">'+arr.length+' mov · Neto <b style="color:'+(neto>=0?'var(--green)':'var(--red)')+'">'+(neto>=0?'+':'−')+_cajaM(Math.abs(neto))+'</b></span>'
+        +'<span style="font-size:11px;color:var(--text2)">'+arr.length+' mov · Neto <b style="color:'+(neto>=0?'var(--green)':'var(--red)')+'">'+(neto>=0?'+':'−')+_cajaM2(Math.abs(neto))+'</b></span>'
         +'</div>'
         +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:2px">';
       arr.forEach(function(m){
@@ -16064,16 +16361,34 @@ function _estadoRenderBody(){
           var otro = entra ? (m.cuentaNombre||'otra cuenta') : (m.cuentaDestinoNombre||'otra cuenta');
           catTxt='🔄 Traspaso <span style="font-size:10px;color:var(--accent2)">'+(entra?('← '+escapeHTML(otro)):('→ '+escapeHTML(otro)))+'</span>';
           subTxt=m.concepto?escapeHTML(m.concepto):'';
+        } else if(m._reembolso){
+          catTxt='<span style="color:#7ea8ff;font-weight:700">↩️ Reembolso / devolución</span>';
+          subTxt=m.concepto?escapeHTML(m.concepto):'';
+        } else if(m._abonoTarjeta){
+          catTxt='<span style="color:var(--green);font-weight:700">✅ Pago a la tarjeta</span>';
+          subTxt=m.concepto?escapeHTML(m.concepto):'';
         } else {
           catTxt='<span style="color:var(--text)">'+escapeHTML(m.categoria||'')+'</span> '+_cajaAmbitoBadge(m.ambito);
           subTxt=m.concepto?escapeHTML(m.concepto):'';
-          // Plan de pagos de la compra (inicio = día de compra, fin = última cuota)
-          if(_card && (_card.tipo==='credito'||_card.tipo==='linea') && m.tipo==='salida' && !m._abonoTarjeta){
+          // Plan de pagos de la compra
+          if(_card && _esQuincenal(_card) && m.tipo==='salida' && !m._abonoTarjeta){
+            var _nq=Math.max(1, parseInt(m.pagos,10)||1);
+            var _cuq=(parseFloat(m.pagoCuota)>0)?parseFloat(m.pagoCuota):(Math.round((parseFloat(m.monto)||0)/_nq*100)/100);
+            var _fpq=(m.fecha||'').split('-');
+            var _ptq='';
+            if(_fpq.length===3){
+              var _b=new Date(+_fpq[0],(+_fpq[1])-1,+_fpq[2]); var _u=new Date(_b.getTime()); _u.setDate(_u.getDate()+15*(_nq-1));
+              var _tot=Math.round(_cuq*_nq*100)/100; var _inter=Math.round((_tot-(parseFloat(m.monto)||0))*100)/100;
+              _ptq='📅 A '+_nq+' quincenas · '+_cajaM2(_cuq)+' c/15 días · desde '+_fechaBonita(m.fecha)+' → hasta '+_fechaBonita(_isoDe(_u))
+                +' · total '+_cajaM2(_tot)+(_inter>0?(' (interés '+_cajaM2(_inter)+')'):'');
+            }
+            if(_ptq) subTxt += (subTxt?'<br>':'')+'<span style="color:#b0a8f0;font-size:10px">'+_ptq+'</span>';
+          } else if(_card && (_card.tipo==='credito'||_card.tipo==='linea') && m.tipo==='salida' && !m._abonoTarjeta){
             var _plan=_compraPlanPago(_card, m);
             if(_plan){
               var _pt, _ptCol;
               if(_plan.n>1){
-                _pt='📅 A '+_plan.n+' meses · '+_cajaM(_plan.cuota)+'/mes · comprada '+_fechaBonita(_plan.inicio)
+                _pt='📅 A '+_plan.n+' meses · '+_cajaM2(_plan.cuota)+'/mes · comprada '+_fechaBonita(_plan.inicio)
                   +' → terminas de pagar '+_fechaBonita(_plan.ultima)
                   +(_plan.cuotaActual>0?(' · vas '+_plan.cuotaActual+'/'+_plan.n):' · aún no empieza a cobrarse');
                 _ptCol='var(--accent2)';
@@ -16091,15 +16406,17 @@ function _estadoRenderBody(){
         body+='<tr style="border-bottom:1px solid var(--border)">'
           +'<td style="padding:6px 6px;white-space:nowrap;color:var(--text2);vertical-align:top">'+escapeHTML(m.fecha||'')+'</td>'
           +'<td style="padding:6px 6px">'+catTxt+(subTxt?'<div style="font-size:10px;color:var(--text2);margin-top:2px">'+subTxt+'</div>':'')+'</td>'
-          +'<td style="padding:6px 6px;text-align:right;color:'+color+';font-weight:700;white-space:nowrap;vertical-align:top">'+signo+_cajaM(parseFloat(m.monto)||0)+'</td>'
+          +'<td style="padding:6px 6px;text-align:right;color:'+color+';font-weight:700;white-space:nowrap;vertical-align:top">'+signo+_cajaM2(parseFloat(m.monto)||0)+'</td>'
           +'<td style="padding:6px 2px 6px 6px;text-align:right;white-space:nowrap;vertical-align:top">'+acciones+'</td>'
         +'</tr>';
       });
-      body+='<tr><td colspan="4" style="padding:6px;text-align:right;font-size:11px;color:var(--text2)">Entradas '+_cajaM(ent)+' · Salidas '+_cajaM(sal)+'</td></tr>';
+      body+='<tr><td colspan="4" style="padding:6px;text-align:right;font-size:11px;color:var(--text2)">Entradas '+_cajaM2(ent)+' · Salidas '+_cajaM2(sal)+'</td></tr>';
       body+='</table></div>';
     });
   }
-  cont.innerHTML=resumen+body;
+  var detalleMes = (_estadoMes!=='todos') ? _estadoDetalleMesHTML(_card, _estadoMes) : '';
+  cont.innerHTML=detalleMes+resumen+body;
+  try{ var _dv=document.getElementById('estado-dups'); if(_dv) _dv.innerHTML=_estadoDuplicadosHTML(_card); }catch(e){}
 }
 function gestionarCuentasCaja(){
   var ov=document.getElementById('caja-ctas-ov'); if(ov) ov.remove();
@@ -16156,7 +16473,7 @@ function _cajaCuentaModalSync(){
   var autoUsado=!!(document.getElementById('cc-f-autousado')||{}).checked;
   var limite=parseFloat(g('cc-f-limite'))||0, usado=parseFloat(g('cc-f-usado'))||0;
   var disponible = (tipo==='linea') ? Math.max(0, limite-usado) : (parseFloat(g('cc-f-disponible'))||0);
-  return { nombre:g('cc-f-nombre'), tipo:tipo, saldo:parseFloat(g('cc-f-saldo'))||0, limite:limite, usado:usado, disponible:disponible, interes:parseFloat(g('cc-f-interes'))||0, frecuencia:g('cc-f-frecuencia'), corte:parseInt(g('cc-f-corte'),10)||null, pago:parseInt(g('cc-f-pago'),10)||null, pagoDias:parseInt(g('cc-f-pagodias'),10)||null, autoUsado:autoUsado };
+  return { nombre:g('cc-f-nombre'), tipo:tipo, saldo:parseFloat(g('cc-f-saldo'))||0, limite:limite, usado:usado, disponible:disponible, interes:parseFloat(g('cc-f-interes'))||0, frecuencia:g('cc-f-frecuencia'), corte:parseInt(g('cc-f-corte'),10)||null, pago:parseInt(g('cc-f-pago'),10)||null, pagoDias:parseInt(g('cc-f-pagodias'),10)||null, formaPago:(g('cc-f-forma')||'mensual'), autoUsado:autoUsado };
 }
 function _ccUsadoBlock(c, lbl, inp){
   var auto=(c.autoUsado===true);
@@ -16203,11 +16520,19 @@ function _cajaCuentaModalRender(c){
   } else if(c.tipo==='linea'){
     h+='<div style="margin-top:8px"><label style="'+lbl+'">Total del crédito</label><input id="cc-f-limite" type="number" step="0.01" value="'+(c.limite||0)+'" style="'+inp+'"></div>';
     h+=_ccUsadoBlock(c, lbl, inp);
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'
-      +'<div><label style="'+lbl+'">Interés (%)</label><input id="cc-f-interes" type="number" step="0.01" value="'+(c.interes||0)+'" style="'+inp+'"></div>'
-      +'<div><label style="'+lbl+'">Cada cuándo pagas</label><input id="cc-f-frecuencia" value="'+esc(c.frecuencia||'')+'" placeholder="ej. quincenal, mensual" style="'+inp+'"></div>'
-    +'</div>';
-    h+=_ccCorteFields(c, lbl, inp);
+    var esQ=(c.formaPago==='quincenal');
+    h+='<div style="margin-top:8px"><label style="'+lbl+'">Forma de pago</label><select id="cc-f-forma" onchange="_cajaCuentaModalRender(_cajaCuentaModalSync())" style="'+inp+'">'
+      +'<option value="mensual"'+(esQ?'':' selected')+'>Mensual (con corte y pago)</option>'
+      +'<option value="quincenal"'+(esQ?' selected':'')+'>Quincenal, cada 15 días desde la compra (tipo Aplazo)</option>'
+      +'</select></div>';
+    h+='<div style="margin-top:8px"><label style="'+lbl+'">Interés (%) — informativo</label><input id="cc-f-interes" type="number" step="0.01" value="'+(c.interes||0)+'" style="'+inp+'"></div>';
+    if(esQ){
+      h+='<div style="font-size:10px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-top:8px">📅 En modo quincenal, cada compra se paga cada 15 días desde su fecha. Al capturar la compra pones cuántas quincenas y el pago por quincena (lo que te dice Aplazo), y yo calculo el interés y las fechas. No necesitas corte ni día de pago.</div>';
+      h+='<input type="hidden" id="cc-f-frecuencia" value="'+esc(c.frecuencia||'quincenal')+'"><input type="hidden" id="cc-f-corte" value="'+(c.corte||'')+'"><input type="hidden" id="cc-f-pago" value="'+(c.pago||'')+'"><input type="hidden" id="cc-f-pagodias" value="'+(c.pagoDias||'')+'">';
+    } else {
+      h+='<div style="margin-top:8px"><label style="'+lbl+'">Cada cuándo pagas (nota)</label><input id="cc-f-frecuencia" value="'+esc(c.frecuencia||'')+'" placeholder="ej. quincenal, mensual" style="'+inp+'"></div>';
+      h+=_ccCorteFields(c, lbl, inp);
+    }
   }
   h+='<div style="text-align:right;margin-top:14px"><button onclick="guardarCuentaCaja()" class="btn btn-accent btn-sm">💾 Guardar</button></div>';
   box.innerHTML=h;
@@ -16215,7 +16540,7 @@ function _cajaCuentaModalRender(c){
 function guardarCuentaCaja(){
   var d=_cajaCuentaModalSync();
   if(!(d.nombre||'').trim()){ alert('Ponle nombre a la cuenta.'); return; }
-  if(_cajaEditId){ var c=cajaCuentas.find(function(x){return x.id===_cajaEditId;}); if(c){ c.nombre=d.nombre; c.tipo=d.tipo; c.saldo=d.saldo; c.limite=d.limite; c.usado=d.usado; c.disponible=d.disponible; c.interes=d.interes; c.frecuencia=d.frecuencia; c.corte=d.corte; c.pago=d.pago; c.pagoDias=d.pagoDias; c.autoUsado=d.autoUsado; } }
+  if(_cajaEditId){ var c=cajaCuentas.find(function(x){return x.id===_cajaEditId;}); if(c){ c.nombre=d.nombre; c.tipo=d.tipo; c.saldo=d.saldo; c.limite=d.limite; c.usado=d.usado; c.disponible=d.disponible; c.interes=d.interes; c.frecuencia=d.frecuencia; c.corte=d.corte; c.pago=d.pago; c.pagoDias=d.pagoDias; c.formaPago=d.formaPago; c.autoUsado=d.autoUsado; } }
   else { d.id='cc'+Date.now()+Math.floor(Math.random()*1000); cajaCuentas.push(d); }
   _cajaSaveCuentas();
   var o=document.getElementById('cc-cuenta-ov'); if(o) o.remove();
