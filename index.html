@@ -5551,6 +5551,60 @@ function tipoMovAgregar(){ var v=(document.getElementById('tipomov-nuevo')?.valu
    El navegador solo aguanta ~5-10 MB. Una foto de celular en crudo pesa 3-5 MB,
    así que con dos o tres se llena y se empiezan a perder datos.
    Aquí se reducen a 1000px y calidad 0.7: una de 3 MB baja a ~120 KB. */
+// ── Almacén de fotos en IndexedDB: mucha más capacidad que localStorage (~5MB).
+// Las fotos se guardan aquí y en su lugar se guarda solo una referencia corta
+// (ej. "idbfoto:123_abc") en los datos normales, así casi no ocupan espacio.
+var _fotoDB=null;
+function _abrirFotoDB(cb){
+  if(_fotoDB){ cb(_fotoDB); return; }
+  if(!window.indexedDB){ cb(null); return; }
+  try{
+    var req=indexedDB.open('westeros_fotos_db',1);
+    req.onupgradeneeded=function(e){ var db=e.target.result; if(!db.objectStoreNames.contains('fotos')) db.createObjectStore('fotos'); };
+    req.onsuccess=function(e){ _fotoDB=e.target.result; cb(_fotoDB); };
+    req.onerror=function(){ cb(null); };
+  }catch(e){ cb(null); }
+}
+function _guardarFotoIDB(dataURL, cb){
+  if(!dataURL){ cb(''); return; }
+  _abrirFotoDB(function(db){
+    if(!db){ cb(dataURL); return; }   // sin soporte IndexedDB: se guarda como antes (base64 directo)
+    try{
+      var id='idbfoto:'+Date.now()+'_'+Math.random().toString(36).slice(2,9);
+      var tx=db.transaction('fotos','readwrite');
+      tx.objectStore('fotos').put(dataURL, id);
+      tx.oncomplete=function(){ cb(id); };
+      tx.onerror=function(){ cb(dataURL); };
+    }catch(err){ cb(dataURL); }
+  });
+}
+function _leerFotoIDB(ref, cb){
+  if(!ref || ref.indexOf('idbfoto:')!==0){ cb(ref||''); return; }  // ya es base64 normal (foto vieja) o está vacío
+  _abrirFotoDB(function(db){
+    if(!db){ cb(''); return; }
+    try{
+      var tx=db.transaction('fotos','readonly');
+      var req=tx.objectStore('fotos').get(ref);
+      req.onsuccess=function(){ cb(req.result||''); };
+      req.onerror=function(){ cb(''); };
+    }catch(err){ cb(''); }
+  });
+}
+function _borrarFotoIDB(ref){
+  if(!ref || ref.indexOf('idbfoto:')!==0) return;
+  _abrirFotoDB(function(db){ if(!db) return; try{ db.transaction('fotos','readwrite').objectStore('fotos').delete(ref); }catch(e){} });
+}
+// Busca <img data-fotoref="..."> dentro de "scope" y les pone su src real de forma asíncrona
+function _pintarFotosIDB(scope){
+  var root=scope||document;
+  var imgs=root.querySelectorAll ? root.querySelectorAll('img[data-fotoref]') : [];
+  Array.prototype.forEach.call(imgs, function(img){
+    var ref=img.getAttribute('data-fotoref');
+    img.removeAttribute('data-fotoref');
+    _leerFotoIDB(ref, function(src){ if(src) img.src=src; });
+  });
+}
+
 function _comprimirFoto(file, cb){
   if(!file){ cb(''); return; }
   var MAX_LADO=1000, CALIDAD=0.7;
@@ -5573,8 +5627,9 @@ function _comprimirFoto(file, cb){
         ctx.drawImage(img,0,0,w,hgt);
         var out=cv.toDataURL('image/jpeg', CALIDAD);
         // Si por lo que sea salió más pesada, se queda la original
-        cb(out.length < e.target.result.length ? out : e.target.result);
-      }catch(err){ cb(e.target.result); }
+        var final = out.length < e.target.result.length ? out : e.target.result;
+        _guardarFotoIDB(final, cb);
+      }catch(err){ _guardarFotoIDB(e.target.result, cb); }
     };
     img.src=e.target.result;
   };
@@ -7159,11 +7214,12 @@ function renderNcFotosPrev(){
   var labels={nota:'Nota',envio:'Envío',transfer:'Transf.'};
   var h='';
   ['nota','envio','transfer'].forEach(function(s){
-    if(ncFotos[s]) h+='<div style="text-align:center"><img src="'+ncFotos[s]+'" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"><div style="font-size:9px;color:var(--text2)">'+labels[s]+' <span onclick="ncQuitarFoto(\''+s+'\')" style="color:var(--red);cursor:pointer">✕</span></div></div>';
+    if(ncFotos[s]) h+='<div style="text-align:center"><img data-fotoref="'+ncFotos[s]+'" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"><div style="font-size:9px;color:var(--text2)">'+labels[s]+' <span onclick="ncQuitarFoto(\''+s+'\')" style="color:var(--red);cursor:pointer">✕</span></div></div>';
   });
   c.innerHTML=h;
+  _pintarFotosIDB(c);
 }
-function ncQuitarFoto(s){ ncFotos[s]=''; renderNcFotosPrev(); }
+function ncQuitarFoto(s){ _borrarFotoIDB(ncFotos[s]); ncFotos[s]=''; renderNcFotosPrev(); }
 
 function _ncRefrescarPaneles(){ try{ if(typeof renderCredito==='function') renderCredito(); }catch(e){} try{ if(typeof renderRotacion==='function') renderRotacion(); }catch(e){} }
 function _ncSnapshot(lineas){ try{ return JSON.parse(JSON.stringify((lineas||[]).filter(function(l){return l.aInv;}))); }catch(e){ return []; } }
@@ -7378,7 +7434,7 @@ function _ncTarjetaNota(n){
   }).join('');
   var thumbs='';
   [['imgNota','Nota'],['imgEnvio','Envío'],['imgTransfer','Transf.'],['img','Ticket']].forEach(function(p){
-    if(n[p[0]]) thumbs+='<img src="'+n[p[0]]+'" onclick="event.stopPropagation();ncVerFoto(\''+n.id+'\',\''+p[0]+'\')" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer" title="Ver '+p[1]+'">';
+    if(n[p[0]]) thumbs+='<img data-fotoref="'+n[p[0]]+'" onclick="event.stopPropagation();ncVerFoto(\''+n.id+'\',\''+p[0]+'\')" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer" title="Ver '+p[1]+'">';
   });
   return '<div onclick="ncVerNota(\''+n.id+'\')" style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer" title="Ver detalle">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
@@ -7467,8 +7523,19 @@ function renderCompras(){
     h+='</div></div>';
   });
   el.innerHTML=h;
+  _pintarFotosIDB(el);
 }
-function ncVerFoto(id,campo){ var n=comprasData.find(function(x){return x.id===id;}); if(!n||!n[campo]) return; var w=window.open(''); if(w){ w.document.write('<title>'+_ncEsc(n.prov)+'</title><body style="margin:0;background:#111"><img src="'+n[campo]+'" style="max-width:100%;display:block;margin:0 auto"></body>'); } }
+function ncVerFoto(id,campo){
+  var n=comprasData.find(function(x){return x.id===id;}); if(!n||!n[campo]) return;
+  var w=window.open(''); if(!w) return;
+  w.document.write('<title>'+_ncEsc(n.prov)+'</title><body style="margin:0;background:#111"></body>');
+  _leerFotoIDB(n[campo], function(src){
+    if(!src){ return; }
+    var img=w.document.createElement('img');
+    img.src=src; img.style.maxWidth='100%'; img.style.display='block'; img.style.margin='0 auto';
+    w.document.body.appendChild(img);
+  });
+}
 function ncEliminarNota(id){
   var n=comprasData.find(function(x){return x.id===id;}); if(!n) return;
   var aplicadas=(n.aplicadoInv && Array.isArray(n.aplicadoLineas)) ? n.aplicadoLineas.filter(function(l){return l && l.aInv;}) : [];
@@ -7529,7 +7596,7 @@ function ncVerNota(id){
   }).join('');
   var imgs='';
   [['imgNota','Nota'],['imgEnvio','Envío'],['imgTransfer','Transferencia'],['img','Ticket']].forEach(function(p){
-    if(n[p[0]]) imgs+='<div style="text-align:center"><img src="'+n[p[0]]+'" onclick="ncVerFoto(\''+n.id+'\',\''+p[0]+'\')" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in"><div style="font-size:11px;color:var(--text2);margin-top:2px">'+p[1]+' · clic para agrandar</div></div>';
+    if(n[p[0]]) imgs+='<div style="text-align:center"><img data-fotoref="'+n[p[0]]+'" onclick="ncVerFoto(\''+n.id+'\',\''+p[0]+'\')" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in"><div style="font-size:11px;color:var(--text2);margin-top:2px">'+p[1]+' · clic para agrandar</div></div>';
   });
   if(!imgs) imgs='<div style="color:var(--text2);font-size:12px">Sin imágenes adjuntas.</div>';
   var html=''
@@ -7549,7 +7616,7 @@ function ncVerNota(id){
     +'<button class="btn btn-accent btn-sm" style="flex:1" onclick="ncEditarNota(\''+n.id+'\')">✏️ Editar</button>'
     +'<button class="btn btn-sm" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="ncCerrarModal()">Cerrar</button>'
     +'</div></div></div>';
-  var wrap=document.createElement('div'); wrap.innerHTML=html; document.body.appendChild(wrap.firstChild);
+  var wrap=document.createElement('div'); wrap.innerHTML=html; _pintarFotosIDB(wrap); document.body.appendChild(wrap.firstChild);
 }
 function ncEditarNota(id){
   var n=comprasData.find(function(x){return x.id===id;}); if(!n) return;
@@ -8161,7 +8228,7 @@ function renderRecepcion(){
       h+='<div style="margin-top:7px;display:grid;grid-template-columns:1fr 150px;gap:6px;align-items:center">'
         +'<input value="'+_ncEsc(l.motivo||'')+'" oninput="recSet('+i+',\'motivo\',this.value)" placeholder="¿Qué tuvo? ej. ala rota, mancha, talla equivocada" style="background:#0f0f13;border:1px solid rgba(244,91,105,.4);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);width:100%">'
         +(l.foto
-            ? '<div style="text-align:center"><img src="'+l.foto+'" style="max-height:44px;border-radius:5px"><br><button onclick="recQuitarFoto('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:10px">✕ Quitar</button></div>'
+            ? '<div style="text-align:center"><img data-fotoref="'+l.foto+'" style="max-height:44px;border-radius:5px"><br><button onclick="recQuitarFoto('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:10px">✕ Quitar</button></div>'
             : '<input type="file" accept="image/*" onchange="recFotoLinea('+i+',this)" style="font-size:10px">')
         +'</div>';
     }
@@ -8184,7 +8251,7 @@ function renderRecepcion(){
     var v=recepFotos[campo]||'';
     return '<div style="border:1px dashed var(--border);border-radius:9px;padding:9px;text-align:center">'
       +'<div style="font-size:11px;color:var(--text2);margin-bottom:5px">'+titulo+'</div>'
-      +(v?'<img src="'+v+'" style="max-width:100%;max-height:100px;border-radius:6px;display:block;margin:0 auto 5px"><button onclick="recQuitarFotoG(\''+campo+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px">✕ Quitar</button>'
+      +(v?'<img data-fotoref="'+v+'" style="max-width:100%;max-height:100px;border-radius:6px;display:block;margin:0 auto 5px"><button onclick="recQuitarFotoG(\''+campo+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px">✕ Quitar</button>'
          :'<input type="file" accept="image/*" onchange="recFotoG(\''+campo+'\',this)" style="font-size:11px;width:100%">')
       +'</div>';
   };
@@ -8199,6 +8266,7 @@ function renderRecepcion(){
     +'<button onclick="recConfirmar()" style="background:var(--green);border:none;color:#0f0f13;border-radius:8px;padding:9px 22px;cursor:pointer;font-weight:700">✅ Confirmar y crear Nota</button>'
     +'</div>';
   box.innerHTML=h;
+  _pintarFotosIDB(box);
 }
 
 function recPalomita(i){ if(recepLineas[i]){ var l=recepLineas[i]; l.revisado=!l.revisado; if(l.revisado && !l.extra){ l.llegaron=l.pedidas||0; } l.malas=0; renderRecepcion(); } }
@@ -8219,7 +8287,7 @@ function recFotoLinea(i,input){
     if(recepLineas[i]){ recepLineas[i].foto=d; renderRecepcion(); _avisarEspacio(); }
   });
 }
-function recQuitarFoto(i){ if(recepLineas[i]){ recepLineas[i].foto=''; renderRecepcion(); } }
+function recQuitarFoto(i){ if(recepLineas[i]){ _borrarFotoIDB(recepLineas[i].foto); recepLineas[i].foto=''; renderRecepcion(); } }
 /* ── Artículo que llegó de más (fuera del pedido) ── */
 var _recExtra={tipo:'Sombrero',marca:'',calidad:'',horma:'',talla:'',color:'',desc:'',cant:1,costoU:0};
 function recAgregarExtra(){ _recExtra={tipo:'Sombrero',marca:'',calidad:'',horma:'',talla:'',color:'',desc:'',cant:1,costoU:0}; _recExtraOverlay(); }
@@ -8293,7 +8361,7 @@ function recFotoG(campo,input){
   var f=input.files&&input.files[0]; if(!f) return;
   _comprimirFoto(f, function(d){ recepFotos[campo]=d; renderRecepcion(); _avisarEspacio(); });
 }
-function recQuitarFotoG(campo){ recepFotos[campo]=''; renderRecepcion(); }
+function recQuitarFotoG(campo){ _borrarFotoIDB(recepFotos[campo]); recepFotos[campo]=''; renderRecepcion(); }
 
 function _recSnapshot(){
   return {
@@ -8508,7 +8576,7 @@ function renderEnvio(){
     var v=e[campo]||'';
     return '<div style="border:1px dashed var(--border);border-radius:9px;padding:9px;text-align:center">'
       +'<div style="font-size:11px;color:var(--text2);margin-bottom:5px">'+titulo+'</div>'
-      +(v?'<img src="'+v+'" style="max-width:100%;max-height:110px;border-radius:6px;display:block;margin:0 auto 5px">'
+      +(v?'<img data-fotoref="'+v+'" style="max-width:100%;max-height:110px;border-radius:6px;display:block;margin:0 auto 5px">'
           +'<button onclick="envQuitarFoto(\''+campo+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:11px">✕ Quitar</button>'
         :'<input type="file" accept="image/*" onchange="envFoto(\''+campo+'\',this)" style="font-size:11px;width:100%">')
       +'</div>';
@@ -8527,6 +8595,7 @@ function renderEnvio(){
     +'<button onclick="envGuardar()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:8px;padding:9px 22px;cursor:pointer;font-weight:700">💾 Guardar envío</button>'
     +'</div>';
   box.innerHTML=h;
+  _pintarFotosIDB(box);
 }
 
 function envSet(campo,val){
@@ -8543,7 +8612,7 @@ function envFoto(campo,input){
     p.envio[campo]=d; renderEnvio(); _avisarEspacio();
   });
 }
-function envQuitarFoto(campo){ var p=_envP(); if(!p||!p.envio) return; p.envio[campo]=''; renderEnvio(); }
+function envQuitarFoto(campo){ var p=_envP(); if(!p||!p.envio) return; _borrarFotoIDB(p.envio[campo]); p.envio[campo]=''; renderEnvio(); }
 
 function envGuardar(){
   var p=_envP(); if(!p) return;
@@ -12290,14 +12359,40 @@ function setFiltroMes(mes) {
 
 function procesarPegadoML(_override) {
   const texto=(typeof _override==='string')?_override:(document.getElementById('ml-paste-area')?.value||'');
-  if(!texto.trim()){return;}
+  if(!texto.trim()){
+    const res=document.getElementById('ml-process-result');
+    if(res){
+      res.style.display='block';
+      res.style.background='rgba(244,91,105,.1)'; res.style.border='1px solid rgba(244,91,105,.25)'; res.style.color='var(--red)';
+      res.innerHTML='⚠️ No hay nada que procesar. Si ya subiste un archivo, se procesó automáticamente al subirlo — no hace falta darle "Procesar" otra vez. Si quieres reprocesar, vuelve a subir el archivo o pega el reporte abajo.';
+      setTimeout(()=>res.style.display='none',9000);
+    }
+    return;
+  }
   const lineas=texto.split('\n').filter(l=>l.trim());
+
+  // Detectar por NOMBRE de columna (no por conteo) dónde vienen título, variante y precio.
+  // Mercado Libre ha cambiado el número total de columnas del reporte varias veces;
+  // buscar por nombre es mucho más resistente a que lo vuelva a cambiar.
+  let iTitHdr=-1, iVarHdr=-1, iPreHdr=-1;
+  for(const linea of lineas){
+    const c=linea.split('\t');
+    const c0=(c[0]||'').toLowerCase(), c1=(c[1]||'').toLowerCase();
+    if(c0.includes('venta') && c1.includes('fecha')){
+      iTitHdr=c.findIndex(x=>(x||'').toLowerCase().includes('título de la publicación'));
+      iVarHdr=c.findIndex(x=>(x||'').toLowerCase().trim()==='variante');
+      iPreHdr=c.findIndex(x=>(x||'').toLowerCase().includes('precio unitario'));
+      break;
+    }
+  }
+
   let agregados=0, errores=0, devoluciones=0, duplicados=0;
+  const lineasError=[];
   const idsExist = new Set(ventasData.map(v=>v._vid).filter(Boolean));
 
   lineas.forEach(linea=>{
     const cols=linea.split('\t');
-    if(cols.length<7) {errores++;return;}
+    if(cols.length<7) {errores++;lineasError.push('(solo '+cols.length+' columnas) '+linea.slice(0,150));return;}
     // Saltar encabezados
     if(cols[0].toLowerCase().includes('venta')||cols[0].includes('#')||cols[1]?.toLowerCase().includes('fecha')) return;
 
@@ -12306,13 +12401,13 @@ function procesarPegadoML(_override) {
     if(vid && idsExist.has(vid)){ duplicados++; return; }
 
     const fecha=parseFechaML(cols[1]||'');
-    if(!fecha){errores++;return;}
+    if(!fecha){errores++;lineasError.push('(fecha no reconocida: "'+(cols[1]||'').slice(0,30)+'") '+linea.slice(0,150));return;}
 
     // El reporte nuevo de ML trae una columna menos: detectar formato y ajustar índices
     const fmtNueva = cols.length < 65;
-    const iTit = fmtNueva ? 21 : 22;
-    const iVar = fmtNueva ? 22 : 23;
-    const iPre = fmtNueva ? 23 : 24;
+    const iTit = iTitHdr>=0 ? iTitHdr : (fmtNueva ? 21 : 22);
+    const iVar = iVarHdr>=0 ? iVarHdr : (fmtNueva ? 22 : 23);
+    const iPre = iPreHdr>=0 ? iPreHdr : (fmtNueva ? 23 : 24);
 
     const estado=(cols[2]||'').toLowerCase();
     const titulo=(cols[iTit]||'').trim();
@@ -12368,8 +12463,9 @@ function procesarPegadoML(_override) {
     const borderColor = agregados>0 ? 'rgba(62,207,142,.25)' : 'rgba(244,91,105,.25)';
     res.style.background=color; res.style.border=`1px solid ${borderColor}`;
     res.style.color=agregados>0?'var(--green)':'var(--red)';
-    res.innerHTML=`✅ <b>${agregados} ventas importadas</b>${devoluciones>0?` · <span style="color:var(--red)">⚠️ ${devoluciones} devoluciones detectadas y registradas automáticamente</span>`:''}${errores>0?' · '+errores+' líneas omitidas':''}${duplicados>0?` · <span style="color:var(--accent2)">↩️ ${duplicados} duplicadas omitidas (ya estaban)</span>`:''}`;
-    setTimeout(()=>res.style.display='none',6000);
+    const detalleErrores = lineasError.length ? `<div style="margin-top:8px;font-size:10px;font-family:monospace;color:var(--text2);white-space:pre-wrap;max-height:160px;overflow:auto;background:rgba(0,0,0,.15);border-radius:6px;padding:8px">${lineasError.slice(0,10).map(l=>l.replace(/</g,'&lt;')).join('\n')}</div>` : '';
+    res.innerHTML=`✅ <b>${agregados} ventas importadas</b>${devoluciones>0?` · <span style="color:var(--red)">⚠️ ${devoluciones} devoluciones detectadas y registradas automáticamente</span>`:''}${errores>0?' · '+errores+' líneas omitidas (ver detalle abajo)':''}${duplicados>0?` · <span style="color:var(--accent2)">↩️ ${duplicados} duplicadas omitidas (ya estaban)</span>`:''}${detalleErrores}`;
+    if(errores===0) setTimeout(()=>res.style.display='none',9000);
   }
   if(agregados>0){ renderVentasDiarias(); refrescarTodo(); }
   // Si hay devoluciones, actualizar el contador en el módulo de devoluciones
