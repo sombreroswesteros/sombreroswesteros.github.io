@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v303</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v305</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -531,8 +531,8 @@
       </div>
     </div>
 
-    <!-- Top productos + Calendario + Proyección -->
-    <div class="grid g3" style="margin-bottom:16px">
+    <!-- Top productos + Flujo -->
+    <div class="grid g2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-title"><span class="dot"></span>Top 3 Productos</div>
         <div style="margin-bottom:12px">
@@ -565,13 +565,14 @@
           <span style="color:var(--accent2)">■</span> Proyección basada en Jul 2025
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>Proyección de Ventas</div>
+    <!-- Comparativa real de ventas: año pasado vs año actual -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span>📊 Comparativa Real de Ventas · Año pasado vs Año actual</div>
+      <div class="grid g2" style="gap:20px;align-items:start">
         <div class="chart-wrap"><canvas id="chartProy"></canvas></div>
-        <div style="margin-top:10px;font-size:11px;color:var(--text2)">
-          Basado en tendencia 2025 · mismos periodos
-        </div>
+        <div id="dash-comp-real"></div>
       </div>
     </div>
 
@@ -3246,11 +3247,54 @@ function initDashboard() {
     {label:'Gastos',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-  // Proyección
-  makeChart('chartProy','bar',['Jul','Ago','Sep','Oct','Nov','Dic'],[
-    {label:'2025',data:[485989,338075,467177,548776,830583,929354].map(v=>v*0.001),backgroundColor:'rgba(91,138,244,0.5)'},
-    {label:'2026 Proy.',data:[500000,350000,480000,570000,860000,960000].map(v=>v*0.001),backgroundColor:'rgba(201,150,58,0.7)'}
-  ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v+'k'}}}});
+  // Comparativa real de ventas: año pasado vs año actual (nada de proyecciones inventadas)
+  (function(){
+    var mesesDash = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var _numDash = {Ene:1,Feb:2,Mar:3,Abr:4,May:5,Jun:6,Jul:7,Ago:8,Sep:9,Oct:10,Nov:11,Dic:12};
+    function _buscaMes(nombreMes, anio){
+      return DATA.monthly.find(function(m){ return m.anio===anio && m.mes===_numDash[nombreMes]; }) || null;
+    }
+    var serie2025 = mesesDash.map(function(nm){ var f=_buscaMes(nm,2025); return f?f.bruto:0; });
+    var serie2026 = mesesDash.map(function(nm){ var f=_buscaMes(nm,2026); return f?f.bruto:0; });
+
+    makeChart('chartProy','bar',mesesDash,[
+      {label:'2025',data:serie2025,backgroundColor:'rgba(91,138,244,0.6)'},
+      {label:'2026',data:serie2026,backgroundColor:'rgba(201,150,58,0.7)'}
+    ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
+
+    // Totales reales (con los meses que sí hay cargados en cada año)
+    var meses2025 = DATA.monthly.filter(function(m){ return m.anio===2025; });
+    var meses2026 = DATA.monthly.filter(function(m){ return m.anio===2026; });
+    var tot25 = meses2025.reduce(function(a,m){return a+m.bruto;},0);
+    var tot26 = meses2026.reduce(function(a,m){return a+m.bruto;},0);
+    var pz25 = meses2025.reduce(function(a,m){return a+(m.ordenes||0);},0);
+    var pz26 = meses2026.reduce(function(a,m){return a+(m.ordenes||0);},0);
+    var rango25 = meses2025.length ? (meses2025[0].label+' – '+meses2025[meses2025.length-1].label) : '—';
+    var rango26 = meses2026.length ? (meses2026[0].label+' – '+meses2026[meses2026.length-1].label) : '—';
+
+    // Diferencia justa: solo los meses (por nombre) que existen en AMBOS años
+    var nombresComunes = mesesDash.filter(function(nm){ return _buscaMes(nm,2025) && _buscaMes(nm,2026); });
+    var tot25comun = nombresComunes.reduce(function(a,nm){ return a+_buscaMes(nm,2025).bruto; },0);
+    var tot26comun = nombresComunes.reduce(function(a,nm){ return a+_buscaMes(nm,2026).bruto; },0);
+    var pz25comun = nombresComunes.reduce(function(a,nm){ return a+(_buscaMes(nm,2025).ordenes||0); },0);
+    var pz26comun = nombresComunes.reduce(function(a,nm){ return a+(_buscaMes(nm,2026).ordenes||0); },0);
+    var diffVenta = tot26comun-tot25comun;
+    var diffPct = tot25comun>0 ? (diffVenta/tot25comun*100) : 0;
+    var diffPz = pz26comun-pz25comun;
+    var rangoComun = nombresComunes.length ? (nombresComunes[0]+'–'+nombresComunes[nombresComunes.length-1]) : 'sin meses en común todavía';
+
+    var box=document.getElementById('dash-comp-real');
+    if(box){
+      box.innerHTML =
+        '<div style="margin-bottom:14px"><div class="card-label">VENDIDO 2025 ('+rango25+')</div><div class="card-value blue" style="font-size:22px">$'+Math.round(tot25).toLocaleString('es-MX')+'</div><div class="card-sub">'+pz25.toLocaleString('es-MX')+' piezas vendidas</div></div>'
+        +'<div style="margin-bottom:14px"><div class="card-label">VENDIDO 2026 ('+rango26+', a la fecha)</div><div class="card-value accent" style="font-size:22px">$'+Math.round(tot26).toLocaleString('es-MX')+'</div><div class="card-sub">'+pz26.toLocaleString('es-MX')+' piezas vendidas</div></div>'
+        +'<div class="sep" style="margin:10px 0"></div>'
+        +'<div class="card-label">DIFERENCIA · mismos meses ('+rangoComun+')</div>'
+        +'<div class="card-value" style="font-size:22px;color:'+(diffVenta>=0?'var(--green)':'var(--red)')+'">'+(diffVenta>=0?'+':'−')+'$'+Math.abs(Math.round(diffVenta)).toLocaleString('es-MX')+' <span style="font-size:14px">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div>'
+        +'<div class="card-sub" style="color:'+(diffPz>=0?'var(--green)':'var(--red)')+'">'+(diffPz>=0?'+':'−')+Math.abs(diffPz).toLocaleString('es-MX')+' piezas vs. el año pasado en esos mismos meses</div>';
+    }
+  })();
+
 
   // Gastos pie
   const cats = ['Nómina','Educación','Vivienda/Local','Transporte','Deudas','Vida'];
@@ -3309,14 +3353,21 @@ function initVentas() {
     {data:brutos,label:'Bruto',borderColor:CH.color_accent,backgroundColor:'transparent',tension:0.4,borderDash:[4,3],pointRadius:2}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-  // Comparativa 2025 vs 2026
+  // Comparativa 2025 vs 2026 — diseño original (Jun→Ene), solo se corrigen las barras 2026
   const m2025 = DATA.monthly.filter(m=>m.anio===2025);
-  const m2026 = DATA.monthly.filter(m=>m.anio===2026);
-  const meses = ['Jun','Jul','Ago','Sep','Oct','Nov','Dic','Ene','Feb','Mar','Abr','May','Jun'];
-  makeChart('chartComparativa','bar',['Jun','Jul','Ago','Sep','Oct','Nov','Dic','Ene'],[
+  const meses = ['Jun','Jul','Ago','Sep','Oct','Nov','Dic','Ene'];
+  const _mesNumComp = {Jun:6,Jul:7,Ago:8,Sep:9,Oct:10,Nov:11,Dic:12,Ene:1};
+  const data2026 = meses.map(function(nm){
+    var mesNum = _mesNumComp[nm];
+    var found = DATA.monthly.find(function(m){ return m.anio===2026 && m.mes===mesNum; });
+    return found ? found.bruto : 0;
+  });
+  makeChart('chartComparativa','bar',meses,[
     {label:'2025',data:m2025.map(m=>m.bruto),backgroundColor:'rgba(91,138,244,0.6)'},
-    {label:'2026',data:[0,0,0,0,0,0,0,...m2026.slice(0,1).map(m=>m.bruto),0,0,0,0,0],backgroundColor:'rgba(201,150,58,0.7)'}
+    {label:'2026',data:data2026,backgroundColor:'rgba(201,150,58,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
+
+
 
   // Table
   const tbody = document.getElementById('tbl-ventas-mes');
