@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v305</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v308</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Principal</div>
@@ -567,13 +567,14 @@
       </div>
     </div>
 
-    <!-- Comparativa real de ventas: año pasado vs año actual -->
+    <!-- Comparativa real de ventas: mes con mes, año vs año -->
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span>📊 Comparativa Real de Ventas · Año pasado vs Año actual</div>
-      <div class="grid g2" style="gap:20px;align-items:start">
-        <div class="chart-wrap"><canvas id="chartProy"></canvas></div>
-        <div id="dash-comp-real"></div>
-      </div>
+      <div class="card-title"><span class="dot"></span>📊 Comparativa Real de Ventas · Mes con Mes</div>
+      <div class="chart-wrap"><canvas id="chartProy"></canvas></div>
+      <div class="scroll-x" style="margin-top:16px"><table class="tbl" id="dash-comp-tabla">
+        <thead><tr><th>Mes</th><th class="num">2025</th><th class="num">2026</th><th class="num">Dif. $</th><th class="num">Dif. piezas</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
     </div>
 
     <!-- Calendario de pagos y distribución gasto -->
@@ -2545,8 +2546,8 @@
   </div>
 
   <div class="page" id="page-bitacora">
-    <div class="grid g2" style="margin-bottom:16px;align-items:start">
-      <div class="card">
+    <div class="grid g2" id="bit-grid-top" style="margin-bottom:16px;align-items:start">
+      <div class="card" id="bit-nueva-entrada-card">
         <div class="card-title"><span class="dot" style="background:var(--accent)"></span>NUEVA ENTRADA</div>
         <p style="color:var(--text2);font-size:12px;margin:6px 0 14px">Registra lo del d&iacute;a. La entrada se guarda con tu nombre y la fecha autom&aacute;ticamente.</p>
         <div style="margin-bottom:10px">
@@ -3247,7 +3248,7 @@ function initDashboard() {
     {label:'Gastos',data:[128400,108400],backgroundColor:'rgba(244,91,105,0.7)'}
   ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-  // Comparativa real de ventas: año pasado vs año actual (nada de proyecciones inventadas)
+  // Comparativa real de ventas: mes con mes, año vs año (nada de proyecciones inventadas)
   (function(){
     var mesesDash = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     var _numDash = {Ene:1,Feb:2,Mar:3,Abr:4,May:5,Jun:6,Jul:7,Ago:8,Sep:9,Oct:10,Nov:11,Dic:12};
@@ -3262,38 +3263,27 @@ function initDashboard() {
       {label:'2026',data:serie2026,backgroundColor:'rgba(201,150,58,0.7)'}
     ],{plugins:{legend:{display:true,labels:{color:'#9896a8',font:{size:10}}}}});
 
-    // Totales reales (con los meses que sí hay cargados en cada año)
-    var meses2025 = DATA.monthly.filter(function(m){ return m.anio===2025; });
-    var meses2026 = DATA.monthly.filter(function(m){ return m.anio===2026; });
-    var tot25 = meses2025.reduce(function(a,m){return a+m.bruto;},0);
-    var tot26 = meses2026.reduce(function(a,m){return a+m.bruto;},0);
-    var pz25 = meses2025.reduce(function(a,m){return a+(m.ordenes||0);},0);
-    var pz26 = meses2026.reduce(function(a,m){return a+(m.ordenes||0);},0);
-    var rango25 = meses2025.length ? (meses2025[0].label+' – '+meses2025[meses2025.length-1].label) : '—';
-    var rango26 = meses2026.length ? (meses2026[0].label+' – '+meses2026[meses2026.length-1].label) : '—';
-
-    // Diferencia justa: solo los meses (por nombre) que existen en AMBOS años
-    var nombresComunes = mesesDash.filter(function(nm){ return _buscaMes(nm,2025) && _buscaMes(nm,2026); });
-    var tot25comun = nombresComunes.reduce(function(a,nm){ return a+_buscaMes(nm,2025).bruto; },0);
-    var tot26comun = nombresComunes.reduce(function(a,nm){ return a+_buscaMes(nm,2026).bruto; },0);
-    var pz25comun = nombresComunes.reduce(function(a,nm){ return a+(_buscaMes(nm,2025).ordenes||0); },0);
-    var pz26comun = nombresComunes.reduce(function(a,nm){ return a+(_buscaMes(nm,2026).ordenes||0); },0);
-    var diffVenta = tot26comun-tot25comun;
-    var diffPct = tot25comun>0 ? (diffVenta/tot25comun*100) : 0;
-    var diffPz = pz26comun-pz25comun;
-    var rangoComun = nombresComunes.length ? (nombresComunes[0]+'–'+nombresComunes[nombresComunes.length-1]) : 'sin meses en común todavía';
-
-    var box=document.getElementById('dash-comp-real');
-    if(box){
-      box.innerHTML =
-        '<div style="margin-bottom:14px"><div class="card-label">VENDIDO 2025 ('+rango25+')</div><div class="card-value blue" style="font-size:22px">$'+Math.round(tot25).toLocaleString('es-MX')+'</div><div class="card-sub">'+pz25.toLocaleString('es-MX')+' piezas vendidas</div></div>'
-        +'<div style="margin-bottom:14px"><div class="card-label">VENDIDO 2026 ('+rango26+', a la fecha)</div><div class="card-value accent" style="font-size:22px">$'+Math.round(tot26).toLocaleString('es-MX')+'</div><div class="card-sub">'+pz26.toLocaleString('es-MX')+' piezas vendidas</div></div>'
-        +'<div class="sep" style="margin:10px 0"></div>'
-        +'<div class="card-label">DIFERENCIA · mismos meses ('+rangoComun+')</div>'
-        +'<div class="card-value" style="font-size:22px;color:'+(diffVenta>=0?'var(--green)':'var(--red)')+'">'+(diffVenta>=0?'+':'−')+'$'+Math.abs(Math.round(diffVenta)).toLocaleString('es-MX')+' <span style="font-size:14px">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div>'
-        +'<div class="card-sub" style="color:'+(diffPz>=0?'var(--green)':'var(--red)')+'">'+(diffPz>=0?'+':'−')+Math.abs(diffPz).toLocaleString('es-MX')+' piezas vs. el año pasado en esos mismos meses</div>';
+    // Tabla mes con mes: Jun 2025 vs Jun 2026, Jul 2025 vs Jul 2026, etc.
+    var tbody = document.querySelector('#dash-comp-tabla tbody');
+    if(tbody){
+      var filas = mesesDash.map(function(nm){
+        var m25=_buscaMes(nm,2025), m26=_buscaMes(nm,2026);
+        var v25=m25?m25.bruto:null, v26=m26?m26.bruto:null;
+        var p25=m25?(m25.ordenes||0):null, p26=m26?(m26.ordenes||0):null;
+        var txt25 = m25 ? ('$'+Math.round(v25).toLocaleString('es-MX')+' <span style="color:var(--text2);font-size:11px">('+p25.toLocaleString('es-MX')+' pzs)</span>') : '<span style="color:var(--text2)">— sin datos</span>';
+        var txt26 = m26 ? ('$'+Math.round(v26).toLocaleString('es-MX')+' <span style="color:var(--text2);font-size:11px">('+p26.toLocaleString('es-MX')+' pzs)</span>') : '<span style="color:var(--text2)">— sin datos</span>';
+        var difDinero = '<span style="color:var(--text2)">—</span>', difPiezas = '<span style="color:var(--text2)">—</span>';
+        if(m25 && m26){
+          var dd=v26-v25, dp=p26-p25;
+          difDinero = '<b style="color:'+(dd>=0?'var(--green)':'var(--red)')+'">'+(dd>=0?'+':'−')+'$'+Math.abs(Math.round(dd)).toLocaleString('es-MX')+'</b>';
+          difPiezas = '<b style="color:'+(dp>=0?'var(--green)':'var(--red)')+'">'+(dp>=0?'+':'−')+Math.abs(dp).toLocaleString('es-MX')+'</b>';
+        }
+        return '<tr><td>'+nm+'</td><td class="num">'+txt25+'</td><td class="num">'+txt26+'</td><td class="num">'+difDinero+'</td><td class="num">'+difPiezas+'</td></tr>';
+      });
+      tbody.innerHTML = filas.join('');
     }
   })();
+
 
 
   // Gastos pie
@@ -18968,7 +18958,7 @@ function renderRangel(){
         var precioTxt=(esAdmin&&l.precio)?' <span style="color:var(--accent2)">$'+Math.round((parseFloat(l.precio)||0)*(l.cant||1)).toLocaleString()+'</span>':'';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px dashed var(--border);padding:5px 0">'
           +'<div style="font-size:11px;color:var(--text)">📐 '+esc(l.talla||'?')+' cm ×'+(l.cant||1)+' · <b>'+esc(l.servNombre||'—')+'</b>'+precioTxt+(l.detalle?'<br><span style="color:var(--accent2);font-size:10px">📝 '+esc(l.detalle)+'</span>':'')+'<br><span style="color:var(--text2);font-size:10px">📦 entrega: '+esc(l.fecha||'—')+'</span></div>'
-          +'<div style="display:flex;align-items:center;gap:5px">'+_estBadge(l.estado,((l.estado||'en_rangel')==='en_rangel')?l.fecha:'')+(esAdmin?_estSel(n.id,pi,li,l.estado):'')+'</div>'
+          +'<div style="display:flex;align-items:center;gap:5px">'+_estBadge(l.estado,((l.estado||'en_rangel')==='en_rangel')?l.fecha:'')+_estSel(n.id,pi,li,l.estado)+'</div>'
         +'</div>';
       }).join('');
       return '<div style="margin-top:6px"><div style="font-size:12px;font-weight:700;color:var(--text)">🎩 '+(esc(head)||'Producto')+'</div>'+lins+'</div>';
@@ -19557,22 +19547,57 @@ function renderBitacora(){
     ('<div style="margin-top:8px"><div style="font-size:11px;font-weight:700;color:'+color+';margin-bottom:2px">'+titulo+'</div><div style="font-size:12px;color:var(--text);white-space:pre-wrap;line-height:1.45">'+escapeHTML(texto)+'</div></div>') : '';
   cont.innerHTML = arr.map(e=>{
     const puedeBorrar = esAdmin || (currentUser && currentUser.id===e.usuarioId);
+    const notaAdminHtml = e.adminNota
+      ? ('<div style="margin-top:8px;background:rgba(184,137,43,.12);border:1px solid rgba(184,137,43,.3);border-radius:8px;padding:8px 10px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--accent2);margin-bottom:2px">💬 '+(esAdmin?'Tu anotación':'Fer te comentó')+'</div>'
+          +'<div style="font-size:12px;color:var(--text);white-space:pre-wrap;line-height:1.45">'+escapeHTML(e.adminNota)+'</div>'
+        +'</div>')
+      : '';
+    const btnAnotarAdmin = esAdmin
+      ? ('<button onclick="bitAnotarAdmin(\''+e.id+'\')" class="btn btn-secondary btn-sm" style="font-size:11px">'+(e.adminNota?'✏️ Editar anotación':'💬 Agregar anotación')+'</button>')
+      : '';
     return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
       + '<div style="display:flex;align-items:center;gap:8px">'
       + '<span style="background:var(--accent-dim);color:var(--accent2);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700">👩 '+escapeHTML(e.usuarioNombre)+'</span>'
       + '<span style="font-size:12px;color:var(--text2)">📅 '+fmtFecha(e.fecha)+'</span>'
       + '</div>'
-      + (puedeBorrar ? '<button onclick="eliminarEntradaBitacora(\''+e.id+'\')" title="Eliminar" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:15px">🗑️</button>' : '')
+      + '<div style="display:flex;align-items:center;gap:8px">'+btnAnotarAdmin+(puedeBorrar ? '<button onclick="eliminarEntradaBitacora(\''+e.id+'\')" title="Eliminar" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:15px">🗑️</button>' : '')+'</div>'
       + '</div>'
       + bloque('📋 Actividades diarias', 'var(--accent2)', e.actividades)
       + bloque('📞 Contactar a clientes', 'var(--blue)', e.clientes)
       + bloque('📝 Anotaciones', 'var(--green)', e.anotaciones)
+      + notaAdminHtml
       + '</div>';
   }).join('');
 }
+function bitAnotarAdmin(entryId){
+  const arr = loadBitacora();
+  const e = arr.find(x=>x.id===entryId); if(!e) return;
+  const txt = prompt('Escribe tu anotación para '+e.usuarioNombre+' sobre esta entrada del '+e.fecha+':', e.adminNota||'');
+  if(txt===null) return;
+  e.adminNota = (txt||'').trim();
+  e.adminNotaTs = new Date().toISOString();
+  saveBitacora(arr);
+  if(e.adminNota && e.usuarioId){
+    try{
+      if(!notificaciones[e.usuarioId]) notificaciones[e.usuarioId]=[];
+      notificaciones[e.usuarioId].unshift({ id:'n'+Date.now()+Math.floor(Math.random()*10000), texto:'💬 Fer comentó tu bitácora del '+fmtFechaBit(e.fecha)+':\n"'+e.adminNota+'"', fecha:new Date().toISOString().slice(0,10), leida:false });
+      saveNotificaciones();
+      try{ renderNotifBanner(); }catch(err){}
+    }catch(err){}
+  }
+  renderBitacora();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Anotación guardada y notificada a '+e.usuarioNombre,'green');
+}
+function fmtFechaBit(f){ try { const [y,m,d]=f.split('-'); return d+'/'+m+'/'+y; } catch(e){ return f; } }
 function initBitacora(){
   try{ if(typeof renderClientes==="function") renderClientes(); }catch(e){}
+  const esAdminIni = currentUser && currentUser.rol==='admin';
+  const nuevaCard = document.getElementById('bit-nueva-entrada-card');
+  const gridTop = document.getElementById('bit-grid-top');
+  if(nuevaCard) nuevaCard.style.display = esAdminIni ? 'none' : '';
+  if(gridTop) gridTop.style.gridTemplateColumns = esAdminIni ? '1fr' : '';
   // Fecha de hoy por defecto
   const f = document.getElementById('bit-fecha');
   if(f && !f.value){ try { setDateSafe('bit-fecha', new Date()); } catch(e){ f.value = new Date().toISOString().slice(0,10); } }
