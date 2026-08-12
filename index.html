@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v320</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v321</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -16846,6 +16846,7 @@ function _marcarEstadoPagado(cardId, mesKey){
   if(!Array.isArray(c.estadosPagados)) c.estadosPagados=[];
   if(c.estadosPagados.indexOf(mesKey)<0) c.estadosPagados.push(mesKey);
   _cajaSaveCuentas();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   try{ mostrarToast('✓ Estado de cuenta marcado como pagado','green'); }catch(e){}
   try{ initCaja(); }catch(e){}
   verEstadoCuenta(cardId);
@@ -16854,6 +16855,7 @@ function _desmarcarEstadoPagado(cardId, mesKey){
   var c=cajaCuentas.find(function(x){ return x.id===cardId; }); if(!c) return;
   if(Array.isArray(c.estadosPagados)) c.estadosPagados=c.estadosPagados.filter(function(k){ return k!==mesKey; });
   _cajaSaveCuentas();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   try{ initCaja(); }catch(e){}
   verEstadoCuenta(cardId);
 }
@@ -17040,6 +17042,7 @@ function guardarCompraTarjeta(cardId){
   cajaMovs.push(mov);
   _cajaAplicarCuenta(mov, +1);   // si noSaldo=true, no toca el saldo
   _cajaSaveMovs();
+  try{ _recalcularUsadoTarjetas(); }catch(e){}
   var o=document.getElementById('caja-compra-ov'); if(o) o.remove();
   mostrarToast('Compra agregada ✓','green');
   try{ initCaja(); }catch(e){}
@@ -17924,6 +17927,7 @@ function borrarMovCaja(id){
     _cajaAplicarCuenta(m, -1);
     cajaMovs = cajaMovs.filter(function(x){ return x.id!==id; });
     _cajaSaveMovs();
+    try{ _recalcularUsadoTarjetas(); }catch(e){}
     mostrarToast('Movimiento eliminado','red');
     initCaja();
     try{ renderGastosPropiosLista(); }catch(e){} try{ renderPropiosTab(); }catch(e){} try{ renderHogarTab(); }catch(e){}
