@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v318</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v319</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -16772,8 +16772,10 @@ function _tarjetaPagosPorMes(card){
       var ccM=cierreM+k, ccY=cierreY; while(ccM>12){ ccM-=12; ccY++; }
       var pagoDt=_pagoDateDeCiclo(card, ccY, ccM);
       var key=pagoDt.getFullYear()+'-'+String(pagoDt.getMonth()+1).padStart(2,'0');
-      // Compra de contado con pago ya vencido → se junta al mes actual (pago pendiente)
-      if(n===1 && key<_hoyK){ key=_hoyK; var p2=_hoyK.split('-'); pagoDt=_pagoDateDeCiclo(card, +p2[0], +p2[1]); }
+      // Compra de contado con pago ya vencido → se junta al mes actual (pago pendiente),
+      // PERO solo si ese mes original no está ya marcado como pagado — si ya se pagó,
+      // se queda en su mes (y no se vuelve a cobrar de nuevo cada mes siguiente).
+      if(n===1 && key<_hoyK && _estadosPagados(card).indexOf(key)<0){ key=_hoyK; var p2=_hoyK.split('-'); pagoDt=_pagoDateDeCiclo(card, +p2[0], +p2[1]); }
       if(!res[key]) res[key]={monto:0, detalle:[], fecha:_isoDe(pagoDt)};
       res[key].monto+=cuota;
       res[key].detalle.push({ concepto:(m.concepto||m.categoria||'Compra'), monto:cuota, ambito:(m.ambito||'negocio'), msi:(n>1?((k+1)+'/'+n):''), compra:(m.fecha||'') });
