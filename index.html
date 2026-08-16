@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v335</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v337</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -394,6 +394,7 @@
 
     <div class="nav-section">Tienda</div>
     <div class="nav-item" onclick="goTo('asistencia')"><span class="ico">⏰</span> Asistencia</div>
+    <div class="nav-item" onclick="goTo('tareas')"><span class="ico">✅</span> Tareas del Día</div>
     <div class="nav-item" onclick="goTo('tienda')"><span class="ico">🏪</span> Tienda Física</div>
     <div class="nav-item" id="nav-tlinea" onclick="goTo('tlinea')" style="display:none"><span class="ico">💻</span> Tienda en Línea</div>
     <div class="nav-item" onclick="goTo('gastos-tienda')"><span class="ico">🏠</span> Gastos Tienda</div>
@@ -909,6 +910,11 @@
   </div>
 
   <!-- ═══════════ PRODUCTOS ═══════════ -->
+  <div class="page" id="page-tareas">
+    <div class="notif-banner"></div>
+    <div id="tareas-panel"></div>
+  </div>
+
   <div class="page" id="page-asistencia">
     <div class="notif-banner"></div>
     <div class="card">
@@ -2996,13 +3002,13 @@ try{
 
 // ═══ NAVIGATION ═══
 // Páginas a las que SÍ pueden entrar los colaboradores (todo lo demás es solo-admin)
-const PAGINAS_COLABORADOR = ['tienda','asistencia','reglamento','gastos-tienda','documentos','bitacora','rangel','inventario','ventas-buscar','tlinea'];
+const PAGINAS_COLABORADOR = ['tienda','asistencia','tareas','reglamento','gastos-tienda','documentos','bitacora','rangel','inventario','ventas-buscar','tlinea'];
 function paginaInicio(){
   return (typeof currentUser!=='undefined' && currentUser && currentUser.rol==='admin') ? 'dashboard' : 'asistencia';
 }
 const pageTitles = {
   dashboard:'Dashboard General', ventas:'Análisis Mercado Libre',
-  'ventas-diarias':'Ventas Mercado Libre', tienda:'Tienda Física', asistencia:'⏰ Asistencia',
+  'ventas-diarias':'Ventas Mercado Libre', tienda:'Tienda Física', asistencia:'⏰ Asistencia', tareas:'✅ Tareas del Día',
   productos:'Productos', costos:'Costos y Margen', tallas:'Análisis de Tallas',
   devoluciones:'Devoluciones', nomina:'Nómina', empleadas:'Información de Colaboradores', avisos:'Avisos',
   inventario:'Inventario & Stock', documentos:'Tickets & Cotizaciones',
@@ -3063,6 +3069,7 @@ function goTo(page) {
   if(page==='ventas-diarias') { initVentasDiarias(); }
   if(page==='tienda') { renderFisica(); renderProductosVenta(); try{ renderNotifBanner(); }catch(e){} }
   if(page==='asistencia') { try{ renderAsistencia(); renderNotifBanner(); }catch(e){} }
+  if(page==='tareas') { try{ renderTareas(); renderNotifBanner(); }catch(e){} }
   if(page==='reglamento') { try{ renderNotifBanner(); }catch(e){} }
   if(page==='inventario') { initInventario(); }
   if(page==='documentos') { initDocumentos(); }
@@ -11008,6 +11015,527 @@ function _gfTab(name){
   try{ if(name==='resumen'){ renderResumenAnalisis(); } }catch(e){}
   try{ if(name==='gastos'){ _gfSubTab(_gfActiveSubTab||'fijos'); } }catch(e){}
 }
+/* ══════════════════ TAREAS DEL DÍA (checklist por colaboradora) ══════════════════ */
+var TK_PLANT='tareas_plantillas', TK_HECHAS='tareas_hechas', TK_MAP='tareas_map';
+var TK_DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+var TK_DIAS_C=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function loadTkPlant(){ try{ var v=JSON.parse(localStorage.getItem(TK_PLANT)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function saveTkPlant(a){ try{ save(TK_PLANT,a); }catch(e){} }
+function loadTkHechas(){ try{ var v=JSON.parse(localStorage.getItem(TK_HECHAS)); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } }
+function saveTkHechas(o){ try{ save(TK_HECHAS,o); }catch(e){} }
+function loadTkMap(){ try{ var v=JSON.parse(localStorage.getItem(TK_MAP)); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } }
+function saveTkMap(o){ try{ save(TK_MAP,o); }catch(e){} }
+
+function _tkEsc(s){ s=(s===null||s===undefined)?'':String(s); return (typeof escapeHTML==='function')?escapeHTML(s):s; }
+function _tkHoy(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function _tkHora(){ var d=new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function _tkDiaDe(f){ try{ return new Date(f+'T12:00:00').getDay(); }catch(e){ return new Date().getDay(); } }
+function _tkFechaTxt(f){ var p=String(f||'').split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):f; }
+function _tkNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function _tkUID(){ return 'p'+Date.now()+Math.random().toString(36).slice(2,5); }
+function _tkEsAdmin(){ return (typeof currentUser!=='undefined') && currentUser && currentUser.rol==='admin'; }
+
+/* Qué persona es el usuario que entró */
+function _tkPersonaActual(){
+  if(typeof currentUser==='undefined' || !currentUser) return null;
+  var map=loadTkMap();
+  if(map[currentUser.id]) return map[currentUser.id];
+  var n=_tkNorm(currentUser.nombre);
+  var personas=_tkPersonas();
+  for(var i=0;i<personas.length;i++){ if(n.indexOf(_tkNorm(personas[i]))>=0) return personas[i]; }
+  if(n.indexOf('liz')>=0) return 'Liz';
+  if(n.indexOf('lul')>=0||n.indexOf('lourdes')>=0||n.indexOf('lulu')>=0) return 'Lulú';
+  return null;
+}
+function _tkPersonas(){
+  var out=[], arr=loadTkPlant();
+  arr.forEach(function(p){ if(p.persona && out.indexOf(p.persona)<0) out.push(p.persona); });
+  return out;
+}
+
+/* ── Listas iniciales (las que pasó Fer) ── */
+function _tkSeed(){
+  try{
+    if(localStorage.getItem('tareas_seed_v1')==='1') return;
+    if(loadTkPlant().length){ localStorage.setItem('tareas_seed_v1','1'); return; }
+    var P=[];
+    P.push({id:_tkUID(), persona:'Lulú', nombre:'Ventas y preparación', dias:[1,3,5], tareas:[
+      'Poner hora de entrada.',
+      'Avisar en WhatsApp que ya estás en el local.',
+      'Marcar hora del desayuno / desayunar.',
+      'Limpiar área después de desayunar.',
+      'Lavar trastes.',
+      'Marcar hora del término de desayuno.',
+      'Imprimir ventas.',
+      'Recortar etiquetas.',
+      'Hacer resumen de ventas.',
+      'Verificar existencias.',
+      'Mandar resumen de ventas al grupo.',
+      'Mandar resumen de faltantes al grupo.',
+      'Verificar en el grupo de la Herradura que se está pidiendo todo lo que necesitamos para las ventas.',
+      'Limpiar y preparar sombreros.',
+      'Marcar hora de la comida / comer.',
+      'Limpieza del lugar después de comer.',
+      'Lavar trastes después de comer.',
+      'Marcar hora del término de comida.',
+      'Limpieza de área después de preparar sombreros.',
+      'Tareas extras dependiendo la necesidad del negocio.',
+      'Verificar si mi compañera tiene mucho trabajo y ayudarle de ser necesario.',
+      'Anotar cuánto dinero deje en caja.',
+      'Verificar que mi área esté COMPLETAMENTE limpia antes de irme.',
+      'Llenar mi bitácora en la app.',
+      'Marcar hora de salida.',
+      'Avisar salida en WhatsApp.',
+      'Verificar que cerraste bien.'
+    ]});
+    P.push({id:_tkUID(), persona:'Lulú', nombre:'Apertura y limpieza', dias:[2,4], tareas:[
+      'Abrir local.',
+      'Poner hora de entrada.',
+      'Avisar por WhatsApp que ya estás en el local.',
+      'Acomodar espejos.',
+      'Marcar hora del desayuno / desayunar.',
+      'Limpiar área donde desayuné.',
+      'Lavar trastes.',
+      'Marcar hora del término de desayuno.',
+      'Sacudir sombreros.',
+      'Limpiar anaqueles.',
+      'Limpiar espejos.',
+      'Acomodar sombreros de muestra.',
+      'Barrer local.',
+      'Barrer calle.',
+      'Trapear.',
+      'Hacer cajas.',
+      'Limpiar basura de cajas.',
+      'Marcar hora de comida / comer.',
+      'Limpiar área de comida.',
+      'Lavar trastes.',
+      'Marcar término de hora de comida.',
+      'Verificar si mi compañera tiene mucho trabajo y ayudarle de ser necesario.',
+      'Embalar sombreros.',
+      'Mandar evidencias de envío a WhatsApp.',
+      'Regresar a su lugar herramientas de embale.',
+      'Dejar mesa de embale limpia.',
+      'Volver a trapear antes de irse.',
+      'Verificar que estoy dejando mi área COMPLETAMENTE limpia.',
+      'Verificar cuánto dinero se queda en caja.',
+      'Llenar bitácora.',
+      'Marcar hora de salida.',
+      'Avisar salida en WhatsApp.'
+    ]});
+    P.push({id:_tkUID(), persona:'Lulú', nombre:'Inventario (sábado)', dias:[6], tareas:[
+      'Abrir local.',
+      'Marcar hora de entrada en la app.',
+      'Avisar en WhatsApp que ya llegó.',
+      'Marcar hora de desayuno / desayunar.',
+      'Limpiar área de desayuno.',
+      'Lavar trastes.',
+      'Marcar hora del término de desayuno.',
+      'Realizar inventario.',
+      'Enviar inventario a la app y hacer los ajustes correspondientes.',
+      'Imprimir ventas.',
+      'Recortar etiquetas.',
+      'Hacer un resumen de ventas.',
+      'Verificar faltantes.',
+      'Hacer un resumen de faltantes.',
+      'Subir resumen de ventas a WhatsApp.',
+      'Subir resumen de faltantes a WhatsApp.',
+      'Preparar sombreros.',
+      'Mandar evidencias de envío.',
+      'Embalar.',
+      'Limpiar el área antes de retirarse.',
+      'Verificar que quedó COMPLETAMENTE limpia y en orden.',
+      'Verificar cuánto dinero deja en caja.',
+      'Llenar bitácora.',
+      'Marcar hora de salida.',
+      'Avisar de salida en WhatsApp.',
+      'Cerrar bien el local.'
+    ]});
+    P.push({id:_tkUID(), persona:'Liz', nombre:'Apertura y redes', dias:[1,3,5], tareas:[
+      'Abrir local.',
+      'Poner hora de entrada.',
+      'Avisar por WhatsApp que ya estás en el local.',
+      'Acomodar espejos.',
+      'Marcar hora del desayuno / desayunar.',
+      'Limpiar área donde desayuné.',
+      'Lavar trastes.',
+      'Marcar hora del término del desayuno.',
+      'Contestar mensajes de WhatsApp.',
+      'Contestar mensajes de Mercado Libre.',
+      'Verificar si hay información que clientes de Mercado Libre hayan dado y enviarla al grupo de WhatsApp.',
+      'Responder preguntas de Mercado Libre.',
+      'Contestar mensajes de redes.',
+      'Sacudir sombreros.',
+      'Limpiar anaqueles.',
+      'Limpiar espejos.',
+      'Acomodar sombreros de muestra.',
+      'Barrer local.',
+      'Barrer calle.',
+      'Trapear.',
+      'Hacer cajas.',
+      'Limpiar basura de cajas.',
+      'Marcar hora de comida / comer.',
+      'Marcar término de hora de comida.',
+      'Limpiar área de comida.',
+      'Lavar trastes.',
+      'Verificar si mi compañera tiene mucho trabajo y ayudarle de ser necesario.',
+      'Embalar sombreros.',
+      'Mandar evidencias de envío a WhatsApp.',
+      'Regresar a su lugar herramientas de embale.',
+      'Dejar mesa de embale limpia.',
+      'Volver a trapear antes de irse.',
+      'Verificar que estoy dejando mi área COMPLETAMENTE limpia.',
+      'Llenar bitácora.',
+      'Marcar hora de salida.',
+      'Avisar salida en WhatsApp.'
+    ]});
+    P.push({id:_tkUID(), persona:'Liz', nombre:'Ventas y mensajes', dias:[2,4], tareas:[
+      'Poner hora de entrada.',
+      'Avisar en WhatsApp que ya estás en el local.',
+      'Marcar hora del desayuno / desayunar.',
+      'Limpiar área después de desayunar.',
+      'Lavar trastes.',
+      'Marcar hora del término de desayuno.',
+      'Contestar mensajes de WhatsApp.',
+      'Imprimir ventas.',
+      'Recortar etiquetas.',
+      'Hacer resumen de ventas.',
+      'Verificar existencias.',
+      'Mandar resumen de ventas al grupo.',
+      'Mandar resumen de faltantes al grupo.',
+      'Verificar si mandaron mensajes o preguntas en Mercado Libre y contestarlos.',
+      'Enviar especificaciones de clientes de Mercado Libre.',
+      'Verificar en el grupo de la Herradura que se está pidiendo todo lo que necesitamos para las ventas.',
+      'Contestar mensajes de redes sociales.',
+      'Limpiar y preparar sombreros.',
+      'Marcar hora de la comida / comer.',
+      'Limpieza del lugar después de comer.',
+      'Lavar trastes después de comer.',
+      'Marcar hora del término de comida.',
+      'Limpieza de área después de preparar sombreros.',
+      'Tareas extras dependiendo la necesidad del negocio.',
+      'Verificar si mi compañera tiene mucho trabajo y ayudarle de ser necesario.',
+      'Verificar que mi área esté COMPLETAMENTE limpia antes de irme.',
+      'Llenar mi bitácora en la app.',
+      'Marcar hora de salida.',
+      'Avisar salida en WhatsApp.',
+      'Verificar que cerraste bien.'
+    ]});
+    P.push({id:_tkUID(), persona:'Liz', nombre:'Domingo', dias:[0], tareas:[
+      'Abrir local.',
+      'Marcar hora de entrada en la app.',
+      'Avisar en WhatsApp que ya llegó.',
+      'Marcar hora de desayuno / desayunar.',
+      'Limpiar área de desayuno.',
+      'Lavar trastes.',
+      'Marcar hora del término de desayuno.',
+      'Contestar mensajes de WhatsApp.',
+      'Contestar mensajes de redes sociales.',
+      'Imprimir ventas.',
+      'Recortar etiquetas.',
+      'Hacer un resumen de ventas.',
+      'Verificar faltantes.',
+      'Hacer un resumen de faltantes.',
+      'Subir resumen de ventas a WhatsApp.',
+      'Subir resumen de faltantes a WhatsApp.',
+      'Verificar si el cliente de Mercado Libre pidió alguna especificación en su compra y reportarla.',
+      'Contestar mensajes y preguntas de Mercado Libre.',
+      'Preparar sombreros.',
+      'Mandar evidencias de envío.',
+      'Embalar.',
+      'Limpiar el área antes de retirarse.',
+      'Verificar que quedó COMPLETAMENTE limpia y en orden.',
+      'Verificar cuánto dinero deja en caja.',
+      'Llenar bitácora.',
+      'Marcar hora de salida.',
+      'Avisar de salida en WhatsApp.',
+      'Cerrar bien el local.'
+    ]});
+    P.push({id:_tkUID(), persona:'Liz', nombre:'Todos los días', dias:[0,1,2,3,4,5], tareas:[
+      'Reportar si el cliente pidió pluma, placa o sombrero personalizado y pedirlo al proveedor correspondiente.'
+    ]});
+    saveTkPlant(P);
+    localStorage.setItem('tareas_seed_v1','1');
+  }catch(e){}
+}
+
+/* ── Estado de la vista ── */
+var _tkFecha=null, _tkVerPersona=null;
+
+function renderTareas(){
+  var c=document.getElementById('tareas-panel'); if(!c) return;
+  _tkSeed();
+  if(!_tkFecha) _tkFecha=_tkHoy();
+  var esAdmin=_tkEsAdmin();
+  var h='';
+  if(esAdmin){ h+=_tkPanelAdmin(); } else { h+=_tkPanelEmpleada(); }
+  c.innerHTML=h;
+}
+
+/* ── Vista de la colaboradora ── */
+function _tkPanelEmpleada(){
+  var persona=_tkPersonaActual();
+  var f=_tkHoy(); // la colaboradora siempre trabaja sobre HOY
+  _tkFecha=f;
+  var dia=_tkDiaDe(f);
+  if(!persona){
+    return '<div class="card" style="color:var(--text2);font-size:13px;padding:16px">'
+      +'Todavía no tienes una lista asignada. Pídele a Fer que te vincule desde <b>Tareas → Gestionar listas</b>.</div>';
+  }
+  var listas=loadTkPlant().filter(function(p){ return p.persona===persona && (p.dias||[]).indexOf(dia)>=0; });
+  var hechas=loadTkHechas(); var reg=(hechas[f]&&hechas[f][persona])?hechas[f][persona]:{};
+  var tot=0, ok=0;
+  listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[p.id+'#'+i]) ok++; }); });
+  var pct=tot?Math.round(ok/tot*100):0;
+
+  var h='<div class="card" style="margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+      +'<div><div style="font-size:16px;font-weight:700;color:var(--accent2)">✅ '+_tkEsc(persona)+' · '+TK_DIAS[dia]+'</div>'
+      +'<div style="font-size:12px;color:var(--text2)">'+_tkFechaTxt(f)+' · Palomea cada tarea al terminarla. Se guarda la hora y el lugar.</div></div>'
+      +'<div style="text-align:right"><div style="font-size:22px;font-weight:800;color:'+(pct===100?'var(--green)':'var(--accent2)')+'">'+ok+'/'+tot+'</div>'
+      +'<div style="font-size:10px;color:var(--text2)">completadas</div></div>'
+    +'</div>'
+    +'<div style="background:#0f0f13;border-radius:8px;height:12px;overflow:hidden;margin-top:10px"><div style="height:100%;width:'+pct+'%;background:'+(pct===100?'var(--green)':'var(--accent)')+';transition:width .3s"></div></div>'
+  +'</div>';
+
+  if(!listas.length){
+    h+='<div class="card" style="color:var(--text2);font-size:13px;padding:16px">Hoy ('+TK_DIAS[dia]+') no tienes lista asignada. Si crees que es un error, avísale a Fer.</div>';
+    return h;
+  }
+  listas.forEach(function(p){ h+=_tkListaHTML(p, reg, true, persona); });
+  if(pct===100){
+    h+='<div class="card" style="text-align:center;padding:16px;border-color:var(--green)"><div style="font-size:15px;font-weight:700;color:var(--green)">🎉 ¡Terminaste todo lo de hoy!</div></div>';
+  }
+  return h;
+}
+
+function _tkListaHTML(p, reg, editable, persona){
+  var tareas=p.tareas||[];
+  var ok=0; tareas.forEach(function(t,i){ if(reg[p.id+'#'+i]) ok++; });
+  var h='<div class="card" style="margin-bottom:14px">'
+    +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+      +'<span>📋 '+_tkEsc(p.nombre||'Lista')+'</span>'
+      +'<span style="font-size:11px;color:var(--text2);font-weight:400">'+(p.dias||[]).map(function(d){return TK_DIAS_C[d];}).join(' · ')+' · <b style="color:'+(ok===tareas.length&&tareas.length?'var(--green)':'var(--accent2)')+'">'+ok+'/'+tareas.length+'</b></span>'
+    +'</div>';
+  tareas.forEach(function(t,i){
+    var k=p.id+'#'+i, r=reg[k];
+    var done=!!r;
+    h+='<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)'+(done?';background:rgba(76,175,80,.06)':'')+'">'
+      +(editable
+        ? '<button onclick="tkToggle(\''+p.id+'\','+i+')" style="flex-shrink:0;width:26px;height:26px;border-radius:7px;border:2px solid '+(done?'var(--green)':'var(--border)')+';background:'+(done?'var(--green)':'transparent')+';color:#0f0f13;font-size:14px;font-weight:800;cursor:pointer;line-height:1;padding:0">'+(done?'✓':'')+'</button>'
+        : '<span style="flex-shrink:0;width:26px;height:26px;border-radius:7px;border:2px solid '+(done?'var(--green)':'var(--border)')+';background:'+(done?'var(--green)':'transparent')+';color:#0f0f13;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">'+(done?'✓':'')+'</span>')
+      +'<span style="flex:1;font-size:13px;line-height:1.4;'+(done?'color:var(--text2);text-decoration:line-through':'')+'">'+_tkEsc(t)+'</span>'
+      +'<span style="flex-shrink:0;text-align:right;min-width:78px">'
+        +(done?('<div style="font-size:12px;font-weight:700;color:var(--green)">'+_tkEsc(r.t||'')+'</div><div>'+_tkGeoBadge(r.geo)+'</div>'):'<span style="font-size:10px;color:var(--text2)">pendiente</span>')
+      +'</span>'
+    +'</div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+function _tkGeoBadge(geo){
+  if(typeof _asisGeoBadge==='function'){ try{ return _asisGeoBadge(geo); }catch(e){} }
+  if(!geo) return '<span style="font-size:10px;color:var(--text2)">📍✗</span>';
+  return '<a href="https://maps.google.com/?q='+geo.lat+','+geo.lng+'" target="_blank" style="font-size:10px;color:var(--green);text-decoration:none">📍 ubicación ✓</a>';
+}
+
+/* ── Palomear / despalomear ── */
+function tkToggle(pid, idx){
+  var persona=_tkEsAdmin()?_tkVerPersona:_tkPersonaActual();
+  if(!persona){ if(typeof mostrarToast==='function') mostrarToast('No hay lista asignada',''); return; }
+  var f=_tkEsAdmin()?(_tkFecha||_tkHoy()):_tkHoy();
+  var hechas=loadTkHechas();
+  if(!hechas[f]) hechas[f]={};
+  if(!hechas[f][persona]) hechas[f][persona]={};
+  var k=pid+'#'+idx;
+  if(hechas[f][persona][k]){
+    if(!confirm('Ya estaba palomeada. ¿Quitar la palomita?')) return;
+    delete hechas[f][persona][k];
+    saveTkHechas(hechas); renderTareas(); return;
+  }
+  var txt='';
+  try{ var pl=loadTkPlant().filter(function(x){return x.id===pid;})[0]; if(pl) txt=(pl.tareas||[])[idx]||''; }catch(e){}
+  hechas[f][persona][k]={t:_tkHora(), geo:null, por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'', txt:txt};
+  saveTkHechas(hechas);
+  renderTareas();
+  // La ubicación se agrega después: la hora nunca se pierde por GPS lento
+  if(navigator.geolocation){
+    var tarde=false; var tmr=setTimeout(function(){ tarde=true; }, 8000);
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(tarde) return; clearTimeout(tmr);
+      var hh=loadTkHechas();
+      if(hh[f] && hh[f][persona] && hh[f][persona][k]){
+        hh[f][persona][k].geo={lat:pos.coords.latitude, lng:pos.coords.longitude, acc:Math.round(pos.coords.accuracy)};
+        saveTkHechas(hh); renderTareas();
+      }
+    }, function(){ clearTimeout(tmr); }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
+  }
+}
+
+/* ── Vista de Fer (admin) ── */
+function _tkPanelAdmin(){
+  var f=_tkFecha||_tkHoy(), dia=_tkDiaDe(f);
+  var personas=_tkPersonas();
+  var hechas=loadTkHechas(); var regDia=hechas[f]||{};
+  var h='<div class="card" style="margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      +'<div><div style="font-size:16px;font-weight:700;color:var(--accent2)">✅ Tareas del equipo</div>'
+      +'<div style="font-size:12px;color:var(--text2)">'+TK_DIAS[dia]+' '+_tkFechaTxt(f)+' · hora y ubicación de cada palomita</div></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+        +'<input type="date" value="'+f+'" onchange="_tkFecha=this.value;_tkVerPersona=null;renderTareas()" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 9px;font-size:12px">'
+        +'<button class="btn btn-secondary btn-sm" onclick="_tkFecha=_tkHoy();renderTareas()">Hoy</button>'
+        +'<button class="btn btn-accent btn-sm" onclick="tkGestionar()">⚙️ Gestionar listas</button>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+
+  if(!personas.length){
+    h+='<div class="card" style="color:var(--text2);font-size:13px;padding:16px">No hay listas creadas. Toca <b>⚙️ Gestionar listas</b>.</div>';
+    return h;
+  }
+
+  /* Resumen */
+  h+='<div class="grid g'+(personas.length>=3?'3':'2')+'" style="margin-bottom:14px">';
+  personas.forEach(function(per){
+    var listas=loadTkPlant().filter(function(p){ return p.persona===per && (p.dias||[]).indexOf(dia)>=0; });
+    var reg=regDia[per]||{}; var tot=0, ok=0;
+    listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[p.id+'#'+i]) ok++; }); });
+    var pct=tot?Math.round(ok/tot*100):0;
+    var col=!tot?'var(--text2)':(pct===100?'var(--green)':(pct>=50?'var(--accent2)':'var(--red)'));
+    h+='<div class="card" style="padding:14px;cursor:pointer;'+(_tkVerPersona===per?'border-color:var(--accent)':'')+'" onclick="_tkVerPersona='+(_tkVerPersona===per?'null':'\''+per+'\'')+';renderTareas()">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">'+_tkEsc(per)+'</b>'
+      +'<span style="font-size:18px;font-weight:800;color:'+col+'">'+(tot?ok+'/'+tot:'—')+'</span></div>'
+      +'<div style="background:#0f0f13;border-radius:6px;height:8px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+pct+'%;background:'+col+'"></div></div>'
+      +'<div style="font-size:10px;color:var(--text2);margin-top:6px">'+(tot?(pct+'% · toca para ver el detalle'):'Sin lista para este día')+'</div>'
+    +'</div>';
+  });
+  h+='</div>';
+
+  /* Detalle */
+  var verA=_tkVerPersona?[_tkVerPersona]:[];
+  if(!verA.length){
+    h+='<div class="card" style="color:var(--text2);font-size:12px;padding:14px;text-align:center">Toca una tarjeta de arriba para ver tarea por tarea con su hora y ubicación.</div>';
+    return h;
+  }
+  verA.forEach(function(per){
+    var listas=loadTkPlant().filter(function(p){ return p.persona===per && (p.dias||[]).indexOf(dia)>=0; });
+    var reg=regDia[per]||{};
+    h+='<div style="font-size:14px;font-weight:700;color:var(--accent2);margin:6px 0 10px">👤 '+_tkEsc(per)+'</div>';
+    if(!listas.length){ h+='<div class="card" style="color:var(--text2);font-size:12px;padding:14px">No tiene lista asignada para '+TK_DIAS[dia]+'.</div>'; return; }
+    listas.forEach(function(p){ h+=_tkListaHTML(p, reg, true, per); });
+  });
+  return h;
+}
+
+/* ── Gestión de listas (solo Fer) ── */
+function tkGestionar(){
+  if(!_tkEsAdmin()) return;
+  var arr=loadTkPlant();
+  var ov=document.getElementById('tk-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='tk-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100010;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<h3 style="margin:0;color:var(--accent2);font-size:16px">⚙️ Listas de tareas</h3>'
+      +'<button onclick="document.getElementById(\'tk-ov\').remove()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button>'
+    +'</div>'
+    +'<button class="btn btn-accent btn-sm" style="width:100%;margin-bottom:12px" onclick="tkEditar(\'\')">+ Nueva lista</button>';
+  if(!arr.length){ h+='<div style="font-size:12px;color:var(--text2);padding:8px">Todavía no hay listas.</div>'; }
+  arr.forEach(function(p){
+    h+='<div style="border:1px solid var(--border);border-radius:10px;padding:11px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      +'<div style="flex:1;min-width:0"><b style="font-size:13px">'+_tkEsc(p.persona)+' · '+_tkEsc(p.nombre||'')+'</b>'
+      +'<div style="font-size:11px;color:var(--text2)">'+(p.dias||[]).map(function(d){return TK_DIAS_C[d];}).join(' · ')+' · '+(p.tareas||[]).length+' tareas</div></div>'
+      +'<button class="btn btn-secondary btn-sm" onclick="tkEditar(\''+p.id+'\')">✏️</button>'
+      +'<button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="tkBorrarLista(\''+p.id+'\')">🗑️</button>'
+    +'</div>';
+  });
+  /* Vinculación usuario → persona */
+  h+='<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">'
+    +'<b style="font-size:13px;color:var(--accent2)">🔗 Quién ve cada lista</b>'
+    +'<div style="font-size:11px;color:var(--text2);margin:4px 0 8px">Vincula cada usuario del sistema con su nombre en las listas.</div>';
+  var personas=_tkPersonas(), map=loadTkMap();
+  var users=(typeof USUARIOS!=='undefined'?USUARIOS:[]).filter(function(u){ return u.rol!=='admin'; });
+  users.forEach(function(u){
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      +'<span style="flex:1;font-size:12px">'+_tkEsc(u.nombre)+'</span>'
+      +'<select onchange="tkVincular(\''+u.id+'\',this.value)" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 8px;font-size:12px">'
+      +'<option value="">— automático —</option>'
+      +personas.map(function(pp){ return '<option value="'+_tkEsc(pp)+'"'+(map[u.id]===pp?' selected':'')+'>'+_tkEsc(pp)+'</option>'; }).join('')
+      +'</select></div>';
+  });
+  h+='</div></div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+}
+function tkVincular(uid, persona){
+  var map=loadTkMap();
+  if(persona) map[uid]=persona; else delete map[uid];
+  saveTkMap(map);
+  if(typeof mostrarToast==='function') mostrarToast('✅ Vinculación guardada','green');
+}
+function tkBorrarLista(id){
+  if(!_tkEsAdmin()) return;
+  var arr=loadTkPlant(); var p=arr.filter(function(x){return x.id===id;})[0]; if(!p) return;
+  if(!confirm('¿Borrar la lista "'+(p.persona||'')+' · '+(p.nombre||'')+'"?')) return;
+  saveTkPlant(arr.filter(function(x){ return x.id!==id; }));
+  tkGestionar(); renderTareas();
+}
+function tkEditar(id){
+  if(!_tkEsAdmin()) return;
+  var p=loadTkPlant().filter(function(x){return x.id===id;})[0];
+  var nuevo=!p;
+  p=p||{id:'', persona:'', nombre:'', dias:[], tareas:[]};
+  var ov=document.getElementById('tk-ov2'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='tk-ov2';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100020;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:13px';
+  var lbl='font-size:10px;color:var(--text2);display:block;margin-bottom:3px;letter-spacing:.3px';
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:600px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<h3 style="margin:0;color:var(--accent2);font-size:16px">'+(nuevo?'Nueva lista':'Editar lista')+'</h3>'
+      +'<button onclick="document.getElementById(\'tk-ov2\').remove()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button>'
+    +'</div>'
+    +'<div class="grid g2" style="gap:9px;margin-bottom:9px">'
+      +'<div><label style="'+lbl+'">PERSONA</label><input id="tk-per" value="'+_tkEsc(p.persona)+'" placeholder="Lulú" style="'+inp+'"></div>'
+      +'<div><label style="'+lbl+'">NOMBRE DE LA LISTA</label><input id="tk-nom" value="'+_tkEsc(p.nombre)+'" placeholder="Apertura y limpieza" style="'+inp+'"></div>'
+    +'</div>'
+    +'<label style="'+lbl+'">DÍAS EN QUE APLICA</label>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+      +TK_DIAS_C.map(function(d,i){
+        var on=(p.dias||[]).indexOf(i)>=0;
+        return '<label style="display:flex;align-items:center;gap:4px;background:'+(on?'rgba(184,137,43,.2)':'#0f0f13')+';border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer">'
+          +'<input type="checkbox" class="tk-dia" value="'+i+'"'+(on?' checked':'')+' style="margin:0">'+d+'</label>';
+      }).join('')
+    +'</div>'
+    +'<label style="'+lbl+'">TAREAS (una por renglón, en el orden del día)</label>'
+    +'<textarea id="tk-tareas" rows="14" style="'+inp+';resize:vertical;font-size:12px;line-height:1.5">'+_tkEsc((p.tareas||[]).join('\n'))+'</textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button class="btn btn-secondary" style="flex:1" onclick="document.getElementById(\'tk-ov2\').remove()">Cancelar</button>'
+      +'<button class="btn btn-accent" style="flex:1" onclick="tkGuardarLista(\''+(p.id||'')+'\')">💾 Guardar</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function tkGuardarLista(id){
+  var v=function(i){ var e=document.getElementById(i); return e?e.value.trim():''; };
+  var persona=v('tk-per'); if(!persona){ alert('Escribe de quién es la lista.'); return; }
+  var dias=[]; document.querySelectorAll('.tk-dia').forEach(function(c){ if(c.checked) dias.push(parseInt(c.value,10)); });
+  if(!dias.length){ alert('Marca al menos un día.'); return; }
+  var tareas=(document.getElementById('tk-tareas')||{value:''}).value.split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s.length>0; });
+  if(!tareas.length){ alert('Escribe al menos una tarea.'); return; }
+  var obj={id: id||_tkUID(), persona:persona, nombre:v('tk-nom')||'Lista', dias:dias, tareas:tareas};
+  var arr=loadTkPlant(); var idx=-1;
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===obj.id) idx=i; }
+  if(idx>=0) arr[idx]=obj; else arr.push(obj);
+  saveTkPlant(arr);
+  var o2=document.getElementById('tk-ov2'); if(o2) o2.remove();
+  tkGestionar(); renderTareas();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Lista guardada','green');
+}
+
 /* ══════════════════ TANDAS ══════════════════ */
 var TANDAS_KEY='tandas';
 function loadTandas(){ try{ var v=JSON.parse(localStorage.getItem(TANDAS_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
@@ -14254,6 +14782,156 @@ function _asisGeoBadge(geo){
   }
   return '<a href="'+maps+'" target="_blank" title="Ver en mapa'+(geo.acc?(' · precisión: ±'+geo.acc+'m'):'')+'" style="font-size:10px;color:var(--green);text-decoration:none">📍 ubicación ✓</a>';
 }
+/* ═══════ SOLICITUDES DE CORRECCIÓN DE HORA (se me olvidó marcar) ═══════
+   La colaboradora pide la hora que realmente entró/salió y queda PENDIENTE.
+   Solo se registra en asistencia cuando Fer la autoriza. */
+var ASIS_SOLIC_KEY='asis_solicitudes';
+function loadAsisSolic(){ try{ var v=JSON.parse(localStorage.getItem(ASIS_SOLIC_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function saveAsisSolic(a){ try{ save(ASIS_SOLIC_KEY,a); }catch(e){} }
+function _asisSlotNombre(slot){ for(var i=0;i<ASIS_SLOTS.length;i++){ if(ASIS_SLOTS[i][0]===slot) return ASIS_SLOTS[i][1]; } return slot; }
+function _asisEmpNombre(empId){
+  var L=(typeof empleadasData!=='undefined'?empleadasData:[]);
+  for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)) return L[i].nombre; }
+  return 'Colaboradora';
+}
+function _asisSolicPend(fecha, empId, slot){
+  var a=loadAsisSolic();
+  for(var i=0;i<a.length;i++){
+    var s=a[i];
+    if(s.estado==='pend' && s.fecha===fecha && String(s.empId)===String(empId) && s.slot===slot) return s;
+  }
+  return null;
+}
+
+/* Ventana para pedir la corrección */
+function asisPedirCorreccion(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
+  var actual=r[slot]||'';
+  var yaPend=_asisSolicPend(f, empId, slot);
+  if(yaPend){ alert('Ya mandaste una solicitud para "'+_asisSlotNombre(slot)+'" ('+yaPend.hora+'). Está esperando la autorización de Fer.'); return; }
+  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='asol-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100030;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px';
+  var ahora=new Date(); var hh=('0'+ahora.getHours()).slice(-2)+':'+('0'+ahora.getMinutes()).slice(-2);
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px">'
+    +'<h3 style="margin:0 0 4px;color:var(--accent2);font-size:16px">🙋 Se me olvidó marcar</h3>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:14px">'+_asisSlotNombre(slot)+' · '+_asisFmtFechaLarga(f)+(actual?(' · ahora dice '+actual):'')+'</div>'
+    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿A QUÉ HORA FUE REALMENTE?</label>'
+    +'<input type="time" id="asol-hora" value="'+(actual||hh)+'" style="'+inp+';margin-bottom:10px">'
+    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿POR QUÉ NO SE MARCÓ A TIEMPO?</label>'
+    +'<textarea id="asol-motivo" rows="3" placeholder="Ej. llegué y me puse a atender a un cliente y se me pasó marcar" style="'+inp+';resize:vertical;font-size:13px"></textarea>'
+    +'<div style="font-size:11px;color:var(--accent2);background:rgba(184,137,43,.12);border-radius:8px;padding:9px 10px;margin-top:10px">⚠️ Esta hora <b>no se registra todavía</b>. Le llega a Fer y ella la autoriza.</div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button class="btn btn-secondary" style="flex:1" onclick="document.getElementById(\'asol-ov\').remove()">Cancelar</button>'
+      +'<button class="btn btn-accent" style="flex:1" onclick="asisEnviarSolicitud('+empId+',\''+slot+'\')">📨 Enviar a Fer</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function asisEnviarSolicitud(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var hora=(document.getElementById('asol-hora')||{value:''}).value;
+  var motivo=((document.getElementById('asol-motivo')||{value:''}).value||'').trim();
+  if(!hora){ alert('Pon la hora.'); return; }
+  if(motivo.length<4){ alert('Escribe brevemente por qué no se marcó a tiempo.'); return; }
+  var arr=loadAsisSolic();
+  arr.push({
+    id:'s'+Date.now()+Math.random().toString(36).slice(2,5),
+    fecha:f, empId:empId, slot:slot, hora:hora, motivo:motivo,
+    anterior:(asistencia[f]&&asistencia[f][empId]&&asistencia[f][empId][slot])||'',
+    uid:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'',
+    creada:new Date().toISOString(), estado:'pend'
+  });
+  saveAsisSolic(arr);
+  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
+  try{
+    var primer=(_asisEmpNombre(empId)||'').split(' ')[0];
+    notificarUsuario('admin','🙋 '+primer+' pide autorizar '+_asisSlotNombre(slot)+' de '+hora+' ('+f+'): '+motivo);
+    renderNotifBanner();
+  }catch(e){}
+  renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast('📨 Enviado. Falta que Fer lo autorice','green');
+}
+
+/* Escribe la hora ya autorizada */
+function _asisAplicarManual(fecha, empId, slot, hora){
+  if(!asistencia[fecha]) asistencia[fecha]={};
+  if(!asistencia[fecha][empId]) asistencia[fecha][empId]={};
+  asistencia[fecha][empId][slot]=hora;
+  if(!asistencia[fecha][empId]._manual) asistencia[fecha][empId]._manual={};
+  asistencia[fecha][empId]._manual[slot]=true;
+  if(asistencia[fecha][empId]._geo) delete asistencia[fecha][empId]._geo[slot];
+  saveAsistencia();
+  var prev=_asisFecha; _asisFecha=fecha;
+  try{
+    if(slot==='entrada'){ _asisCheckRetardo(empId, hora); }
+    if(slot==='desFin' || slot==='comFin'){ _asisCheckDescanso(empId, slot); }
+  }catch(e){}
+  _asisFecha=prev;
+}
+function asisAutorizarSolic(id){
+  if(!_asisEsAdmin()) return;
+  var arr=loadAsisSolic(); var s=null;
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s || s.estado!=='pend') return;
+  if(!confirm('¿Autorizar '+_asisSlotNombre(s.slot)+' de '+s.hora+' para '+_asisEmpNombre(s.empId)+' el '+s.fecha+'?\n\nSe va a registrar en su asistencia.')) return;
+  _asisAplicarManual(s.fecha, s.empId, s.slot, s.hora);
+  s.estado='ok'; s.respondida=new Date().toISOString();
+  saveAsisSolic(arr);
+  try{ if(s.uid) notificarUsuario(s.uid,'✅ Fer autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+'). Ya quedó registrada.'); renderNotifBanner(); }catch(e){}
+  renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Autorizado y registrado','green');
+}
+function asisRechazarSolic(id){
+  if(!_asisEsAdmin()) return;
+  var arr=loadAsisSolic(); var s=null;
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s || s.estado!=='pend') return;
+  var nota=prompt('¿Por qué no la autorizas? (le llega el mensaje a ella)','');
+  if(nota===null) return;
+  s.estado='no'; s.nota=nota; s.respondida=new Date().toISOString();
+  saveAsisSolic(arr);
+  try{ if(s.uid) notificarUsuario(s.uid,'❌ Fer no autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+')'+(nota?': '+nota:'')); renderNotifBanner(); }catch(e){}
+  renderAsistencia();
+}
+function asisBorrarSolicitud(id){
+  var arr=loadAsisSolic();
+  var s=null; for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s) return;
+  var mia=(typeof currentUser!=='undefined'&&currentUser&&s.uid===currentUser.id);
+  if(!mia && !_asisEsAdmin()) return;
+  if(s.estado!=='pend') return;
+  if(!confirm('¿Cancelar tu solicitud?')) return;
+  saveAsisSolic(arr.filter(function(x){ return x.id!==id; }));
+  renderAsistencia();
+}
+
+/* Panel de pendientes para Fer */
+function _asisSolicPanelAdmin(){
+  var pend=loadAsisSolic().filter(function(s){ return s.estado==='pend'; })
+    .sort(function(a,b){ return (a.creada||'').localeCompare(b.creada||''); });
+  if(!pend.length) return '';
+  var h='<div style="border:1px solid var(--accent2);border-radius:9px;padding:11px 12px;margin-bottom:12px;background:rgba(184,137,43,.10)">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:8px">🙋 Horas por autorizar ('+pend.length+')</div>';
+  pend.forEach(function(s){
+    h+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:7px;background:var(--surface)">'
+      +'<div style="font-size:12px"><b>'+_ncEsc((_asisEmpNombre(s.empId)||'').split(' ')[0])+'</b> · '+_ncEsc(_asisSlotNombre(s.slot))+' → <b style="color:var(--accent2)">'+_ncEsc(s.hora)+'</b>'
+      +(s.anterior?(' <span style="color:var(--text2);font-size:11px">(antes '+_ncEsc(s.anterior)+')</span>'):'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin:3px 0 7px">📅 '+_ncEsc(s.fecha)+' · 📝 '+_ncEsc(s.motivo||'')+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button onclick="asisAutorizarSolic(\''+s.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">✅ Autorizar</button>'
+        +'<button onclick="asisRechazarSolic(\''+s.id+'\')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">❌ No autorizar</button>'
+        +'<button onclick="asisIrAFecha(\''+s.fecha+'\')" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">Ver ese día</button>'
+      +'</div>'
+    +'</div>';
+  });
+  h+='</div>';
+  return h;
+}
+
 function renderAsistencia(){
   var c=document.getElementById('asis-panel'); if(!c) return;
   try{ _asisSeedHorarios(); }catch(e){}
@@ -14296,6 +14974,8 @@ function renderAsistencia(){
     +'</div>'
     +'</div>';
   }
+
+  if(esAdmin){ try{ h+=_asisSolicPanelAdmin(); }catch(e){} }
 
   if(esAdmin){
     var _tabOn='background:var(--accent);border:none;color:#0f0f13;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:12px;font-weight:700';
@@ -14362,16 +15042,29 @@ function renderAsistencia(){
             +'<button onclick="asisMarcarAhora('+emp.id+',\''+s[0]+'\')" style="'+btnAhora+'" title="Marcar hora actual">Ahora</button>'
             +(val?'<button onclick="asisBorrarHora('+emp.id+',\''+s[0]+'\')" title="Borrar" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">✕</button>':'')
           +'</div>';
-        if(val) h+='<div style="margin-top:1px">'+_asisGeoBadge(g)+'</div>';
+        if(val) h+='<div style="margin-top:1px">'+((r._manual&&r._manual[s[0]])?'<span style="font-size:10px;color:var(--accent2)" title="Hora capturada y autorizada por Fer">✏️ autorizada</span>':_asisGeoBadge(g))+'</div>';
+        try{ var _sp=_asisSolicPend(f, emp.id, s[0]);
+          if(_sp) h+='<div style="margin-top:3px;font-size:10px;color:var(--accent2);background:rgba(184,137,43,.14);border-radius:6px;padding:4px 6px">🙋 Pide <b>'+_ncEsc(_sp.hora)+'</b> — '+_ncEsc(_sp.motivo||'')
+            +' <span onclick="asisAutorizarSolic(\''+_sp.id+'\')" style="color:var(--green);cursor:pointer;font-weight:700">✅</span>'
+            +' <span onclick="asisRechazarSolic(\''+_sp.id+'\')" style="color:var(--red);cursor:pointer;font-weight:700">❌</span></div>';
+        }catch(e){}
       } else {
+        var _sp=null; try{ _sp=_asisSolicPend(f, emp.id, s[0]); }catch(e){}
         if(val){
           h+='<div style="display:flex;gap:6px;align-items:center;background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.4);border-radius:6px;padding:5px 8px">'
               +'<span style="font-size:14px;font-weight:700;color:var(--green)">✅ '+val+'</span>'
-              +'<span style="font-size:9px;color:var(--green)">registrado, ya no se puede cambiar</span>'
-              +_asisGeoBadge(g)
+              +'<span style="font-size:9px;color:var(--green)">'+((r._manual&&r._manual[s[0]])?'autorizada por Fer':'registrado, ya no se puede cambiar')+'</span>'
+              +((r._manual&&r._manual[s[0]])?'':_asisGeoBadge(g))
             +'</div>';
         } else {
           h+='<button onclick="asisMarcarAhora('+emp.id+',\''+s[0]+'\')" style="'+btnAhora+';width:100%">⏱️ Marcar ahora</button>';
+        }
+        if(_sp){
+          h+='<div style="margin-top:3px;font-size:10px;color:var(--accent2);background:rgba(184,137,43,.14);border:1px solid rgba(184,137,43,.35);border-radius:6px;padding:5px 7px">'
+            +'⏳ Pediste <b>'+_ncEsc(_sp.hora)+'</b> — esperando a Fer '
+            +'<span onclick="asisBorrarSolicitud(\''+_sp.id+'\')" style="color:var(--red);cursor:pointer;text-decoration:underline">cancelar</span></div>';
+        } else {
+          h+='<div style="margin-top:3px;text-align:center"><span onclick="asisPedirCorreccion('+emp.id+',\''+s[0]+'\')" style="font-size:10px;color:var(--accent2);cursor:pointer;text-decoration:underline">'+(val?'✏️ Pedir corrección':'🙋 Se me olvidó marcar')+'</span></div>';
         }
       }
       h+='</div>';
