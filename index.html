@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v337</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v340</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -2437,7 +2437,7 @@
     <div class="card" style="margin-top:16px" id="rg-cuenta-card">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span><span class="dot" style="background:var(--accent2)"></span>💰 CUENTA CON RANGEL <span id="rg-cuenta-num" style="font-size:11px;color:var(--text2);font-weight:400"></span></span>
-        <button onclick="cerrarCuentaRangel()" class="btn btn-secondary btn-sm">🔄 Cerrar cuenta y empezar nueva</button>
+        <span style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="rgHistorialCuentas()" class="btn btn-secondary btn-sm">📚 Histórico de cuentas</button><button onclick="cerrarCuentaRangel()" class="btn btn-secondary btn-sm">🔄 Cerrar cuenta y empezar nueva</button></span>
       </div>
       <div style="font-size:12px;color:var(--text2);margin:2px 0 4px">Se va sumando lo que le debes por las modificaciones. Cuando le pagas o le das cosas (sombreros, cajas), se descuenta.</div>
       <div id="rg-saldo-box" style="margin:10px 0"></div>
@@ -14490,446 +14490,421 @@ function asisIrDesdeHistorico(empId, fecha){
   _asisFecha=fecha; _asisVista='dia'; renderAsistencia();
 }
 function _asisVerDetalleEmp(empId){ asisHistoricoMensual(); }
+/* ── Diseño elegido para el histórico ── */
+var _asisHistDiseno=(function(){ try{ var v=localStorage.getItem('asis_hist_diseno')||'cal'; return (v==='puntos')?'cal':v; }catch(e){ return 'cal'; } })();
+function asisHistDiseno(v){ _asisHistDiseno=v; try{ localStorage.setItem('asis_hist_diseno',v); }catch(e){} renderAsistencia(); }
+
+/* Cálculo único que alimenta los 4 diseños */
+function _asisHistStats(emp, mes){
+  var sch=asisHorarios[emp.id]||{};
+  var pm=mes.split('-'), pY=+pm[0], pM=+pm[1];
+  var diasEnMes=new Date(pY,pM,0).getDate();
+  var hoy=_asisHoy();
+  var mesNom=MESES_ES[pM-1]+' '+pm[0];
+  var out={dias:[], diasReg:0, retMayor:0, retLeve:0, faltas:0, just:0, minTot:0, mesNom:mesNom, primerDow:new Date(pY,pM-1,1).getDay(), diasEnMes:diasEnMes};
+  for(var d=1; d<=diasEnMes; d++){
+    var fISO=pm[0]+'-'+pm[1]+'-'+String(d).padStart(2,'0');
+    var dow=new Date(pY,pM-1,d).getDay();
+    var diaSch=sch[dow];
+    var futuro=(fISO>hoy);
+    var r=asistencia[fISO] && asistencia[fISO][emp.id];
+    var o={d:d, fISO:fISO, dow:dow, estado:'', entrada:'', salida:'', col:'#3a3a45', tip:d+' de '+mesNom+': '};
+    if(futuro){ o.estado='futuro'; o.col='#26262e'; o.tip+='aún no llega'; }
+    else if(!diaSch || !diaSch.e){ o.estado='descanso'; o.col='#3a3a45'; o.tip+='descanso'; }
+    else if(r && r.justificado){ o.estado='just'; o.col='#5b8af4'; o.tip+='justificado'; out.diasReg++; out.just++; o.entrada=r.entrada||''; }
+    else if(r && r.entrada){
+      out.diasReg++; o.entrada=r.entrada; o.salida=r.salida||'';
+      var esp=_asisMin(diaSch.e), lle=_asisMin(r.entrada);
+      var htxt=_asisHorasTrabajadas(r);
+      if(htxt){ var hm=htxt.match(/(\d+)h\s*(\d+)?/); if(hm) out.minTot+=(+hm[1]*60)+(+(hm[2]||0)); }
+      o.horas=htxt||'';
+      if(esp!=null && lle!=null && lle>esp+15){ o.estado='mayor'; o.col='#ff6b6b'; out.retMayor++; o.tip+='retardo mayor, entró '+r.entrada+' (esperado '+diaSch.e+')'; }
+      else if(esp!=null && lle!=null && lle>esp){ o.estado='leve'; o.col='#e8934b'; out.retLeve++; o.tip+='retardo leve, entró '+r.entrada+' (esperado '+diaSch.e+')'; }
+      else { o.estado='ok'; o.col='#3ecf8e'; o.tip+='a tiempo, entró '+r.entrada; }
+    } else { o.estado='falta'; o.col='#ff4d5e'; out.faltas++; o.tip+='falta (no marcó entrada)'; }
+    out.dias.push(o);
+  }
+  out.aTiempo=Math.max(0, out.diasReg-out.retMayor-out.retLeve);
+  out.horasTxt = out.minTot>0 ? (Math.floor(out.minTot/60)+'h '+(out.minTot%60)+'m') : '—';
+  var base=out.diasReg+out.faltas;
+  out.puntualidad = base ? Math.round(out.aTiempo/base*100) : 0;
+  out.asistencia = base ? Math.round(out.diasReg/base*100) : 0;
+  return out;
+}
+function _asisBarraApilada(S, alto){
+  var base=S.diasReg+S.faltas; if(!base) return '';
+  var p=function(n){ return (n/base*100)+'%'; };
+  return '<div style="display:flex;height:'+(alto||10)+'px;border-radius:6px;overflow:hidden;background:#0f0f13">'
+    +(S.aTiempo?'<div title="A tiempo: '+S.aTiempo+'" style="width:'+p(S.aTiempo)+';background:#3ecf8e"></div>':'')
+    +(S.retLeve?'<div title="Retardo leve: '+S.retLeve+'" style="width:'+p(S.retLeve)+';background:#e8934b"></div>':'')
+    +(S.retMayor?'<div title="Retardo mayor: '+S.retMayor+'" style="width:'+p(S.retMayor)+';background:#ff6b6b"></div>':'')
+    +(S.faltas?'<div title="Faltas: '+S.faltas+'" style="width:'+p(S.faltas)+';background:#ff4d5e"></div>':'')
+  +'</div>';
+}
+function _asisLeyenda(){
+  var it=function(c,t){ return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:3px;background:'+c+';display:inline-block"></span>'+t+'</span>'; };
+  return '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
+    +it('#3ecf8e','A tiempo')+it('#e8934b','Retardo leve')+it('#ff6b6b','Retardo mayor')
+    +it('#ff4d5e','Falta')+it('#5b8af4','Justificado')+it('#3a3a45','Descanso')
+  +'</div>';
+}
+
 function _asisHistoricoInlineHTML(){
   if(!_asisHistMes) _asisHistMes=_asisHoy().slice(0,7);
   var emps=(typeof empleadasData!=='undefined'?empleadasData:[]).filter(function(e){ return asisHorarios[e.id]; });
   var mes=_asisHistMes; var pm=mes.split('-');
   var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
   var nav='background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 13px;cursor:pointer;font-size:14px';
-  var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+  var on='background:var(--accent);border:none;color:#0f0f13;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:700';
+  var off='background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:700';
+  var D=_asisHistDiseno;
+  var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+    +'<button onclick="asisHistDiseno(\'cal\')" style="'+(D==='cal'?on:off)+'">🗓️ Calendario</button>'
+    +'<button onclick="asisHistDiseno(\'tabla\')" style="'+(D==='tabla'?on:off)+'">📋 Tabla comparativa</button>'
+    +'<button onclick="asisHistDiseno(\'score\')" style="'+(D==='score'?on:off)+'">🎯 Tarjeta de desempeño</button>'
+    +'<span style="flex:1"></span>'
+    +'<button onclick="asisEvaluacionMensual()" style="background:var(--accent2);border:none;color:#0f0f13;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:700">📄 Evaluación mensual</button>'
+    +'<button onclick="asisEvaluacionCopiar()" style="'+off+'">📋 Copiar resumen</button>'
+  +'</div>';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
     +'<button onclick="asisHistInlineNav(-1)" style="'+nav+'">◀</button>'
     +'<b style="font-size:15px">'+mesNom+'</b>'
     +'<button onclick="asisHistInlineNav(1)" style="'+nav+'">▶</button>'
   +'</div>';
   if(!emps.length){ h+='<div style="color:var(--text2);font-size:12px;padding:10px">No hay empleadas con horario configurado todavía. Usa "🗓️ Horarios esperados" arriba.</div>'; return h; }
 
-  var pY=+pm[0], pM=+pm[1];
-  var diasEnMes=new Date(pY,pM,0).getDate();
-  var hoy=_asisHoy();
+  if(D==='tabla') return h+_asisHistTabla(emps, mes);
+  h+=_asisLeyenda();
+  if(D==='cal') return h+_asisHistCalendario(emps, mes);
+  return h+_asisHistScore(emps, mes);
+}
 
+/* ══ A) CALENDARIO ══ */
+function _asisHistCalendario(emps, mes){
+  var h='';
+  var dn=['D','L','M','M','J','V','S'];
   emps.forEach(function(e){
-    var sch=asisHorarios[e.id];
-    var diasReg=0, retMayor=0, retLeve=0, minTot=0, faltas=0;
-    var dots='';
-    for(var d=1; d<=diasEnMes; d++){
-      var fISO=pm[0]+'-'+pm[1]+'-'+String(d).padStart(2,'0');
-      if(fISO>hoy) break;
-      var r=asistencia[fISO] && asistencia[fISO][e.id];
-      var dow=new Date(pY,pM-1,d).getDay();
-      var diaSch=sch[dow];
-      var col='#3a3a45'; var tip=d+' de '+mesNom+': ';
-      if(!diaSch || !diaSch.e){ tip+='descanso'; }
-      else if(r && r.justificado){ col='#5b8af4'; tip+='justificado'; diasReg++; }
-      else if(r && r.entrada){
-        diasReg++;
-        var esp=_asisMin(diaSch.e), lle=_asisMin(r.entrada);
-        var htxt=_asisHorasTrabajadas(r); if(htxt){ var hm=htxt.match(/(\d+)h\s*(\d+)?/); if(hm) minTot+=(+hm[1]*60)+(+(hm[2]||0)); }
-        if(esp!=null && lle!=null && lle>esp+15){ col='#ff6b6b'; retMayor++; tip+='retardo mayor, entró '+r.entrada; }
-        else if(esp!=null && lle!=null && lle>esp){ col='#e8934b'; retLeve++; tip+='retardo leve, entró '+r.entrada; }
-        else { col='#3ecf8e'; tip+='a tiempo, entró '+r.entrada; }
-      } else {
-        col='#ff4d5e'; tip+='falta (no marcó entrada)'; faltas++;
-      }
-      dots+='<span onclick="asisIrDesdeHistorico(\''+e.id+'\',\''+fISO+'\')" title="'+tip+'" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+col+';margin:2px;cursor:pointer"></span>';
-    }
-    var horasTxt = minTot>0 ? (Math.floor(minTot/60)+'h '+(minTot%60)+'m') : '—';
-    var aTiempo=Math.max(0,diasReg-retMayor-retLeve);
-    h+='<div style="border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:linear-gradient(135deg,var(--surface2),rgba(201,150,58,.05))">'
+    var S=_asisHistStats(e, mes);
+    h+='<div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--surface2)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">'
         +'<span style="font-weight:800;font-size:15px">👤 '+_ncEsc(e.nombre)+'</span>'
-        +'<span style="font-size:11px;color:var(--text2);background:#0f0f13;border-radius:6px;padding:4px 9px">📅 <b style="color:var(--text)">'+diasReg+'</b> días · 🕐 <b style="color:var(--text)">'+horasTxt+'</b> trabajadas</span>'
+        +'<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:11px;color:var(--text2)">📅 <b style="color:var(--text)">'+S.diasReg+'</b> días · 🕐 <b style="color:var(--text)">'+S.horasTxt+'</b> · 🎯 <b style="color:'+(S.puntualidad>=90?'#3ecf8e':(S.puntualidad>=70?'#e8934b':'#ff6b6b'))+'">'+S.puntualidad+'%</b> puntual</span>'
+        +'<button onclick="asisEvaluacionMensual(\''+e.id+'\')" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:10px;white-space:nowrap">📄 Evaluación</button></span>'
       +'</div>'
-      +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px">'
-        +'<span style="color:#3ecf8e;font-weight:700">🟢 A tiempo: '+aTiempo+'</span>'
-        +'<span style="color:#e8934b;font-weight:700">🟠 Retardo leve: '+retLeve+'</span>'
-        +'<span style="color:#ff6b6b;font-weight:700">🔴 Retardo mayor: '+retMayor+'</span>'
-        +'<span style="color:#ff4d5e;font-weight:700">❌ Faltas: '+faltas+'</span>'
-      +'</div>'
-      +'<div style="line-height:0;margin-bottom:10px" title="Cada punto es un día — pásale el mouse o tócalo para ver el detalle">'+dots+'</div>'
-      +'<button onclick="_asisVerDetalleEmp(\''+e.id+'\')" class="btn btn-secondary btn-sm">📋 Ver detalle día por día</button>'
-    +'</div>';
-  });
-  return h;
-}
-function asisHistoricoMensual(){
-  if(!_asisEsAdmin()) return;
-  if(!_asisHistMes) _asisHistMes=_asisHoy().slice(0,7);
-  _asisRenderHistorico();
-}
-function asisHistMesNav(delta){
-  var p=_asisHistMes.split('-'); var d=new Date(+p[0], +p[1]-1+delta, 1);
-  _asisHistMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-  var o=document.getElementById('nom-ov'); if(o) o.remove(); _asisRenderHistorico();
-}
-function _asisRenderHistorico(){
-  var emps=(typeof empleadasData!=='undefined'?empleadasData:[]);
-  var mes=_asisHistMes; var pm=mes.split('-');
-  var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
-  var nav='background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 13px;cursor:pointer;font-size:14px';
-  var body='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
-    +'<button onclick="asisHistMesNav(-1)" style="'+nav+'">◀</button>'
-    +'<b style="font-size:14px">'+mesNom+'</b>'
-    +'<button onclick="asisHistMesNav(1)" style="'+nav+'">▶</button>'
-  +'</div>';
-  emps.forEach(function(e){
-    var sch=asisHorarios[e.id];
-    if(!sch) return;
-    var dias=[];
-    Object.keys(asistencia).filter(function(f){ return f.slice(0,7)===mes; }).sort().forEach(function(f){
-      var r=asistencia[f] && asistencia[f][e.id]; if(!r) return;
-      if(!r.entrada && !r.salida && !r.permiso && !r.justificado) return;
-      dias.push({f:f, r:r});
-    });
-    body+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:9px">'
-      +'<div style="font-weight:700;font-size:13px;margin-bottom:5px">👤 '+_ncEsc(e.nombre)+' <span style="font-size:10px;color:var(--text2)">('+dias.length+' días)</span></div>';
-    if(!dias.length){ body+='<div style="font-size:11px;color:var(--text2)">Sin registros este mes.</div>'; }
-    else dias.forEach(function(o){
-      var r=o.r; var estado='—'; var col='var(--text2)';
-      if(r.justificado){ estado='✅ Justificado'; col='var(--green)'; }
-      else if(sch){
-        var p=o.f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); var dia=sch[dow];
-        if(!dia||!dia.e){ estado='Descanso'; }
-        else { var esp=_asisMin(dia.e), lle=_asisMin(r.entrada);
-          if(lle==null) estado='—';
-          else if(lle>esp+15){ estado='🔴 Retardo mayor'; col='#ff6b6b'; }
-          else if(lle>esp){ estado='🟠 Retardo'; col='#e8934b'; }
-          else { estado='🟢 A tiempo'; col='var(--green)'; }
-        }
-      }
-      var horas=_asisHorasTrabajadas(r);
-      var marks='Ent <b>'+(r.entrada||'--')+'</b>';
-      if(r.desIni||r.desFin){ var dd=(_asisMin(r.desFin)!=null&&_asisMin(r.desIni)!=null)?(_asisMin(r.desFin)-_asisMin(r.desIni)):null; marks+=' · Des '+(r.desIni||'--')+'–'+(r.desFin||'--')+(dd!=null?(dd>30?(' <span style="color:#e8934b">('+dd+'m ⚠)</span>'):(' ('+dd+'m)')):''); }
-      if(r.comIni||r.comFin){ var cc=(_asisMin(r.comFin)!=null&&_asisMin(r.comIni)!=null)?(_asisMin(r.comFin)-_asisMin(r.comIni)):null; marks+=' · Com '+(r.comIni||'--')+'–'+(r.comFin||'--')+(cc!=null?(cc>30?(' <span style="color:#e8934b">('+cc+'m ⚠)</span>'):(' ('+cc+'m)')):''); }
-      marks+=' · Sal <b>'+(r.salida||'--')+'</b>'+(horas?(' · '+horas+' trab.'):'');
-      body+='<div style="border-top:1px solid var(--border);padding:5px 0">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px">'
-          +'<span style="font-weight:600">'+_asisFechaCorta(o.f)+'</span>'
-          +'<span style="color:'+col+';font-weight:600">'+estado+' <button onclick="asisIrAFecha(\''+o.f+'\')" title="Editar este día" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px">✏️</button></span>'
-        +'</div>'
-        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+marks+'</div>'
-        + ((r._geo && r._geo.entrada)?('<div style="font-size:10px;margin-top:1px">Entró desde: '+_asisGeoBadge(r._geo.entrada)+'</div>'):'')
-        + (r.permiso?('<div style="font-size:10px;color:var(--text2)">📝 '+_ncEsc(r.permiso)+'</div>'):'')
+      +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+    dn.forEach(function(x){ h+='<div style="text-align:center;font-size:9px;color:var(--text2);font-weight:700;padding-bottom:2px">'+x+'</div>'; });
+    for(var i=0;i<S.primerDow;i++){ h+='<div></div>'; }
+    S.dias.forEach(function(o){
+      var claro=(o.estado==='descanso'||o.estado==='futuro');
+      var txt = o.entrada ? o.entrada : (o.estado==='falta'?'falta':(o.estado==='descanso'?'—':''));
+      h+='<div onclick="asisIrDesdeHistorico(\''+e.id+'\',\''+o.fISO+'\')" title="'+_ncEsc(o.tip)+'" '
+        +'style="cursor:pointer;border-radius:8px;padding:5px 2px;text-align:center;min-height:38px;'
+        +'background:'+(claro?'#1b1b22':o.col+'22')+';border:1px solid '+(claro?'var(--border)':o.col+'88')+'">'
+        +'<div style="font-size:10px;color:'+(claro?'var(--text2)':o.col)+';font-weight:700;line-height:1.1">'+o.d+'</div>'
+        +'<div style="font-size:10px;color:'+(claro?'#4a4a55':o.col)+';font-weight:700;line-height:1.3">'+_ncEsc(txt)+'</div>'
       +'</div>';
     });
-    body+='</div>';
-  });
-  _nomOverlay('📅 Histórico mensual de asistencia', body);
-}
-function _asisCheckRetardo(empId, hora){
-  var sch=asisHorarios[empId]; if(!sch) return;
-  var dow=_asisDowDeFecha(_asisFecha);
-  var dia=sch[dow]; if(!dia || !dia.e) return; // descanso o sin horario ese día
-  var esperado=_asisMin(dia.e), llegada=_asisMin(hora);
-  if(esperado==null || llegada==null || llegada<=esperado) return; // a tiempo
-  var f=_asisFecha||_asisHoy();
-  var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
-  if(r.justificado) return; // permiso justificado, no cuenta
-  var mayor = llegada > (esperado+15);
-  var ya=r._retNotif;
-  if(ya==='mayor') return;
-  if(ya==='leve' && !mayor) return;
-  if(!asistencia[f]) asistencia[f]={}; if(!asistencia[f][empId]) asistencia[f][empId]={};
-  asistencia[f][empId]._retNotif = mayor?'mayor':'leve';
-  saveAsistencia();
-  var L=(typeof empleadasData!=='undefined'?empleadasData:[]); var nombre='';
-  for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nombre=L[i].nombre; break; } }
-  var primer=(nombre||'').split(' ')[0];
-  var uid=(typeof _nomUsuarioDeEmp==='function')?_nomUsuarioDeEmp(nombre):null;
-  var tarde=_asisFmtDur(llegada-esperado);
-  if(mayor){
-    var count=_asisContarRetardosMayores(empId);
-    var hayActa=(count>0 && count%3===0);
-    if(hayActa){
-      try{
-        if(typeof state!=='undefined' && state.actaEntries){
-          state.actaEntries.push({emp:nombre, tipo:'Amonestación por retardos', fecha:(_asisFecha||_asisHoy()), desc:'Acumuló '+count+' retardos (llegadas de más de 15 min tarde). Amonestación por escrito conforme al Reglamento Interior de Trabajo, previa garantía de audiencia a la trabajadora.'});
-          save('actas_entries', state.actaEntries);
-          if(typeof renderActas==='function') renderActas();
-        }
-      }catch(e){}
-    }
-    var msgE='🔴 Llegaste muy tarde: '+hora+' (tu entrada es '+dia.e+', '+tarde+' tarde). Retardo #'+count+'.'+(hayActa?' ⚠️ Acumulaste 3 retardos: se levantó una amonestación por escrito (acta administrativa).':'');
-    var msgA='🔴 '+primer+' llegó muy tarde: '+hora+' ('+tarde+' tarde). Retardo mayor #'+count+'.'+(hayActa?' ⚠️ Ya son 3 → se registró un acta administrativa en Nómina.':'');
-    if(uid) notificarUsuario(uid, msgE);
-    notificarUsuario('admin', msgA);
-  } else {
-    if(uid) notificarUsuario(uid, '🟠 Llegaste tarde: '+hora+' (tu entrada es '+dia.e+'). Procura llegar a tiempo.');
-    notificarUsuario('admin', '🟠 '+primer+' llegó tarde: '+hora+' ('+tarde+' tarde).');
-  }
-  try{ renderNotifBanner(); }catch(e){}
-}
-function asisMarcarAhora(empId, slot){
-  var f=_asisFecha||_asisHoy();
-  var yaHora=asistencia[f] && asistencia[f][empId] && asistencia[f][empId][slot];
-  if(yaHora && !_asisEsAdmin()){ if(typeof mostrarToast==='function') mostrarToast('Ya estaba marcado, no se puede cambiar',''); return; }
-  var ahora=new Date();
-  var hh=String(ahora.getHours()).padStart(2,'0'), mm=String(ahora.getMinutes()).padStart(2,'0');
-  var hora=hh+':'+mm;
-  // La hora se guarda YA, sin esperar al GPS — así nunca se queda "sin registrar" por ubicación lenta o bloqueada.
-  _asisGuardarConGeo(empId, slot, hora, null);
-  if(navigator.geolocation){
-    var _yaResp=false;
-    var _geoTimer=setTimeout(function(){ _yaResp=true; }, 8000);
-    navigator.geolocation.getCurrentPosition(function(pos){
-      if(_yaResp) return; // llegó demasiado tarde, no pisar lo ya guardado
-      clearTimeout(_geoTimer);
-      _asisAgregarGeo(empId, slot, f, {lat:pos.coords.latitude, lng:pos.coords.longitude, acc:Math.round(pos.coords.accuracy)});
-    }, function(err){
-      clearTimeout(_geoTimer);
-      // Sin ubicación: no pasa nada, la hora ya quedó guardada
-    }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
-  }
-}
-// Agrega la ubicación a un registro que YA fue guardado, sin tocar la hora ni volver a pedir confirmación
-function _asisAgregarGeo(empId, slot, fecha, geo){
-  if(!asistencia[fecha] || !asistencia[fecha][empId]) return;
-  if(asistencia[fecha][empId][slot]==null) return; // el registro se borró mientras tanto
-  if(!asistencia[fecha][empId]._geo) asistencia[fecha][empId]._geo={};
-  asistencia[fecha][empId]._geo[slot]=geo;
-  saveAsistencia();
-  if(fecha===(_asisFecha||_asisHoy())) renderAsistencia();
-}
-function asisBorrarHora(empId, slot){
-  if(!_asisEsAdmin()) return;
-  var f=_asisFecha||_asisHoy();
-  if(asistencia[f] && asistencia[f][empId]){
-    delete asistencia[f][empId][slot];
-    if(asistencia[f][empId]._geo) delete asistencia[f][empId]._geo[slot];
-    saveAsistencia(); renderAsistencia();
-  }
-}
-function asisSetPermiso(empId, val){
-  var f=_asisFecha||_asisHoy();
-  if(!asistencia[f]) asistencia[f]={};
-  if(!asistencia[f][empId]) asistencia[f][empId]={};
-  asistencia[f][empId].permiso=val;
-  saveAsistencia();
-}
-function asisToggleJustificado(empId, val){
-  if(!_asisEsAdmin()) return;
-  var f=_asisFecha||_asisHoy();
-  if(!asistencia[f]) asistencia[f]={};
-  if(!asistencia[f][empId]) asistencia[f][empId]={};
-  asistencia[f][empId].justificado=!!val;
-  saveAsistencia(); renderAsistencia();
-  if(typeof mostrarToast==='function') mostrarToast(val?'✅ Día justificado — no contará como retardo':'Día ya no justificado','green');
-}
-function asisBorrarDia(empId){
-  if(!_asisEsAdmin()) return;
-  var f=_asisFecha||_asisHoy();
-  var nom=''; var L=(typeof empleadasData!=='undefined'?empleadasData:[]); for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nom=L[i].nombre; break; } }
-  if(!confirm('¿Borrar todo el registro de asistencia de '+(nom||'esta empleada')+' del día '+f+'? Esto no se puede deshacer.')) return;
-  if(asistencia[f] && asistencia[f][empId]){ delete asistencia[f][empId]; if(!Object.keys(asistencia[f]).length) delete asistencia[f]; saveAsistencia(); renderAsistencia(); if(typeof mostrarToast==='function') mostrarToast('🗑️ Registro borrado','green'); }
-}
-function asisVincularUsuario(uid, empId){
-  if(!_asisEsAdmin()) return;
-  if(empId) asisUsuarios[uid]=empId; else delete asisUsuarios[uid];
-  saveAsisUsuarios(); renderAsistencia();
-}
-function asisFijarTienda(){
-  if(!_asisEsAdmin()) return;
-  if(!confirm('¿Estás físicamente en la tienda ahora mismo?\n\nSe va a guardar tu ubicación ACTUAL como el punto oficial de la tienda, y a partir de ahí se compara la de todo el equipo. Si no estás en la tienda, cancela y usa la opción de corregir con un enlace de Google Maps.')) return;
-  if(!navigator.geolocation){ alert('Este dispositivo no permite ubicación.'); return; }
-  if(typeof mostrarToast==='function') mostrarToast('📍 Obteniendo ubicación de la tienda…','');
-  navigator.geolocation.getCurrentPosition(function(pos){
-    asisTienda={lat:pos.coords.latitude, lng:pos.coords.longitude};
-    saveAsisTienda(); renderAsistencia();
-    if(typeof mostrarToast==='function') mostrarToast('✅ Ubicación de la tienda guardada','green');
-  }, function(err){
-    alert('No se pudo obtener la ubicación. Ponte en la tienda y permite la ubicación en el navegador.');
-  }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
-}
-// Corregir la ubicación de la tienda sin tener que estar ahí físicamente:
-// pega un link de Google Maps o escribe las coordenadas directamente.
-function asisFijarTiendaManual(){
-  if(!_asisEsAdmin()) return;
-  var actual = asisTienda ? ('\n\nAhora mismo está guardada como: '+asisTienda.lat.toFixed(5)+', '+asisTienda.lng.toFixed(5)) : '';
-  var txt = prompt('Pega aquí un enlace de Google Maps de la tienda, o escribe las coordenadas (ej. 19.7028,-101.1925):'+actual, '');
-  if(txt===null) return;
-  var m = (txt||'').match(/(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
-  if(!m){ alert('No encontré coordenadas ahí. Copia el enlace completo de Google Maps (el que sale al compartir la ubicación), o escribe algo como 19.7028,-101.1925'); return; }
-  var lat=parseFloat(m[1]), lng=parseFloat(m[2]);
-  if(isNaN(lat)||isNaN(lng)||Math.abs(lat)>90||Math.abs(lng)>180){ alert('Esas coordenadas no se ven válidas.'); return; }
-  if(!confirm('¿Guardar esta ubicación como la de la tienda?\n\n'+lat.toFixed(5)+', '+lng.toFixed(5)+'\n\nPuedes revisarla en: https://maps.google.com/?q='+lat+','+lng)) return;
-  asisTienda={lat:lat, lng:lng};
-  saveAsisTienda(); renderAsistencia();
-  if(typeof mostrarToast==='function') mostrarToast('✅ Ubicación de la tienda corregida','green');
-}
-function _asisGeoBadge(geo){
-  if(!geo) return '<span title="Se marcó sin ubicación" style="font-size:10px;color:var(--text2)">📍✗</span>';
-  var maps='https://maps.google.com/?q='+geo.lat+','+geo.lng;
-  // Si el propio GPS/WiFi reportó un margen de error muy grande, la ubicación no es
-  // confiable (típico en computadoras de escritorio sin GPS, que ubican por WiFi/IP
-  // y a veces fallan por cientos de metros o más). Se avisa en vez de mostrar un
-  // lugar "seguro" que puede estar mal.
-  if(geo.acc && geo.acc>500){
-    return '<a href="'+maps+'" target="_blank" title="El dispositivo reportó un margen de error de ±'+geo.acc+'m — no es confiable. Para mejor precisión, marca desde un celular en vez de una computadora." style="font-size:10px;color:#e8934b;text-decoration:none;font-weight:700">📍⚠ ubicación poco precisa (±'+geo.acc+'m)</a>';
-  }
-  if(asisTienda){
-    var d=_asisDist(asisTienda, geo);
-    if(d!=null){
-      // El GPS adentro de un local suele tener error de 30-150m; le damos ese margen
-      // de tolerancia (usando la precisión que reportó el dispositivo) para no marcar
-      // "fuera de tienda" a alguien que sí está adentro.
-      var margen=Math.min(geo.acc||0, 150);
-      var dAjustada=Math.max(0, d-margen);
-      var cerca=dAjustada<=150;
-      var txt=(d<1000)?(d+' m'):((d/1000).toFixed(1)+' km');
-      var col=cerca?'var(--green)':'#e8934b';
-      var et=cerca?('✓ en tienda ('+txt+')'):('⚠ a '+txt);
-      return '<a href="'+maps+'" target="_blank" title="Ver en mapa'+(geo.acc?(' · precisión del dispositivo: ±'+geo.acc+'m'):'')+'" style="font-size:10px;color:'+col+';text-decoration:none;font-weight:700">📍 '+et+'</a>';
-    }
-  }
-  return '<a href="'+maps+'" target="_blank" title="Ver en mapa'+(geo.acc?(' · precisión: ±'+geo.acc+'m'):'')+'" style="font-size:10px;color:var(--green);text-decoration:none">📍 ubicación ✓</a>';
-}
-/* ═══════ SOLICITUDES DE CORRECCIÓN DE HORA (se me olvidó marcar) ═══════
-   La colaboradora pide la hora que realmente entró/salió y queda PENDIENTE.
-   Solo se registra en asistencia cuando Fer la autoriza. */
-var ASIS_SOLIC_KEY='asis_solicitudes';
-function loadAsisSolic(){ try{ var v=JSON.parse(localStorage.getItem(ASIS_SOLIC_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
-function saveAsisSolic(a){ try{ save(ASIS_SOLIC_KEY,a); }catch(e){} }
-function _asisSlotNombre(slot){ for(var i=0;i<ASIS_SLOTS.length;i++){ if(ASIS_SLOTS[i][0]===slot) return ASIS_SLOTS[i][1]; } return slot; }
-function _asisEmpNombre(empId){
-  var L=(typeof empleadasData!=='undefined'?empleadasData:[]);
-  for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)) return L[i].nombre; }
-  return 'Colaboradora';
-}
-function _asisSolicPend(fecha, empId, slot){
-  var a=loadAsisSolic();
-  for(var i=0;i<a.length;i++){
-    var s=a[i];
-    if(s.estado==='pend' && s.fecha===fecha && String(s.empId)===String(empId) && s.slot===slot) return s;
-  }
-  return null;
-}
-
-/* Ventana para pedir la corrección */
-function asisPedirCorreccion(empId, slot){
-  var f=_asisFecha||_asisHoy();
-  var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
-  var actual=r[slot]||'';
-  var yaPend=_asisSolicPend(f, empId, slot);
-  if(yaPend){ alert('Ya mandaste una solicitud para "'+_asisSlotNombre(slot)+'" ('+yaPend.hora+'). Está esperando la autorización de Fer.'); return; }
-  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
-  ov=document.createElement('div'); ov.id='asol-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100030;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
-  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px';
-  var ahora=new Date(); var hh=('0'+ahora.getHours()).slice(-2)+':'+('0'+ahora.getMinutes()).slice(-2);
-  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px">'
-    +'<h3 style="margin:0 0 4px;color:var(--accent2);font-size:16px">🙋 Se me olvidó marcar</h3>'
-    +'<div style="font-size:12px;color:var(--text2);margin-bottom:14px">'+_asisSlotNombre(slot)+' · '+_asisFmtFechaLarga(f)+(actual?(' · ahora dice '+actual):'')+'</div>'
-    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿A QUÉ HORA FUE REALMENTE?</label>'
-    +'<input type="time" id="asol-hora" value="'+(actual||hh)+'" style="'+inp+';margin-bottom:10px">'
-    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿POR QUÉ NO SE MARCÓ A TIEMPO?</label>'
-    +'<textarea id="asol-motivo" rows="3" placeholder="Ej. llegué y me puse a atender a un cliente y se me pasó marcar" style="'+inp+';resize:vertical;font-size:13px"></textarea>'
-    +'<div style="font-size:11px;color:var(--accent2);background:rgba(184,137,43,.12);border-radius:8px;padding:9px 10px;margin-top:10px">⚠️ Esta hora <b>no se registra todavía</b>. Le llega a Fer y ella la autoriza.</div>'
-    +'<div style="display:flex;gap:8px;margin-top:14px">'
-      +'<button class="btn btn-secondary" style="flex:1" onclick="document.getElementById(\'asol-ov\').remove()">Cancelar</button>'
-      +'<button class="btn btn-accent" style="flex:1" onclick="asisEnviarSolicitud('+empId+',\''+slot+'\')">📨 Enviar a Fer</button>'
-    +'</div>'
-  +'</div>';
-  document.body.appendChild(ov);
-}
-function asisEnviarSolicitud(empId, slot){
-  var f=_asisFecha||_asisHoy();
-  var hora=(document.getElementById('asol-hora')||{value:''}).value;
-  var motivo=((document.getElementById('asol-motivo')||{value:''}).value||'').trim();
-  if(!hora){ alert('Pon la hora.'); return; }
-  if(motivo.length<4){ alert('Escribe brevemente por qué no se marcó a tiempo.'); return; }
-  var arr=loadAsisSolic();
-  arr.push({
-    id:'s'+Date.now()+Math.random().toString(36).slice(2,5),
-    fecha:f, empId:empId, slot:slot, hora:hora, motivo:motivo,
-    anterior:(asistencia[f]&&asistencia[f][empId]&&asistencia[f][empId][slot])||'',
-    uid:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'',
-    creada:new Date().toISOString(), estado:'pend'
-  });
-  saveAsisSolic(arr);
-  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
-  try{
-    var primer=(_asisEmpNombre(empId)||'').split(' ')[0];
-    notificarUsuario('admin','🙋 '+primer+' pide autorizar '+_asisSlotNombre(slot)+' de '+hora+' ('+f+'): '+motivo);
-    renderNotifBanner();
-  }catch(e){}
-  renderAsistencia();
-  if(typeof mostrarToast==='function') mostrarToast('📨 Enviado. Falta que Fer lo autorice','green');
-}
-
-/* Escribe la hora ya autorizada */
-function _asisAplicarManual(fecha, empId, slot, hora){
-  if(!asistencia[fecha]) asistencia[fecha]={};
-  if(!asistencia[fecha][empId]) asistencia[fecha][empId]={};
-  asistencia[fecha][empId][slot]=hora;
-  if(!asistencia[fecha][empId]._manual) asistencia[fecha][empId]._manual={};
-  asistencia[fecha][empId]._manual[slot]=true;
-  if(asistencia[fecha][empId]._geo) delete asistencia[fecha][empId]._geo[slot];
-  saveAsistencia();
-  var prev=_asisFecha; _asisFecha=fecha;
-  try{
-    if(slot==='entrada'){ _asisCheckRetardo(empId, hora); }
-    if(slot==='desFin' || slot==='comFin'){ _asisCheckDescanso(empId, slot); }
-  }catch(e){}
-  _asisFecha=prev;
-}
-function asisAutorizarSolic(id){
-  if(!_asisEsAdmin()) return;
-  var arr=loadAsisSolic(); var s=null;
-  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
-  if(!s || s.estado!=='pend') return;
-  if(!confirm('¿Autorizar '+_asisSlotNombre(s.slot)+' de '+s.hora+' para '+_asisEmpNombre(s.empId)+' el '+s.fecha+'?\n\nSe va a registrar en su asistencia.')) return;
-  _asisAplicarManual(s.fecha, s.empId, s.slot, s.hora);
-  s.estado='ok'; s.respondida=new Date().toISOString();
-  saveAsisSolic(arr);
-  try{ if(s.uid) notificarUsuario(s.uid,'✅ Fer autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+'). Ya quedó registrada.'); renderNotifBanner(); }catch(e){}
-  renderAsistencia();
-  if(typeof mostrarToast==='function') mostrarToast('✅ Autorizado y registrado','green');
-}
-function asisRechazarSolic(id){
-  if(!_asisEsAdmin()) return;
-  var arr=loadAsisSolic(); var s=null;
-  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
-  if(!s || s.estado!=='pend') return;
-  var nota=prompt('¿Por qué no la autorizas? (le llega el mensaje a ella)','');
-  if(nota===null) return;
-  s.estado='no'; s.nota=nota; s.respondida=new Date().toISOString();
-  saveAsisSolic(arr);
-  try{ if(s.uid) notificarUsuario(s.uid,'❌ Fer no autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+')'+(nota?': '+nota:'')); renderNotifBanner(); }catch(e){}
-  renderAsistencia();
-}
-function asisBorrarSolicitud(id){
-  var arr=loadAsisSolic();
-  var s=null; for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
-  if(!s) return;
-  var mia=(typeof currentUser!=='undefined'&&currentUser&&s.uid===currentUser.id);
-  if(!mia && !_asisEsAdmin()) return;
-  if(s.estado!=='pend') return;
-  if(!confirm('¿Cancelar tu solicitud?')) return;
-  saveAsisSolic(arr.filter(function(x){ return x.id!==id; }));
-  renderAsistencia();
-}
-
-/* Panel de pendientes para Fer */
-function _asisSolicPanelAdmin(){
-  var pend=loadAsisSolic().filter(function(s){ return s.estado==='pend'; })
-    .sort(function(a,b){ return (a.creada||'').localeCompare(b.creada||''); });
-  if(!pend.length) return '';
-  var h='<div style="border:1px solid var(--accent2);border-radius:9px;padding:11px 12px;margin-bottom:12px;background:rgba(184,137,43,.10)">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:8px">🙋 Horas por autorizar ('+pend.length+')</div>';
-  pend.forEach(function(s){
-    h+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:7px;background:var(--surface)">'
-      +'<div style="font-size:12px"><b>'+_ncEsc((_asisEmpNombre(s.empId)||'').split(' ')[0])+'</b> · '+_ncEsc(_asisSlotNombre(s.slot))+' → <b style="color:var(--accent2)">'+_ncEsc(s.hora)+'</b>'
-      +(s.anterior?(' <span style="color:var(--text2);font-size:11px">(antes '+_ncEsc(s.anterior)+')</span>'):'')+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);margin:3px 0 7px">📅 '+_ncEsc(s.fecha)+' · 📝 '+_ncEsc(s.motivo||'')+'</div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        +'<button onclick="asisAutorizarSolic(\''+s.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">✅ Autorizar</button>'
-        +'<button onclick="asisRechazarSolic(\''+s.id+'\')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">❌ No autorizar</button>'
-        +'<button onclick="asisIrAFecha(\''+s.fecha+'\')" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">Ver ese día</button>'
+    h+='</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px">'
+        +'<span style="color:#3ecf8e;font-weight:700">🟢 '+S.aTiempo+'</span>'
+        +'<span style="color:#e8934b;font-weight:700">🟠 '+S.retLeve+'</span>'
+        +'<span style="color:#ff6b6b;font-weight:700">🔴 '+S.retMayor+'</span>'
+        +'<span style="color:#ff4d5e;font-weight:700">❌ '+S.faltas+' faltas</span>'
+        +(S.just?'<span style="color:#5b8af4;font-weight:700">🔵 '+S.just+' justificados</span>':'')
       +'</div>'
     +'</div>';
   });
-  h+='</div>';
   return h;
+}
+
+/* ══ B) TABLA COMPARATIVA ══ */
+function _asisHistTabla(emps, mes){
+  var h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr style="border-bottom:2px solid var(--border);color:var(--text2);font-size:10px;letter-spacing:.4px">'
+      +'<th style="text-align:left;padding:8px 6px">COLABORADORA</th>'
+      +'<th style="text-align:center;padding:8px 6px">DÍAS</th>'
+      +'<th style="text-align:center;padding:8px 6px">HORAS</th>'
+      +'<th style="text-align:center;padding:8px 6px">🟢</th>'
+      +'<th style="text-align:center;padding:8px 6px">🟠</th>'
+      +'<th style="text-align:center;padding:8px 6px">🔴</th>'
+      +'<th style="text-align:center;padding:8px 6px">❌</th>'
+      +'<th style="text-align:left;padding:8px 6px;min-width:130px">PUNTUALIDAD</th>'
+      +'<th></th>'
+    +'</tr></thead><tbody>';
+  var lista=emps.map(function(e){ return {e:e, S:_asisHistStats(e, mes)}; })
+    .sort(function(a,b){ return b.S.puntualidad-a.S.puntualidad; });
+  lista.forEach(function(x){
+    var S=x.S;
+    var col=S.puntualidad>=90?'#3ecf8e':(S.puntualidad>=70?'#e8934b':'#ff6b6b');
+    h+='<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:10px 6px;font-weight:700">'+_ncEsc(x.e.nombre)+'</td>'
+      +'<td style="text-align:center;padding:10px 6px">'+S.diasReg+'</td>'
+      +'<td style="text-align:center;padding:10px 6px;white-space:nowrap">'+S.horasTxt+'</td>'
+      +'<td style="text-align:center;padding:10px 6px;color:#3ecf8e;font-weight:700">'+S.aTiempo+'</td>'
+      +'<td style="text-align:center;padding:10px 6px;color:#e8934b;font-weight:700">'+S.retLeve+'</td>'
+      +'<td style="text-align:center;padding:10px 6px;color:#ff6b6b;font-weight:700">'+S.retMayor+'</td>'
+      +'<td style="text-align:center;padding:10px 6px;color:#ff4d5e;font-weight:700">'+S.faltas+'</td>'
+      +'<td style="padding:10px 6px">'
+        +'<div style="display:flex;align-items:center;gap:7px"><b style="color:'+col+';font-size:13px;min-width:36px">'+S.puntualidad+'%</b>'
+        +'<div style="flex:1">'+_asisBarraApilada(S,9)+'</div></div>'
+      +'</td>'
+      +'<td style="text-align:right;padding:10px 6px"><button onclick="asisEvaluacionMensual(\''+x.e.id+'\')" style="background:none;border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:10px;white-space:nowrap">📄 Evaluación</button></td>'
+    +'</tr>';
+  });
+  h+='</tbody></table></div>'
+    +'<div style="margin-top:12px">'+_asisLeyenda()+'</div>';
+  return h;
+}
+
+/* ══ C) TARJETA DE DESEMPEÑO ══ */
+function _asisHistScore(emps, mes){
+  var lista=emps.map(function(e){ return {e:e, S:_asisHistStats(e, mes)}; })
+    .sort(function(a,b){ return b.S.puntualidad-a.S.puntualidad; });
+  var h='';
+  lista.forEach(function(x, idx){
+    var S=x.S, e=x.e;
+    var col=S.puntualidad>=90?'#3ecf8e':(S.puntualidad>=70?'#e8934b':'#ff6b6b');
+    var etiqueta=S.puntualidad>=90?'Excelente':(S.puntualidad>=70?'Aceptable':'Requiere atención');
+    /* últimos 10 días con registro */
+    var ult=S.dias.filter(function(o){ return o.estado!=='futuro' && o.estado!=='descanso'; }).slice(-12);
+    var tira=ult.map(function(o){
+      return '<span onclick="asisIrDesdeHistorico(\''+e.id+'\',\''+o.fISO+'\')" title="'+_ncEsc(o.tip)+'" style="flex:1;min-width:14px;height:26px;border-radius:4px;background:'+o.col+';cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:#0f0f13;font-weight:800">'+o.d+'</span>';
+    }).join('');
+    h+='<div style="border:1px solid '+col+'55;border-radius:14px;padding:16px;margin-bottom:14px;background:linear-gradient(135deg,var(--surface2),'+col+'0d)">'
+      +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+        +'<div style="width:74px;height:74px;border-radius:50%;border:4px solid '+col+';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
+          +'<span style="font-size:19px;font-weight:800;color:'+col+';line-height:1">'+S.puntualidad+'%</span>'
+          +'<span style="font-size:8px;color:var(--text2)">PUNTUAL</span>'
+        +'</div>'
+        +'<div style="flex:1;min-width:170px">'
+          +'<div style="font-weight:800;font-size:15px">'+(idx===0&&lista.length>1?'🏆 ':'')+_ncEsc(e.nombre)+'</div>'
+          +'<div style="font-size:11px;color:'+col+';font-weight:700;margin-bottom:6px">'+etiqueta+'</div>'
+          +_asisBarraApilada(S,11)
+          +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:11px">'
+            +'<span style="color:#3ecf8e;font-weight:700">🟢 '+S.aTiempo+'</span>'
+            +'<span style="color:#e8934b;font-weight:700">🟠 '+S.retLeve+'</span>'
+            +'<span style="color:#ff6b6b;font-weight:700">🔴 '+S.retMayor+'</span>'
+            +'<span style="color:#ff4d5e;font-weight:700">❌ '+S.faltas+'</span>'
+          +'</div>'
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+          +'<div style="font-size:20px;font-weight:800">'+S.horasTxt+'</div>'
+          +'<div style="font-size:9px;color:var(--text2)">TRABAJADAS</div>'
+          +'<div style="font-size:11px;color:var(--text2);margin-top:5px">'+S.diasReg+' días</div>'
+          +'<button onclick="asisEvaluacionMensual(\''+e.id+'\')" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:10px;margin-top:6px;white-space:nowrap">📄 Evaluación</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-top:12px">'
+        +'<div style="font-size:9px;color:var(--text2);margin-bottom:4px;letter-spacing:.4px">ÚLTIMOS DÍAS TRABAJADOS</div>'
+        +'<div style="display:flex;gap:3px">'+(tira||'<span style="font-size:11px;color:var(--text2)">Sin registros</span>')+'</div>'
+      +'</div>'
+    +'</div>';
+  });
+  return h;
+}
+
+/* ═══════ EVALUACIÓN MENSUAL IMPRIMIBLE ═══════ */
+function _asisTareasStats(persona, mes){
+  /* Cumplimiento de las Tareas del Día en el mes */
+  var out={dias:0, tot:0, ok:0, pct:0, detalle:[]};
+  if(!persona) return out;
+  try{
+    var plant=(typeof loadTkPlant==='function')?loadTkPlant():[];
+    var hechas=(typeof loadTkHechas==='function')?loadTkHechas():{};
+    var pm=mes.split('-'), pY=+pm[0], pM=+pm[1];
+    var diasEnMes=new Date(pY,pM,0).getDate();
+    var hoy=(typeof _asisHoy==='function')?_asisHoy():'';
+    for(var d=1; d<=diasEnMes; d++){
+      var f=pm[0]+'-'+pm[1]+'-'+String(d).padStart(2,'0');
+      if(f>hoy) break;
+      var dow=new Date(pY,pM-1,d).getDay();
+      var listas=plant.filter(function(p){ return p.persona===persona && (p.dias||[]).indexOf(dow)>=0; });
+      if(!listas.length) continue;
+      var reg=(hechas[f]&&hechas[f][persona])?hechas[f][persona]:{};
+      var t=0,o=0;
+      listas.forEach(function(p){ (p.tareas||[]).forEach(function(x,i){ t++; if(reg[p.id+'#'+i]) o++; }); });
+      if(!t) continue;
+      out.dias++; out.tot+=t; out.ok+=o;
+      out.detalle.push({f:f, d:d, t:t, o:o, pct:Math.round(o/t*100)});
+    }
+    out.pct = out.tot ? Math.round(out.ok/out.tot*100) : 0;
+  }catch(e){}
+  return out;
+}
+function _asisPersonaDeEmp(nombre){
+  try{
+    var n=(typeof _tkNorm==='function')?_tkNorm(nombre):String(nombre||'').toLowerCase();
+    var personas=(typeof _tkPersonas==='function')?_tkPersonas():[];
+    for(var i=0;i<personas.length;i++){
+      var p=(typeof _tkNorm==='function')?_tkNorm(personas[i]):personas[i].toLowerCase();
+      if(n.indexOf(p)>=0) return personas[i];
+    }
+    if(n.indexOf('liz')>=0) return 'Liz';
+    if(n.indexOf('lourdes')>=0||n.indexOf('lul')>=0) return 'Lulú';
+  }catch(e){}
+  return null;
+}
+function _asisCalifica(p){
+  if(p>=95) return {t:'EXCELENTE', c:'#1c7c4a'};
+  if(p>=85) return {t:'MUY BUENA', c:'#2e8b57'};
+  if(p>=70) return {t:'ACEPTABLE', c:'#b8892b'};
+  if(p>=50) return {t:'DEFICIENTE', c:'#d2691e'};
+  return {t:'REQUIERE ACTA', c:'#c0392b'};
+}
+
+function asisEvaluacionMensual(empId){
+  if(!_asisEsAdmin()) return;
+  var mes=_asisHistMes||_asisHoy().slice(0,7);
+  var emps=(typeof empleadasData!=='undefined'?empleadasData:[]).filter(function(e){ return asisHorarios[e.id]; });
+  if(empId) emps=emps.filter(function(e){ return String(e.id)===String(empId); });
+  if(!emps.length){ alert('No hay colaboradoras con horario configurado para este mes.'); return; }
+  var pm=mes.split('-');
+  var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var DN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+  var html='<html><head><meta charset="utf-8"><title>Evaluación '+mesNom+'</title>'
+    +'<style>'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#222;max-width:780px;margin:0 auto;padding:26px;font-size:12px;line-height:1.45}'
+    +'h1{font-size:19px;color:#b8892b;margin:0 0 2px;letter-spacing:.5px}'
+    +'h2{font-size:14px;margin:18px 0 6px;border-bottom:1px solid #ddd;padding-bottom:3px;color:#444}'
+    +'table{width:100%;border-collapse:collapse;margin:6px 0}'
+    +'th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}'
+    +'th{background:#f2f2f2;font-size:11px}'
+    +'.kpi{display:inline-block;border:1px solid #ccc;border-radius:6px;padding:7px 11px;margin:0 6px 6px 0;min-width:96px}'
+    +'.kpi b{display:block;font-size:17px}'
+    +'.kpi span{font-size:10px;color:#666}'
+    +'.cal{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'.cal td{height:34px;vertical-align:top;font-size:9px;padding:2px}'
+    +'.noprint{}'
+    +'.btnp{background:#b8892b;color:#fff;border:none;border-radius:6px;padding:10px 22px;font-size:14px;cursor:pointer}'
+    +'.pg{page-break-after:always}'
+    +'@media print{.noprint{display:none}body{padding:0}}'
+    +'</style></head><body>';
+
+  emps.forEach(function(e, idx){
+    var S=_asisHistStats(e, mes);
+    var persona=_asisPersonaDeEmp(e.nombre);
+    var T=_asisTareasStats(persona, mes);
+    var califAsis=_asisCalifica(S.puntualidad);
+    var global = T.tot ? Math.round((S.puntualidad*0.5)+(T.pct*0.5)) : S.puntualidad;
+    var califG=_asisCalifica(global);
+
+    html+='<div'+(idx<emps.length-1?' class="pg"':'')+'>'
+      +'<div style="border-bottom:3px solid #b8892b;padding-bottom:8px;margin-bottom:12px">'
+        +'<h1>SOMBREROS WESTEROS</h1>'
+        +'<div style="font-size:13px;font-weight:700">EVALUACIÓN MENSUAL DE DESEMPEÑO</div>'
+        +'<div style="font-size:11px;color:#666">Vicente Santa María 893-A, Col. Ventura Puente, Morelia, Michoacán</div>'
+      +'</div>'
+      +'<table><tr>'
+        +'<th style="width:22%">Colaboradora</th><td style="width:44%"><b>'+esc(e.nombre)+'</b></td>'
+        +'<th style="width:14%">Periodo</th><td>'+mesNom+'</td>'
+      +'</tr><tr>'
+        +'<th>Puesto / área</th><td>'+esc(e.area||'—')+'</td>'
+        +'<th>Evaluó</th><td>Karla Fernanda Armas Durán</td>'
+      +'</tr></table>';
+
+    /* KPIs */
+    html+='<h2>1. Resumen del mes</h2>'
+      +'<div>'
+        +'<div class="kpi"><b>'+S.diasReg+'</b><span>DÍAS TRABAJADOS</span></div>'
+        +'<div class="kpi"><b>'+S.horasTxt+'</b><span>HORAS TRABAJADAS</span></div>'
+        +'<div class="kpi"><b style="color:'+califAsis.c+'">'+S.puntualidad+'%</b><span>PUNTUALIDAD</span></div>'
+        +(T.tot?('<div class="kpi"><b>'+T.pct+'%</b><span>TAREAS CUMPLIDAS</span></div>'):'')
+        +'<div class="kpi" style="border-color:'+califG.c+'"><b style="color:'+califG.c+'">'+global+'%</b><span>CALIFICACIÓN GLOBAL</span></div>'
+      +'</div>'
+      +'<div style="margin-top:6px;font-size:13px">Resultado del periodo: <b style="color:'+califG.c+'">'+califG.t+'</b></div>';
+
+    /* Asistencia */
+    html+='<h2>2. Asistencia y puntualidad</h2>'
+      +'<table><tr><th>A tiempo</th><th>Retardo leve</th><th>Retardo mayor (+15 min)</th><th>Faltas</th><th>Días justificados</th></tr>'
+      +'<tr><td>'+S.aTiempo+'</td><td>'+S.retLeve+'</td><td>'+S.retMayor+'</td><td>'+S.faltas+'</td><td>'+S.just+'</td></tr></table>';
+    if(S.retMayor>=3){
+      html+='<div style="border:1px solid #c0392b;background:#fdf0ee;color:#c0392b;padding:7px 9px;border-radius:5px;font-size:11px;margin-top:5px">'
+        +'<b>Aviso:</b> acumuló '+S.retMayor+' retardos mayores en el mes. Conforme al reglamento interno corresponde levantar acta administrativa.</div>';
+    }
+
+    /* Calendario del mes */
+    html+='<h2>3. Detalle día por día</h2><table class="cal"><tr>';
+    DN.forEach(function(d){ html+='<th style="text-align:center;font-size:10px">'+d+'</th>'; });
+    html+='</tr><tr>';
+    var col=0;
+    for(var i=0;i<S.primerDow;i++){ html+='<td></td>'; col++; }
+    S.dias.forEach(function(o){
+      if(col===7){ html+='</tr><tr>'; col=0; }
+      var et={ok:'A tiempo', leve:'Retardo', mayor:'Retardo mayor', falta:'FALTA', just:'Justificado', descanso:'Descanso', futuro:''}[o.estado]||'';
+      var bg={ok:'#e8f7ef', leve:'#fdf3e3', mayor:'#fdeaea', falta:'#fbe3e3', just:'#e8eefd', descanso:'#f5f5f5', futuro:'#fff'}[o.estado]||'#fff';
+      html+='<td style="background:'+bg+'"><b>'+o.d+'</b><br>'+(o.entrada?o.entrada+'<br>':'')+'<span style="color:#666">'+et+'</span></td>';
+      col++;
+    });
+    while(col<7 && col>0){ html+='<td></td>'; col++; }
+    html+='</tr></table>';
+
+    /* Tareas del día */
+    html+='<h2>4. Cumplimiento de tareas diarias</h2>';
+    if(!T.tot){
+      html+='<div style="font-size:11px;color:#666">Sin registro de tareas para este periodo.</div>';
+    } else {
+      html+='<div style="font-size:11px;margin-bottom:5px">Palomeó <b>'+T.ok+'</b> de <b>'+T.tot+'</b> tareas asignadas en '+T.dias+' días de trabajo (<b>'+T.pct+'%</b>).</div>'
+        +'<table><tr><th>Día</th><th>Tareas cumplidas</th><th>%</th></tr>';
+      T.detalle.forEach(function(x){
+        var c=x.pct>=90?'#1c7c4a':(x.pct>=60?'#b8892b':'#c0392b');
+        html+='<tr><td>'+_asisFmtFechaLarga(x.f)+'</td><td>'+x.o+' de '+x.t+'</td><td style="color:'+c+';font-weight:700">'+x.pct+'%</td></tr>';
+      });
+      html+='</table>';
+    }
+
+    /* Evaluación cualitativa */
+    html+='<h2>5. Evaluación de desempeño</h2>'
+      +'<table><tr><th style="width:52%">Aspecto</th><th style="width:12%">Excelente</th><th style="width:12%">Bueno</th><th style="width:12%">Regular</th><th style="width:12%">Deficiente</th></tr>';
+    ['Puntualidad y asistencia','Limpieza y orden de su área','Atención al cliente','Cumplimiento de tareas asignadas','Trabajo en equipo y apoyo a su compañera','Cuidado del producto y de la herramienta','Comunicación y reporte de información','Actitud y disposición']
+      .forEach(function(a){ html+='<tr><td>'+a+'</td><td></td><td></td><td></td><td></td></tr>'; });
+    html+='</table>';
+
+    html+='<h2>6. Observaciones y acuerdos</h2>'
+      +'<div style="border:1px solid #ccc;border-radius:5px;height:78px;margin-bottom:8px"></div>'
+      +'<div style="font-size:11px;font-weight:700;margin-bottom:3px">Compromisos para el siguiente mes:</div>'
+      +'<div style="border:1px solid #ccc;border-radius:5px;height:70px"></div>';
+
+    html+='<table style="width:100%;margin-top:46px;text-align:center;border:none"><tr>'
+      +'<td style="border:none;padding-top:28px;border-top:1px solid #333">Karla Fernanda Armas Durán<br><span style="font-size:10px">Propietaria</span></td>'
+      +'<td style="border:none;width:40px"></td>'
+      +'<td style="border:none;padding-top:28px;border-top:1px solid #333">'+esc(e.nombre)+'<br><span style="font-size:10px">Colaboradora — de enterada</span></td>'
+    +'</tr></table>'
+    +'<div style="font-size:9px;color:#888;margin-top:16px;text-align:center">Documento generado por el ERP de Sombreros Westeros · '+new Date().toLocaleDateString('es-MX')+'</div>'
+    +'</div>';
+  });
+
+  html+='<div class="noprint" style="text-align:center;margin:30px 0"><button class="btnp" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>'
+    +'</body></html>';
+  var w=window.open('', '_blank');
+  if(!w){ alert('Tu navegador bloqueó la ventana. Permite ventanas emergentes para poder ver la evaluación.'); return; }
+  w.document.write(html); w.document.close();
+}
+
+/* Versión en texto, para pegar en WhatsApp */
+function asisEvaluacionCopiar(empId){
+  if(!_asisEsAdmin()) return;
+  var mes=_asisHistMes||_asisHoy().slice(0,7);
+  var pm=mes.split('-'); var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
+  var emps=(typeof empleadasData!=='undefined'?empleadasData:[]).filter(function(e){ return asisHorarios[e.id]; });
+  if(empId) emps=emps.filter(function(e){ return String(e.id)===String(empId); });
+  var t='📋 EVALUACIÓN '+mesNom.toUpperCase()+' — SOMBREROS WESTEROS\n';
+  emps.forEach(function(e){
+    var S=_asisHistStats(e, mes);
+    var persona=_asisPersonaDeEmp(e.nombre);
+    var T=_asisTareasStats(persona, mes);
+    var global=T.tot?Math.round((S.puntualidad*0.5)+(T.pct*0.5)):S.puntualidad;
+    t+='\n👤 '+e.nombre+'\n'
+      +'• Días trabajados: '+S.diasReg+'\n'
+      +'• Horas: '+S.horasTxt+'\n'
+      +'• A tiempo: '+S.aTiempo+' | Retardo leve: '+S.retLeve+' | Retardo mayor: '+S.retMayor+' | Faltas: '+S.faltas+'\n'
+      +'• Puntualidad: '+S.puntualidad+'%\n'
+      +(T.tot?('• Tareas cumplidas: '+T.ok+'/'+T.tot+' ('+T.pct+'%)\n'):'')
+      +'• Calificación global: '+global+'% — '+_asisCalifica(global).t+'\n';
+  });
+  try{ navigator.clipboard.writeText(t); if(typeof mostrarToast==='function') mostrarToast('📋 Evaluación copiada','green'); }
+  catch(err){ prompt('Copia el texto:', t); }
 }
 
 function renderAsistencia(){
@@ -20462,6 +20437,184 @@ function eliminarAbonoRangel(id){
   if(typeof solicitarAutorizacionBorrado==='function') solicitarAutorizacionBorrado('Eliminar este movimiento de la cuenta', borrar);
   else if(confirm('¿Eliminar este movimiento?')) borrar();
 }
+/* ═══════ HISTÓRICO DE CUENTAS DE RANGEL ═══════
+   Cerrar una cuenta NO borra nada: los movimientos quedan guardados con su
+   número de cuenta y se pueden consultar aquí cuando sea. */
+function _rgCierres(){ try{ var v=JSON.parse(localStorage.getItem('rangel_cierres')||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function _rgResumenDeCuenta(cta){
+  var entries=loadRangel().filter(function(e){ return (e.cuenta||1)===cta; });
+  var abonos=loadAbonosRangel().filter(function(a){ return (a.cuenta||1)===cta; });
+  var ventas=loadVentasRangel().filter(function(v){ return (v.cuenta||1)===cta; });
+  var notas=loadNotasRangel().filter(function(n){ return (n.cuenta||1)===cta; });
+  var cargos=entries.reduce(function(s,e){ return s+(parseFloat(e.costo)||0); },0);
+  var piezas=0;
+  notas.forEach(function(n){ (n.productos||[]).forEach(function(p){ (p.lineas||[]).forEach(function(l){
+    if((l.estado||'en_rangel')!=='devuelto'){ cargos+=(parseFloat(l.precio)||0)*(parseInt(l.cant,10)||1); }
+    piezas+=(parseInt(l.cant,10)||1);
+  }); }); });
+  var totalAb=abonos.reduce(function(s,a){ return s+(parseFloat(a.monto)||0); },0);
+  var totalVt=ventas.reduce(function(s,v){ return s+(parseFloat(v.total)||0); },0);
+  return { cta:cta, cargos:cargos, abonos:totalAb, ventas:totalVt, descontado:totalAb+totalVt,
+           saldo:cargos-totalAb-totalVt, notas:notas, entries:entries, listaAbonos:abonos,
+           listaVentas:ventas, piezas:piezas };
+}
+function _rgMoney(n){ return '$'+Math.round(n||0).toLocaleString(); }
+function _rgFechaTxt(f){ var p=String(f||'').split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):(f||'—'); }
+
+function rgHistorialCuentas(){
+  if(!_rgEsAdmin()) return;
+  var actual=_rgCuentaActual();
+  var cierres=_rgCierres();
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var ov=document.getElementById('rgh-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='rgh-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100030;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:660px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<h3 style="margin:0;color:var(--accent2);font-size:16px">📚 Histórico de cuentas con Rangel</h3>'
+      +'<button onclick="document.getElementById(\'rgh-ov\').remove()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--text2);margin-bottom:14px">Al cerrar una cuenta <b>no se borra nada</b>. Todo queda guardado aquí con su número de cuenta.</div>';
+
+  /* Cuenta actual */
+  var R=_rgResumenDeCuenta(actual);
+  h+=_rgCuentaFilaHTML(R, null, true);
+
+  /* Cuentas cerradas, de la más reciente a la más vieja */
+  var cerradas=cierres.slice().sort(function(a,b){ return (b.cuenta||0)-(a.cuenta||0); });
+  if(!cerradas.length){
+    h+='<div style="font-size:12px;color:var(--text2);padding:10px 4px">Todavía no has cerrado ninguna cuenta.</div>';
+  } else {
+    cerradas.forEach(function(c){
+      h+=_rgCuentaFilaHTML(_rgResumenDeCuenta(c.cuenta), c, false);
+    });
+  }
+
+  /* Reabrir por error */
+  if(cerradas.length && R.cargos===0 && R.descontado===0){
+    var ult=cerradas[0];
+    h+='<div style="border-top:1px dashed var(--border);margin-top:14px;padding-top:12px">'
+      +'<div style="font-size:11px;color:var(--text2);margin-bottom:7px">¿Cerraste la cuenta #'+ult.cuenta+' por error? La #'+actual+' todavía está vacía, así que se puede deshacer.</div>'
+      +'<button onclick="rgReabrirCuenta()" class="btn btn-secondary btn-sm">↩️ Reabrir la cuenta #'+ult.cuenta+'</button>'
+    +'</div>';
+  }
+  h+='</div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+}
+
+function _rgCuentaFilaHTML(R, cierre, esActual){
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var col=R.saldo>0?'var(--red)':(R.saldo<0?'var(--accent2)':'var(--green)');
+  var etiqueta=R.saldo>0?'Le debes':(R.saldo<0?'Te debe':'A mano');
+  return '<div style="border:1px solid '+(esActual?'var(--accent2)':'var(--border)')+';border-radius:11px;padding:12px 13px;margin-bottom:9px;background:'+(esActual?'rgba(184,137,43,.08)':'var(--surface2)')+'">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+      +'<div><b style="font-size:14px">Cuenta #'+R.cta+'</b> '
+      +(esActual?'<span style="font-size:10px;background:var(--accent2);color:#0f0f13;border-radius:5px;padding:2px 7px;font-weight:800">ACTUAL</span>'
+               :'<span style="font-size:10px;color:var(--text2)">cerrada el '+_rgFechaTxt(cierre&&cierre.fecha)+'</span>')
+      +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+R.notas.length+' nota(s) · '+R.piezas+' pieza(s) · '+R.listaAbonos.length+' pago(s)</div></div>'
+      +'<div style="text-align:right"><div style="font-size:17px;font-weight:800;color:'+col+'">'+_rgMoney(Math.abs(R.saldo))+'</div>'
+      +'<div style="font-size:9px;color:var(--text2)">'+etiqueta+'</div></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text2);margin-top:8px">'
+      +'<span>➕ Modificaciones: <b style="color:var(--text)">'+_rgMoney(R.cargos)+'</b></span>'
+      +'<span>➖ Pagos y productos: <b style="color:var(--green)">'+_rgMoney(R.descontado)+'</b></span>'
+    +'</div>'
+    +'<button onclick="rgVerCuenta('+R.cta+')" class="btn btn-secondary btn-sm" style="margin-top:9px">🔍 Ver movimientos</button>'
+  +'</div>';
+}
+
+function rgVerCuenta(cta){
+  var R=_rgResumenDeCuenta(cta);
+  var esc=(typeof escapeHTML==='function')?escapeHTML:function(s){return s||'';};
+  var ov=document.getElementById('rgd-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='rgd-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100040;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:680px;width:100%;padding:18px;max-height:88vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<h3 style="margin:0;color:var(--accent2);font-size:16px">🔍 Cuenta #'+cta+' · movimientos</h3>'
+      +'<button onclick="document.getElementById(\'rgd-ov\').remove()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button>'
+    +'</div>';
+
+  /* Notas de modificaciones */
+  h+='<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:6px">📋 Modificaciones</div>';
+  if(!R.notas.length && !R.entries.length){
+    h+='<div style="font-size:11px;color:var(--text2);padding:6px 2px">Sin modificaciones registradas.</div>';
+  } else {
+    R.notas.slice().sort(function(a,b){ return (a.fechaRecoge||'').localeCompare(b.fechaRecoge||''); }).forEach(function(n){
+      var det=[];
+      (n.productos||[]).forEach(function(p){
+        (p.lineas||[]).forEach(function(l){
+          var dev=((l.estado||'en_rangel')==='devuelto');
+          det.push('<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:2px 0;'+(dev?'opacity:.5;text-decoration:line-through':'')+'">'
+            +'<span>'+esc(p.tipo||'')+' '+esc(p.color||'')+(l.talla?(' · talla '+esc(l.talla)):'')+' ×'+(parseInt(l.cant,10)||1)+'</span>'
+            +'<span>'+_rgMoney((parseFloat(l.precio)||0)*(parseInt(l.cant,10)||1))+'</span></div>');
+        });
+      });
+      h+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:6px">'
+        +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>📅 '+_rgFechaTxt(n.fechaRecoge)+'</span><span>'+_rgMoney(n.costoTotal)+'</span></div>'
+        +det.join('')
+      +'</div>';
+    });
+    R.entries.slice().sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }).forEach(function(e){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--border)">'
+        +'<span>📅 '+_rgFechaTxt(e.fecha)+' · '+esc(e.modelo||e.descripcion||'Pieza')+'</span><span>'+_rgMoney(e.costo)+'</span></div>';
+    });
+  }
+
+  /* Pagos */
+  h+='<div style="font-size:12px;font-weight:700;color:var(--green);margin:14px 0 6px">💵 Pagos</div>';
+  if(!R.listaAbonos.length){ h+='<div style="font-size:11px;color:var(--text2);padding:6px 2px">Sin pagos registrados.</div>'; }
+  else {
+    R.listaAbonos.slice().sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }).forEach(function(a){
+      h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--border)">'
+        +'<span>📅 '+_rgFechaTxt(a.fecha)+' · '+esc(a.desc||'Pago')+'</span><span style="color:var(--green)">'+_rgMoney(a.monto)+'</span></div>';
+    });
+  }
+
+  /* Productos que le diste */
+  h+='<div style="font-size:12px;font-weight:700;color:var(--green);margin:14px 0 6px">🎩 Productos que le diste</div>';
+  if(!R.listaVentas.length){ h+='<div style="font-size:11px;color:var(--text2);padding:6px 2px">Sin productos entregados.</div>'; }
+  else {
+    R.listaVentas.slice().sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); }).forEach(function(v){
+      var lin=(v.lineas||[]).map(function(l){ return esc(l.producto||'')+' ×'+(parseInt(l.cant,10)||1); }).join(', ');
+      h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--border)">'
+        +'<span>📅 '+_rgFechaTxt(v.fecha)+' · '+lin+'</span><span style="color:var(--green)">'+_rgMoney(v.total)+'</span></div>';
+    });
+  }
+
+  var col=R.saldo>0?'var(--red)':(R.saldo<0?'var(--accent2)':'var(--green)');
+  h+='<div style="border-top:2px solid var(--border);margin-top:14px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:12px;color:var(--text2)">Saldo final de la cuenta #'+cta+'</span>'
+    +'<b style="font-size:20px;color:'+col+'">'+_rgMoney(Math.abs(R.saldo))+'</b>'
+  +'</div>'
+  +'</div>';
+  ov.innerHTML=h;
+  document.body.appendChild(ov);
+}
+
+function rgReabrirCuenta(){
+  if(!_rgEsAdmin()) return;
+  var actual=_rgCuentaActual();
+  var R=_rgResumenDeCuenta(actual);
+  if(R.cargos!==0 || R.descontado!==0){
+    alert('La cuenta #'+actual+' ya tiene movimientos. Para no revolver los registros, mejor déjala como está.');
+    return;
+  }
+  var cierres=_rgCierres();
+  if(!cierres.length){ alert('No hay ninguna cuenta cerrada que reabrir.'); return; }
+  var ult=cierres[cierres.length-1];
+  if(!confirm('¿Reabrir la cuenta #'+ult.cuenta+'?\n\nVuelves a trabajar sobre ella y se cancela el cierre. La cuenta #'+actual+' desaparece (está vacía).')) return;
+  cierres.pop();
+  save('rangel_cierres', cierres);
+  save('rangel_cuenta', ult.cuenta);
+  var ov=document.getElementById('rgh-ov'); if(ov) ov.remove();
+  renderRangel();
+  if(typeof mostrarToast==='function') mostrarToast('↩️ Volviste a la cuenta #'+ult.cuenta,'green');
+}
+
 function cerrarCuentaRangel(){
   var r=_rgResumenCuenta();
   var money=function(n){ return '$'+Math.round(n||0).toLocaleString(); };
@@ -20470,13 +20623,14 @@ function cerrarCuentaRangel(){
     + '• Pagos + cosas que le diste: '+money(r.abonos)+'\n'
     + '• Saldo actual: '+money(r.saldo)+'\n\n'
     + (r.saldo>0 ? '⚠️ Todavía queda un saldo de '+money(r.saldo)+'. Ciérrala solo si ya le pagaste todo (en efectivo o como se hayan arreglado).\n\n' : '')
+    + 'ℹ️ No se borra nada: todos los movimientos quedan guardados y los puedes consultar cuando quieras en "📚 Histórico de cuentas".\n\n'
     + '¿Cerrar esta cuenta y empezar la #'+(r.cta+1)+'?';
   if(!confirm(txt)) return;
   var cierres=[]; try{ cierres=JSON.parse(localStorage.getItem('rangel_cierres')||'[]'); }catch(e){}
   cierres.push({ cuenta:r.cta, fecha:_hoyISO(), cargos:r.cargos, abonos:r.abonos, saldo:r.saldo, ts:new Date().toISOString() });
   save('rangel_cierres', cierres);
   save('rangel_cuenta', r.cta+1);
-  if(typeof mostrarToast==='function') mostrarToast('🔄 Cuenta cerrada. Empezaste la #'+(r.cta+1),'green');
+  if(typeof mostrarToast==='function') mostrarToast('🔄 Cuenta #'+r.cta+' guardada en el histórico. Empezaste la #'+(r.cta+1),'green');
   renderRangel();
 }
 function renderCuentaRangel(){
