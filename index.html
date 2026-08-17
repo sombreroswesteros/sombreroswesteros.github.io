@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v344</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v346</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -873,12 +873,20 @@
         <button class="btn btn-primary" onclick="addFisicaEntry()">+ Nueva Venta</button>
       </div>
     </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-secondary btn-sm" onclick="fisMesNav(-1)">◀</button>
+      <input type="month" id="fisica-mes" onchange="fisSetMes(this.value)" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:13px">
+      <button class="btn btn-secondary btn-sm" onclick="fisMesNav(1)">▶</button>
+      <button class="btn btn-secondary btn-sm" onclick="fisSetMes('')">Ver todo</button>
+      <span id="fisica-mes-txt" style="font-size:12px;color:var(--text2)"></span>
+    </div>
     <div class="grid g4" style="margin-bottom:16px">
-      <div class="card"><div class="card-label">Ventas Registradas</div><div class="card-value accent" id="fisica-count">0</div></div>
+      <div class="card"><div class="card-label">Ventas Registradas</div><div class="card-value accent" id="fisica-count">0</div><div class="card-sub" id="fisica-count-sub"></div></div>
       <div class="card"><div class="card-label">Total Vendido</div><div class="card-value green" id="fisica-total">$0</div></div>
       <div class="card"><div class="card-label">Comisiones</div><div class="card-value accent" id="fisica-comisiones">$0</div></div>
       <div class="card"><div class="card-label">Forma de pago más usada</div><div class="card-value" id="fisica-pago" style="font-size:16px">—</div></div>
     </div>
+    <div id="fisica-comis-panel" style="margin-bottom:16px"></div>
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><span class="dot"></span>Registrar Venta</div>
       <div class="grid g2">
@@ -11081,8 +11089,80 @@ var TK_DIAS_C=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
 function loadTkPlant(){ try{ var v=JSON.parse(localStorage.getItem(TK_PLANT)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
 function saveTkPlant(a){ try{ save(TK_PLANT,a); }catch(e){} }
-function loadTkHechas(){ try{ var v=JSON.parse(localStorage.getItem(TK_HECHAS)); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } }
 function saveTkHechas(o){ try{ save(TK_HECHAS,o); }catch(e){} }
+/* Cada colaboradora guarda SOLO su propia clave. Si todas escribieran el mismo
+   bloque, el último dispositivo en sincronizar borraría lo de las demás. */
+function _tkClavePersona(p){
+  return 'tareas_hechas__'+String(p||'').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_');
+}
+function loadTkRegPersona(persona){
+  try{ var v=JSON.parse(localStorage.getItem(_tkClavePersona(persona))); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; }
+}
+function saveTkRegPersona(persona, obj){ try{ save(_tkClavePersona(persona), obj); }catch(e){} }
+/* Vista combinada { fecha: { persona: {tareas} } } para los paneles y la evaluación */
+function loadTkHechas(){
+  var out={};
+  try{
+    var leg=JSON.parse(localStorage.getItem(TK_HECHAS));
+    if(leg && typeof leg==='object'){
+      for(var f in leg){ out[f]={}; for(var p in leg[f]){ out[f][p]=leg[f][p]; } }
+    }
+  }catch(e){}
+  try{
+    _tkPersonas().forEach(function(per){
+      var reg=loadTkRegPersona(per);
+      for(var f in reg){
+        if(!out[f]) out[f]={};
+        var base=out[f][per]||{}, add=reg[f]||{};
+        for(var k in add){ base[k]=add[k]; }
+        out[f][per]=base;
+      }
+    });
+  }catch(e){}
+  return out;
+}
+/* Pasa una sola vez lo que ya estaba guardado en el bloque viejo a claves por persona */
+function _tkMigrarHechas(){
+  try{
+    if(localStorage.getItem('tareas_split_v1')==='1') return;
+    var leg=JSON.parse(localStorage.getItem(TK_HECHAS)||'null');
+    if(leg && typeof leg==='object'){
+      var porPersona={};
+      for(var f in leg){ for(var p in leg[f]){ if(!porPersona[p]) porPersona[p]={}; porPersona[p][f]=leg[f][p]; } }
+      for(var per in porPersona){
+        var actual=loadTkRegPersona(per);
+        for(var ff in porPersona[per]){
+          actual[ff]=actual[ff]||{};
+          for(var kk in porPersona[per][ff]){ if(!actual[ff][kk]) actual[ff][kk]=porPersona[per][ff][kk]; }
+        }
+        saveTkRegPersona(per, actual);
+      }
+    }
+    localStorage.setItem('tareas_split_v1','1');
+  }catch(e){}
+}
+/* Trae de la nube lo que las demás hayan palomeado desde que abriste la página */
+function tkRefrescar(){
+  if(!window.FB_URL || !window.FB_IDTOKEN){
+    if(typeof mostrarToast==='function') mostrarToast('Sin conexión a la nube','');
+    return;
+  }
+  fetch(window.FB_URL+'/'+(window.FB_NODE||'erp')+'.json?auth='+window.FB_IDTOKEN)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || typeof d!=='object'){ if(typeof mostrarToast==='function') mostrarToast('No llegó nada de la nube',''); return; }
+      var n=0;
+      for(var k in d){
+        if(k.indexOf('tareas_')===0 && d[k]!==null){
+          try{ localStorage.setItem(k, JSON.stringify(d[k])); n++; }catch(e){}
+        }
+      }
+      renderTareas();
+      if(typeof mostrarToast==='function') mostrarToast('🔄 Listas actualizadas','green');
+    })
+    .catch(function(){ if(typeof mostrarToast==='function') mostrarToast('No se pudo conectar',''); });
+}
 function loadTkMap(){ try{ var v=JSON.parse(localStorage.getItem(TK_MAP)); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } }
 function saveTkMap(o){ try{ save(TK_MAP,o); }catch(e){} }
 
@@ -11324,6 +11404,7 @@ var _tkFecha=null, _tkVerPersona=null;
 function renderTareas(){
   var c=document.getElementById('tareas-panel'); if(!c) return;
   _tkSeed();
+  _tkMigrarHechas();
   if(!_tkFecha) _tkFecha=_tkHoy();
   var esAdmin=_tkEsAdmin();
   var h='';
@@ -11404,29 +11485,28 @@ function tkToggle(pid, idx){
   var persona=_tkEsAdmin()?_tkVerPersona:_tkPersonaActual();
   if(!persona){ if(typeof mostrarToast==='function') mostrarToast('No hay lista asignada',''); return; }
   var f=_tkEsAdmin()?(_tkFecha||_tkHoy()):_tkHoy();
-  var hechas=loadTkHechas();
-  if(!hechas[f]) hechas[f]={};
-  if(!hechas[f][persona]) hechas[f][persona]={};
+  var reg=loadTkRegPersona(persona);
+  if(!reg[f]) reg[f]={};
   var k=pid+'#'+idx;
-  if(hechas[f][persona][k]){
+  if(reg[f][k]){
     if(!confirm('Ya estaba palomeada. ¿Quitar la palomita?')) return;
-    delete hechas[f][persona][k];
-    saveTkHechas(hechas); renderTareas(); return;
+    delete reg[f][k];
+    saveTkRegPersona(persona, reg); renderTareas(); return;
   }
   var txt='';
   try{ var pl=loadTkPlant().filter(function(x){return x.id===pid;})[0]; if(pl) txt=(pl.tareas||[])[idx]||''; }catch(e){}
-  hechas[f][persona][k]={t:_tkHora(), geo:null, por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'', txt:txt};
-  saveTkHechas(hechas);
+  reg[f][k]={t:_tkHora(), geo:null, por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'', txt:txt};
+  saveTkRegPersona(persona, reg);
   renderTareas();
   // La ubicación se agrega después: la hora nunca se pierde por GPS lento
   if(navigator.geolocation){
     var tarde=false; var tmr=setTimeout(function(){ tarde=true; }, 8000);
     navigator.geolocation.getCurrentPosition(function(pos){
       if(tarde) return; clearTimeout(tmr);
-      var hh=loadTkHechas();
-      if(hh[f] && hh[f][persona] && hh[f][persona][k]){
-        hh[f][persona][k].geo={lat:pos.coords.latitude, lng:pos.coords.longitude, acc:Math.round(pos.coords.accuracy)};
-        saveTkHechas(hh); renderTareas();
+      var r2=loadTkRegPersona(persona);
+      if(r2[f] && r2[f][k]){
+        r2[f][k].geo={lat:pos.coords.latitude, lng:pos.coords.longitude, acc:Math.round(pos.coords.accuracy)};
+        saveTkRegPersona(persona, r2); renderTareas();
       }
     }, function(){ clearTimeout(tmr); }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
   }
@@ -11444,6 +11524,7 @@ function _tkPanelAdmin(){
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
         +'<input type="date" value="'+f+'" onchange="_tkFecha=this.value;_tkVerPersona=null;renderTareas()" style="background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 9px;font-size:12px">'
         +'<button class="btn btn-secondary btn-sm" onclick="_tkFecha=_tkHoy();renderTareas()">Hoy</button>'
+        +'<button class="btn btn-secondary btn-sm" onclick="tkRefrescar()" title="Traer lo que acaban de palomear">🔄 Actualizar</button>'
         +'<button class="btn btn-accent btn-sm" onclick="tkGestionar()">⚙️ Gestionar listas</button>'
       +'</div>'
     +'</div>'
@@ -15909,20 +15990,107 @@ function _vpSet(i,campo,val){ if(_ventaProds[i]){ _ventaProds[i][campo]=(campo==
 function agregarProductoVenta(){ _ventaProds.push({modelo:'',talla:'',cant:1,precio:0}); renderProductosVenta(); }
 function quitarProductoVenta(i){ if(_ventaProds.length<=1){ _ventaProds[0]={modelo:'',talla:'',cant:1,precio:0}; } else { _ventaProds.splice(i,1); } renderProductosVenta(); }
 function calcTotalVenta(){ var t=_ventaProds.reduce(function(a,p){return a+(p.cant||0)*(p.precio||0);},0); var e=document.getElementById('venta-total'); if(e) e.textContent=(typeof $==='function')?$(t):('$'+t.toLocaleString('es-MX')); }
+/* ═══ Filtro por mes y corte de comisiones ═══
+   El periodo de comisiones es el mes natural completo (día 1 al último)
+   y se paga el 15 del mes siguiente. */
+var _fisMes=(function(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); })();
+function fisSetMes(v){ _fisMes=v||''; renderFisica(); }
+function fisMesNav(delta){
+  var m=_fisMes||(new Date().getFullYear()+'-'+('0'+(new Date().getMonth()+1)).slice(-2));
+  var p=m.split('-'), y=+p[0], mo=+p[1]+delta;
+  if(mo<1){ mo=12; y--; } if(mo>12){ mo=1; y++; }
+  _fisMes=y+'-'+('0'+mo).slice(-2);
+  renderFisica();
+}
+function _fisMesTxt(m){
+  if(!m) return 'Todos los meses';
+  var p=m.split('-');
+  return ((typeof MESES_ES!=='undefined'?MESES_ES[+p[1]-1]:'')||'')+' '+p[0];
+}
+function _fisPagoFecha(m){
+  if(!m) return '';
+  var p=m.split('-'), y=+p[0], mo=+p[1]+1;
+  if(mo>12){ mo=1; y++; }
+  return '15/'+('0'+mo).slice(-2)+'/'+y;
+}
+function loadFisComisPag(){ try{ var v=JSON.parse(localStorage.getItem('fisica_comis_pagadas')); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } }
+function saveFisComisPag(o){ try{ save('fisica_comis_pagadas',o); }catch(e){} }
+function fisTogglePagada(mes, vend){
+  var o=loadFisComisPag(), k=mes+'|'+vend;
+  if(o[k]) delete o[k];
+  else o[k]={pagado:true, ts:new Date().toISOString(), por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.nombre:''};
+  saveFisComisPag(o);
+  renderFisica();
+}
+function _fisComisPanel(lista){
+  var el=document.getElementById('fisica-comis-panel'); if(!el) return;
+  if(!_fisMes){
+    el.innerHTML='<div class="card" style="font-size:12px;color:var(--text2);padding:12px">Elige un mes para ver el corte de comisiones. El periodo es el mes completo y se paga el 15 del mes siguiente.</div>';
+    return;
+  }
+  var porVend={};
+  lista.forEach(function(o){
+    var v=(o.x.vendedor||'').trim()||'Sin vendedor';
+    if(!porVend[v]) porVend[v]={vendido:0, com:0, n:0};
+    porVend[v].vendido+=(parseFloat(o.x.precio)||0);
+    porVend[v].com+=(parseFloat(o.x.comision)||0);
+    porVend[v].n++;
+  });
+  var nombres=Object.keys(porVend).filter(function(v){ return porVend[v].com>0; });
+  var pag=loadFisComisPag();
+  var totalCom=nombres.reduce(function(a,v){ return a+porVend[v].com; },0);
+  var h='<div class="card">'
+    +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+      +'<span><span class="dot"></span>💰 Corte de comisiones · '+_ncEsc(_fisMesTxt(_fisMes))+'</span>'
+      +'<span style="font-size:11px;color:var(--text2);font-weight:400">Periodo: del 1 al último día · <b style="color:var(--accent2)">se paga el '+_fisPagoFecha(_fisMes)+'</b></span>'
+    +'</div>';
+  if(!nombres.length){
+    h+='<div style="font-size:12px;color:var(--text2);padding:6px 2px">No hay comisiones registradas en este mes.</div></div>';
+    el.innerHTML=h; return;
+  }
+  nombres.sort(function(a,b){ return porVend[b].com-porVend[a].com; }).forEach(function(v){
+    var d=porVend[v], k=_fisMes+'|'+v, ya=!!pag[k];
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 4px;border-bottom:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:140px"><b style="font-size:13px">'+_ncEsc(v)+'</b>'
+      +'<div style="font-size:11px;color:var(--text2)">'+d.n+' venta(s) · vendió '+$(d.vendido)+'</div></div>'
+      +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:'+(ya?'var(--green)':'var(--accent2)')+'">'+$(d.com)+'</div>'
+      +'<div style="font-size:9px;color:var(--text2)">'+(ya?'PAGADA':'POR PAGAR')+'</div></div>'
+      +'<button onclick="fisTogglePagada(\''+_fisMes+'\',\''+String(v).replace(/'/g,"\\'")+'\')" style="background:'+(ya?'rgba(62,207,142,.18)':'transparent')+';border:1px solid '+(ya?'var(--green)':'var(--border)')+';color:'+(ya?'var(--green)':'var(--text2)')+';border-radius:7px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">'+(ya?'✅ Pagada':'Marcar pagada')+'</button>'
+    +'</div>';
+  });
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;margin-top:4px">'
+    +'<span style="font-size:12px;color:var(--text2)">Total a pagar el '+_fisPagoFecha(_fisMes)+'</span>'
+    +'<b style="font-size:18px;color:var(--accent2)">'+$(totalCom)+'</b></div>'
+  +'</div>';
+  el.innerHTML=h;
+}
 function renderFisica() {
   // populate model datalist
   const dl=document.getElementById('tienda-mod-list');
   if(dl) dl.innerHTML=MODELOS_ML.map(m=>`<option value="${m.n}">`).join('');
-  const total=state.fisicaEntries.reduce((a,x)=>a+x.precio,0);
-  const comTotal=state.fisicaEntries.reduce((a,x)=>a+x.comision,0);
-  const pagos=state.fisicaEntries.map(x=>x.pago);
+  const mi=document.getElementById('fisica-mes'); if(mi && mi.value!==_fisMes) mi.value=_fisMes;
+  const mt=document.getElementById('fisica-mes-txt'); if(mt) mt.textContent=_fisMes?('Mostrando '+_fisMesTxt(_fisMes)):'Mostrando todas las ventas';
+  // Solo las ventas del mes elegido (o todas si se quitó el filtro)
+  const lista=state.fisicaEntries.map((x,i)=>({x:x,i:i}))
+    .filter(o=>!_fisMes || String(o.x.fecha||'').slice(0,7)===_fisMes)
+    .sort((a,b)=>String(b.x.fecha||'').localeCompare(String(a.x.fecha||'')));
+  const total=lista.reduce((a,o)=>a+(parseFloat(o.x.precio)||0),0);
+  const comTotal=lista.reduce((a,o)=>a+(parseFloat(o.x.comision)||0),0);
+  const pagos=lista.map(o=>o.x.pago);
   const pagoFreq=pagos.length>0?[...new Set(pagos)].sort((a,b)=>pagos.filter(p=>p===b).length-pagos.filter(p=>p===a).length)[0]:'—';
-  if(document.getElementById('fisica-count')) document.getElementById('fisica-count').textContent=state.fisicaEntries.length;
+  const tickets={}; let sueltas=0;
+  lista.forEach(o=>{ if(o.x.ventaId) tickets[o.x.ventaId]=1; else sueltas++; });
+  const nVentas=Object.keys(tickets).length+sueltas;
+  const piezas=lista.reduce((a,o)=>a+(parseInt(o.x.cantidad,10)||1),0);
+  if(document.getElementById('fisica-count')) document.getElementById('fisica-count').textContent=nVentas;
+  if(document.getElementById('fisica-count-sub')) document.getElementById('fisica-count-sub').textContent=piezas+' pza'+(piezas===1?'':'s')+' · '+lista.length+' renglones';
   if(document.getElementById('fisica-total')) document.getElementById('fisica-total').textContent=$(total);
   if(document.getElementById('fisica-comisiones')) document.getElementById('fisica-comisiones').textContent=$(comTotal);
   if(document.getElementById('fisica-pago')) document.getElementById('fisica-pago').textContent=pagoFreq||'—';
+  try{ _fisComisPanel(lista); }catch(e){}
   const t=document.getElementById('fisica-table'); if(!t) return;
-  t.innerHTML=state.fisicaEntries.map((x,i)=>`<tr>
+  if(!lista.length){ t.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px;font-size:12px">Sin ventas en '+_fisMesTxt(_fisMes)+'</td></tr>'; return; }
+  t.innerHTML=lista.map(({x,i})=>`<tr>
     <td>${x.fecha}</td>
     <td>${x.cliente||'—'}</td>
     <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.modelo}</td>
