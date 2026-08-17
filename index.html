@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v340</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v341</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -11032,7 +11032,7 @@ function _tkHoy(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth
 function _tkHora(){ var d=new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function _tkDiaDe(f){ try{ return new Date(f+'T12:00:00').getDay(); }catch(e){ return new Date().getDay(); } }
 function _tkFechaTxt(f){ var p=String(f||'').split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):f; }
-function _tkNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function _tkNormNom(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function _tkUID(){ return 'p'+Date.now()+Math.random().toString(36).slice(2,5); }
 function _tkEsAdmin(){ return (typeof currentUser!=='undefined') && currentUser && currentUser.rol==='admin'; }
 
@@ -11041,9 +11041,9 @@ function _tkPersonaActual(){
   if(typeof currentUser==='undefined' || !currentUser) return null;
   var map=loadTkMap();
   if(map[currentUser.id]) return map[currentUser.id];
-  var n=_tkNorm(currentUser.nombre);
+  var n=_tkNormNom(currentUser.nombre);
   var personas=_tkPersonas();
-  for(var i=0;i<personas.length;i++){ if(n.indexOf(_tkNorm(personas[i]))>=0) return personas[i]; }
+  for(var i=0;i<personas.length;i++){ if(n.indexOf(_tkNormNom(personas[i]))>=0) return personas[i]; }
   if(n.indexOf('liz')>=0) return 'Liz';
   if(n.indexOf('lul')>=0||n.indexOf('lourdes')>=0||n.indexOf('lulu')>=0) return 'Lulú';
   return null;
@@ -14495,6 +14495,238 @@ var _asisHistDiseno=(function(){ try{ var v=localStorage.getItem('asis_hist_dise
 function asisHistDiseno(v){ _asisHistDiseno=v; try{ localStorage.setItem('asis_hist_diseno',v); }catch(e){} renderAsistencia(); }
 
 /* Cálculo único que alimenta los 4 diseños */
+function asisHistoricoMensual(){
+  if(!_asisEsAdmin()) return;
+  if(!_asisHistMes) _asisHistMes=_asisHoy().slice(0,7);
+  _asisRenderHistorico();
+}
+function asisHistMesNav(delta){
+  var p=_asisHistMes.split('-'); var d=new Date(+p[0], +p[1]-1+delta, 1);
+  _asisHistMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  var o=document.getElementById('nom-ov'); if(o) o.remove(); _asisRenderHistorico();
+}
+function _asisRenderHistorico(){
+  var emps=(typeof empleadasData!=='undefined'?empleadasData:[]);
+  var mes=_asisHistMes; var pm=mes.split('-');
+  var mesNom=MESES_ES[+pm[1]-1]+' '+pm[0];
+  var nav='background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 13px;cursor:pointer;font-size:14px';
+  var body='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<button onclick="asisHistMesNav(-1)" style="'+nav+'">◀</button>'
+    +'<b style="font-size:14px">'+mesNom+'</b>'
+    +'<button onclick="asisHistMesNav(1)" style="'+nav+'">▶</button>'
+  +'</div>';
+  emps.forEach(function(e){
+    var sch=asisHorarios[e.id];
+    if(!sch) return;
+    var dias=[];
+    Object.keys(asistencia).filter(function(f){ return f.slice(0,7)===mes; }).sort().forEach(function(f){
+      var r=asistencia[f] && asistencia[f][e.id]; if(!r) return;
+      if(!r.entrada && !r.salida && !r.permiso && !r.justificado) return;
+      dias.push({f:f, r:r});
+    });
+    body+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:9px">'
+      +'<div style="font-weight:700;font-size:13px;margin-bottom:5px">👤 '+_ncEsc(e.nombre)+' <span style="font-size:10px;color:var(--text2)">('+dias.length+' días)</span></div>';
+    if(!dias.length){ body+='<div style="font-size:11px;color:var(--text2)">Sin registros este mes.</div>'; }
+    else dias.forEach(function(o){
+      var r=o.r; var estado='—'; var col='var(--text2)';
+      if(r.justificado){ estado='✅ Justificado'; col='var(--green)'; }
+      else if(sch){
+        var p=o.f.split('-'); var dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); var dia=sch[dow];
+        if(!dia||!dia.e){ estado='Descanso'; }
+        else { var esp=_asisMin(dia.e), lle=_asisMin(r.entrada);
+          if(lle==null) estado='—';
+          else if(lle>esp+15){ estado='🔴 Retardo mayor'; col='#ff6b6b'; }
+          else if(lle>esp){ estado='🟠 Retardo'; col='#e8934b'; }
+          else { estado='🟢 A tiempo'; col='var(--green)'; }
+        }
+      }
+      var horas=_asisHorasTrabajadas(r);
+      var marks='Ent <b>'+(r.entrada||'--')+'</b>';
+      if(r.desIni||r.desFin){ var dd=(_asisMin(r.desFin)!=null&&_asisMin(r.desIni)!=null)?(_asisMin(r.desFin)-_asisMin(r.desIni)):null; marks+=' · Des '+(r.desIni||'--')+'–'+(r.desFin||'--')+(dd!=null?(dd>30?(' <span style="color:#e8934b">('+dd+'m ⚠)</span>'):(' ('+dd+'m)')):''); }
+      if(r.comIni||r.comFin){ var cc=(_asisMin(r.comFin)!=null&&_asisMin(r.comIni)!=null)?(_asisMin(r.comFin)-_asisMin(r.comIni)):null; marks+=' · Com '+(r.comIni||'--')+'–'+(r.comFin||'--')+(cc!=null?(cc>30?(' <span style="color:#e8934b">('+cc+'m ⚠)</span>'):(' ('+cc+'m)')):''); }
+      marks+=' · Sal <b>'+(r.salida||'--')+'</b>'+(horas?(' · '+horas+' trab.'):'');
+      body+='<div style="border-top:1px solid var(--border);padding:5px 0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px">'
+          +'<span style="font-weight:600">'+_asisFechaCorta(o.f)+'</span>'
+          +'<span style="color:'+col+';font-weight:600">'+estado+' <button onclick="asisIrAFecha(\''+o.f+'\')" title="Editar este día" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px">✏️</button></span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+marks+'</div>'
+        + ((r._geo && r._geo.entrada)?('<div style="font-size:10px;margin-top:1px">Entró desde: '+_asisGeoBadge(r._geo.entrada)+'</div>'):'')
+        + (r.permiso?('<div style="font-size:10px;color:var(--text2)">📝 '+_ncEsc(r.permiso)+'</div>'):'')
+      +'</div>';
+    });
+    body+='</div>';
+  });
+  _nomOverlay('📅 Histórico mensual de asistencia', body);
+}
+function _asisCheckRetardo(empId, hora){
+  var sch=asisHorarios[empId]; if(!sch) return;
+  var dow=_asisDowDeFecha(_asisFecha);
+  var dia=sch[dow]; if(!dia || !dia.e) return; // descanso o sin horario ese día
+  var esperado=_asisMin(dia.e), llegada=_asisMin(hora);
+  if(esperado==null || llegada==null || llegada<=esperado) return; // a tiempo
+  var f=_asisFecha||_asisHoy();
+  var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
+  if(r.justificado) return; // permiso justificado, no cuenta
+  var mayor = llegada > (esperado+15);
+  var ya=r._retNotif;
+  if(ya==='mayor') return;
+  if(ya==='leve' && !mayor) return;
+  if(!asistencia[f]) asistencia[f]={}; if(!asistencia[f][empId]) asistencia[f][empId]={};
+  asistencia[f][empId]._retNotif = mayor?'mayor':'leve';
+  saveAsistencia();
+  var L=(typeof empleadasData!=='undefined'?empleadasData:[]); var nombre='';
+  for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nombre=L[i].nombre; break; } }
+  var primer=(nombre||'').split(' ')[0];
+  var uid=(typeof _nomUsuarioDeEmp==='function')?_nomUsuarioDeEmp(nombre):null;
+  var tarde=_asisFmtDur(llegada-esperado);
+  if(mayor){
+    var count=_asisContarRetardosMayores(empId);
+    var hayActa=(count>0 && count%3===0);
+    if(hayActa){
+      try{
+        if(typeof state!=='undefined' && state.actaEntries){
+          state.actaEntries.push({emp:nombre, tipo:'Amonestación por retardos', fecha:(_asisFecha||_asisHoy()), desc:'Acumuló '+count+' retardos (llegadas de más de 15 min tarde). Amonestación por escrito conforme al Reglamento Interior de Trabajo, previa garantía de audiencia a la trabajadora.'});
+          save('actas_entries', state.actaEntries);
+          if(typeof renderActas==='function') renderActas();
+        }
+      }catch(e){}
+    }
+    var msgE='🔴 Llegaste muy tarde: '+hora+' (tu entrada es '+dia.e+', '+tarde+' tarde). Retardo #'+count+'.'+(hayActa?' ⚠️ Acumulaste 3 retardos: se levantó una amonestación por escrito (acta administrativa).':'');
+    var msgA='🔴 '+primer+' llegó muy tarde: '+hora+' ('+tarde+' tarde). Retardo mayor #'+count+'.'+(hayActa?' ⚠️ Ya son 3 → se registró un acta administrativa en Nómina.':'');
+    if(uid) notificarUsuario(uid, msgE);
+    notificarUsuario('admin', msgA);
+  } else {
+    if(uid) notificarUsuario(uid, '🟠 Llegaste tarde: '+hora+' (tu entrada es '+dia.e+'). Procura llegar a tiempo.');
+    notificarUsuario('admin', '🟠 '+primer+' llegó tarde: '+hora+' ('+tarde+' tarde).');
+  }
+  try{ renderNotifBanner(); }catch(e){}
+}
+function asisMarcarAhora(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var yaHora=asistencia[f] && asistencia[f][empId] && asistencia[f][empId][slot];
+  if(yaHora && !_asisEsAdmin()){ if(typeof mostrarToast==='function') mostrarToast('Ya estaba marcado, no se puede cambiar',''); return; }
+  var ahora=new Date();
+  var hh=String(ahora.getHours()).padStart(2,'0'), mm=String(ahora.getMinutes()).padStart(2,'0');
+  var hora=hh+':'+mm;
+  // La hora se guarda YA, sin esperar al GPS — así nunca se queda "sin registrar" por ubicación lenta o bloqueada.
+  _asisGuardarConGeo(empId, slot, hora, null);
+  if(navigator.geolocation){
+    var _yaResp=false;
+    var _geoTimer=setTimeout(function(){ _yaResp=true; }, 8000);
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(_yaResp) return; // llegó demasiado tarde, no pisar lo ya guardado
+      clearTimeout(_geoTimer);
+      _asisAgregarGeo(empId, slot, f, {lat:pos.coords.latitude, lng:pos.coords.longitude, acc:Math.round(pos.coords.accuracy)});
+    }, function(err){
+      clearTimeout(_geoTimer);
+      // Sin ubicación: no pasa nada, la hora ya quedó guardada
+    }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
+  }
+}
+// Agrega la ubicación a un registro que YA fue guardado, sin tocar la hora ni volver a pedir confirmación
+function _asisAgregarGeo(empId, slot, fecha, geo){
+  if(!asistencia[fecha] || !asistencia[fecha][empId]) return;
+  if(asistencia[fecha][empId][slot]==null) return; // el registro se borró mientras tanto
+  if(!asistencia[fecha][empId]._geo) asistencia[fecha][empId]._geo={};
+  asistencia[fecha][empId]._geo[slot]=geo;
+  saveAsistencia();
+  if(fecha===(_asisFecha||_asisHoy())) renderAsistencia();
+}
+function asisBorrarHora(empId, slot){
+  if(!_asisEsAdmin()) return;
+  var f=_asisFecha||_asisHoy();
+  if(asistencia[f] && asistencia[f][empId]){
+    delete asistencia[f][empId][slot];
+    if(asistencia[f][empId]._geo) delete asistencia[f][empId]._geo[slot];
+    saveAsistencia(); renderAsistencia();
+  }
+}
+function asisSetPermiso(empId, val){
+  var f=_asisFecha||_asisHoy();
+  if(!asistencia[f]) asistencia[f]={};
+  if(!asistencia[f][empId]) asistencia[f][empId]={};
+  asistencia[f][empId].permiso=val;
+  saveAsistencia();
+}
+function asisToggleJustificado(empId, val){
+  if(!_asisEsAdmin()) return;
+  var f=_asisFecha||_asisHoy();
+  if(!asistencia[f]) asistencia[f]={};
+  if(!asistencia[f][empId]) asistencia[f][empId]={};
+  asistencia[f][empId].justificado=!!val;
+  saveAsistencia(); renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast(val?'✅ Día justificado — no contará como retardo':'Día ya no justificado','green');
+}
+function asisBorrarDia(empId){
+  if(!_asisEsAdmin()) return;
+  var f=_asisFecha||_asisHoy();
+  var nom=''; var L=(typeof empleadasData!=='undefined'?empleadasData:[]); for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nom=L[i].nombre; break; } }
+  if(!confirm('¿Borrar todo el registro de asistencia de '+(nom||'esta empleada')+' del día '+f+'? Esto no se puede deshacer.')) return;
+  if(asistencia[f] && asistencia[f][empId]){ delete asistencia[f][empId]; if(!Object.keys(asistencia[f]).length) delete asistencia[f]; saveAsistencia(); renderAsistencia(); if(typeof mostrarToast==='function') mostrarToast('🗑️ Registro borrado','green'); }
+}
+function asisVincularUsuario(uid, empId){
+  if(!_asisEsAdmin()) return;
+  if(empId) asisUsuarios[uid]=empId; else delete asisUsuarios[uid];
+  saveAsisUsuarios(); renderAsistencia();
+}
+function asisFijarTienda(){
+  if(!_asisEsAdmin()) return;
+  if(!confirm('¿Estás físicamente en la tienda ahora mismo?\n\nSe va a guardar tu ubicación ACTUAL como el punto oficial de la tienda, y a partir de ahí se compara la de todo el equipo. Si no estás en la tienda, cancela y usa la opción de corregir con un enlace de Google Maps.')) return;
+  if(!navigator.geolocation){ alert('Este dispositivo no permite ubicación.'); return; }
+  if(typeof mostrarToast==='function') mostrarToast('📍 Obteniendo ubicación de la tienda…','');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    asisTienda={lat:pos.coords.latitude, lng:pos.coords.longitude};
+    saveAsisTienda(); renderAsistencia();
+    if(typeof mostrarToast==='function') mostrarToast('✅ Ubicación de la tienda guardada','green');
+  }, function(err){
+    alert('No se pudo obtener la ubicación. Ponte en la tienda y permite la ubicación en el navegador.');
+  }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
+}
+// Corregir la ubicación de la tienda sin tener que estar ahí físicamente:
+// pega un link de Google Maps o escribe las coordenadas directamente.
+function asisFijarTiendaManual(){
+  if(!_asisEsAdmin()) return;
+  var actual = asisTienda ? ('\n\nAhora mismo está guardada como: '+asisTienda.lat.toFixed(5)+', '+asisTienda.lng.toFixed(5)) : '';
+  var txt = prompt('Pega aquí un enlace de Google Maps de la tienda, o escribe las coordenadas (ej. 19.7028,-101.1925):'+actual, '');
+  if(txt===null) return;
+  var m = (txt||'').match(/(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/);
+  if(!m){ alert('No encontré coordenadas ahí. Copia el enlace completo de Google Maps (el que sale al compartir la ubicación), o escribe algo como 19.7028,-101.1925'); return; }
+  var lat=parseFloat(m[1]), lng=parseFloat(m[2]);
+  if(isNaN(lat)||isNaN(lng)||Math.abs(lat)>90||Math.abs(lng)>180){ alert('Esas coordenadas no se ven válidas.'); return; }
+  if(!confirm('¿Guardar esta ubicación como la de la tienda?\n\n'+lat.toFixed(5)+', '+lng.toFixed(5)+'\n\nPuedes revisarla en: https://maps.google.com/?q='+lat+','+lng)) return;
+  asisTienda={lat:lat, lng:lng};
+  saveAsisTienda(); renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Ubicación de la tienda corregida','green');
+}
+function _asisGeoBadge(geo){
+  if(!geo) return '<span title="Se marcó sin ubicación" style="font-size:10px;color:var(--text2)">📍✗</span>';
+  var maps='https://maps.google.com/?q='+geo.lat+','+geo.lng;
+  // Si el propio GPS/WiFi reportó un margen de error muy grande, la ubicación no es
+  // confiable (típico en computadoras de escritorio sin GPS, que ubican por WiFi/IP
+  // y a veces fallan por cientos de metros o más). Se avisa en vez de mostrar un
+  // lugar "seguro" que puede estar mal.
+  if(geo.acc && geo.acc>500){
+    return '<a href="'+maps+'" target="_blank" title="El dispositivo reportó un margen de error de ±'+geo.acc+'m — no es confiable. Para mejor precisión, marca desde un celular en vez de una computadora." style="font-size:10px;color:#e8934b;text-decoration:none;font-weight:700">📍⚠ ubicación poco precisa (±'+geo.acc+'m)</a>';
+  }
+  if(asisTienda){
+    var d=_asisDist(asisTienda, geo);
+    if(d!=null){
+      // El GPS adentro de un local suele tener error de 30-150m; le damos ese margen
+      // de tolerancia (usando la precisión que reportó el dispositivo) para no marcar
+      // "fuera de tienda" a alguien que sí está adentro.
+      var margen=Math.min(geo.acc||0, 150);
+      var dAjustada=Math.max(0, d-margen);
+      var cerca=dAjustada<=150;
+      var txt=(d<1000)?(d+' m'):((d/1000).toFixed(1)+' km');
+      var col=cerca?'var(--green)':'#e8934b';
+      var et=cerca?('✓ en tienda ('+txt+')'):('⚠ a '+txt);
+      return '<a href="'+maps+'" target="_blank" title="Ver en mapa'+(geo.acc?(' · precisión del dispositivo: ±'+geo.acc+'m'):'')+'" style="font-size:10px;color:'+col+';text-decoration:none;font-weight:700">📍 '+et+'</a>';
+    }
+  }
+  return '<a href="'+maps+'" target="_blank" title="Ver en mapa'+(geo.acc?(' · precisión: ±'+geo.acc+'m'):'')+'" style="font-size:10px;color:var(--green);text-decoration:none">📍 ubicación ✓</a>';
+}
+
 function _asisHistStats(emp, mes){
   var sch=asisHorarios[emp.id]||{};
   var pm=mes.split('-'), pY=+pm[0], pM=+pm[1];
@@ -14733,10 +14965,10 @@ function _asisTareasStats(persona, mes){
 }
 function _asisPersonaDeEmp(nombre){
   try{
-    var n=(typeof _tkNorm==='function')?_tkNorm(nombre):String(nombre||'').toLowerCase();
+    var n=(typeof _tkNormNom==='function')?_tkNormNom(nombre):String(nombre||'').toLowerCase();
     var personas=(typeof _tkPersonas==='function')?_tkPersonas():[];
     for(var i=0;i<personas.length;i++){
-      var p=(typeof _tkNorm==='function')?_tkNorm(personas[i]):personas[i].toLowerCase();
+      var p=(typeof _tkNormNom==='function')?_tkNormNom(personas[i]):personas[i].toLowerCase();
       if(n.indexOf(p)>=0) return personas[i];
     }
     if(n.indexOf('liz')>=0) return 'Liz';
