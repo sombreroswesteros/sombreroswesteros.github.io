@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v342</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v344</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -5244,7 +5244,55 @@ function _precioListo(l){
 }
 function _precioGet(l){
   var k=_precioKey(l);
-  return (k && preciosHist[k]) ? preciosHist[k] : null;
+  if(k && preciosHist[k]) return preciosHist[k];
+  return _precioDesdeInventario(l);   // respaldo: lo que ya tienes capturado en Stock
+}
+/* Si nunca has registrado una nota de compra de ese producto, se toma el costo
+   que ya está guardado en el inventario, para no dejar el campo vacío. */
+function _precioDesdeInventario(l){
+  if(!l) return null;
+  try{
+    if((l.cat||'')==='Sombrero'){
+      if(!_precioListo(l)) return null;
+      var esTex=((l.tipoSom||'Sombrero')==='Texana');
+      var arr=(typeof invSombreros!=='undefined' && Array.isArray(invSombreros))?invSombreros:[];
+      var cand=arr.filter(function(x){
+        if(!(parseFloat(x.costo)>0)) return false;
+        if(typeof _somTipo==='function' && _somTipo(x)!==(l.tipoSom||'Sombrero')) return false;
+        if((x.marca||'')!==(l.marca||'')) return false;
+        if((x.calidad||'')!==(l.calidad||'')) return false;
+        if(esTex){
+          if((x.horma||'')!==(l.horma||'')) return false;
+          if((x.color||'')!==(l.color||'')) return false;
+        }
+        return true;
+      });
+      if(!cand.length) return null;
+      cand.sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); });
+      var s0=cand[0];
+      return { costoU:parseFloat(s0.costo)||0, precioTienda:parseFloat(s0.precioTienda)||0,
+               prov:'', fecha:s0.fecha||'', fuente:'stock',
+               etiqueta:[l.calidad,l.marca].filter(Boolean).join(' ') };
+    }
+    var d=(l.desc||'').trim(); if(!d) return null;
+    var dn=d.toLowerCase();
+    var listas=[];
+    if(typeof invAccesorios!=='undefined' && Array.isArray(invAccesorios)) listas.push(invAccesorios);
+    if(typeof _INV_CATS!=='undefined'){
+      for(var kk in _INV_CATS){ try{ var dd=_INV_CATS[kk].data; if(Array.isArray(dd)) listas.push(dd); }catch(e){} }
+    }
+    for(var i=0;i<listas.length;i++){
+      for(var j=0;j<listas[i].length;j++){
+        var it=listas[i][j];
+        if(!it || !(parseFloat(it.costo)>0)) continue;
+        if(String(it.nombre||'').trim().toLowerCase()===dn){
+          return { costoU:parseFloat(it.costo)||0, precioTienda:parseFloat(it.precioTienda)||0,
+                   prov:'', fecha:'', fuente:'stock', etiqueta:it.nombre||'' };
+        }
+      }
+    }
+  }catch(e){}
+  return null;
 }
 function _precioSet(l, prov, fecha){
   var k=_precioKey(l); if(!k) return;
@@ -7259,7 +7307,7 @@ function renderNcLineas(){
         var q=(l.tallas&&l.tallas[t.cm])?l.tallas[t.cm]:'';
         var on=!!q;
         var enStock=(l.marca&&l.horma)?_ncStockTalla(l,t.cm):0;
-        return '<div style="border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:7px;padding:5px;text-align:center;background:'+(on?'rgba(224,168,58,.10)':'transparent')+'">'
+        return '<div id="nc-chip-'+i+'-'+t.cm+'" style="border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:7px;padding:5px;text-align:center;background:'+(on?'rgba(224,168,58,.10)':'transparent')+'">'
           +'<div style="font-size:10px;font-weight:700;color:'+(on?'var(--accent2)':'var(--text2)')+'">'+t.cm+' cm</div>'
           +'<div style="font-size:8px;color:var(--text2);margin-bottom:3px">'+t.pulg+'" · '+enStock+' pz</div>'
           +'<input type="number" min="0" placeholder="0" value="'+q+'" oninput="ncSetTalla('+i+',\''+t.cm+'\',this.value)" style="width:100%;text-align:center;padding:3px;font-size:11px">'
@@ -7280,7 +7328,7 @@ function renderNcLineas(){
         +'<div style="margin-top:8px"><label style="font-size:10px;color:var(--text2)">📏 Tallas y piezas (escribe cuántas de cada talla)</label>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;margin-top:4px">'+chips+'</div></div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr 30px;gap:6px;margin-top:8px;align-items:end">'
-        +'<div><label style="font-size:10px;color:var(--text2)">Total piezas</label><div style="padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;text-align:center;font-weight:700;color:var(--accent2)">'+totalPz+'</div></div>'
+        +'<div><label style="font-size:10px;color:var(--text2)">Total piezas</label><div id="nc-totpz-'+i+'" style="padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;text-align:center;font-weight:700;color:var(--accent2)">'+totalPz+'</div></div>'
         +'<div><label style="font-size:10px;color:var(--text2)">Costo U. (ticket)</label><input type="number" min="0" step="0.01" placeholder="0.00" value="'+(l.costoU||'')+'" oninput="ncSet('+i+',\'costoU\',this.value)" style="width:100%"></div>'
         +'<button onclick="ncQuitarLinea('+i+')" style="height:34px;background:rgba(244,91,105,.1);border:1px solid rgba(244,91,105,.2);color:var(--red);border-radius:6px;cursor:pointer" title="Quitar">✕</button>'
         +'</div>'
@@ -7292,15 +7340,11 @@ function renderNcLineas(){
         var p=_precioGet(l);
         var h2='';
         if(p && p.costoU){
-          h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 Último precio registrado: <b style="color:var(--accent2)">'+_ncMoney(p.costoU)+'</b>'+(p.fecha?' ('+p.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
+          h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 '+(p.fuente==='stock'?'Costo guardado en tu inventario':'Último precio registrado')+': <b style="color:var(--accent2)">'+_ncMoney(p.costoU)+'</b>'+(p.fecha?' ('+p.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
         }
         h2+='<div style="margin-top:6px"><label style="font-size:10px;color:var(--text2)">💱 Cambio de precio (solo si te lo subieron/bajaron)</label>'
           +'<input type="number" min="0" step="0.01" placeholder="nuevo costo unitario" value="'+(l.cambioPrecio||'')+'" oninput="ncSetCambioPrecio('+i+',this.value)" style="width:100%"></div>';
-        if(l.cambioPrecio && l.precioAnterior){
-          var pct=_precioPct(l.cambioPrecio, l.precioAnterior);
-          var col=pct>0?'var(--red)':'var(--green)';
-          h2+='<div style="font-size:10px;color:'+col+';margin-top:3px">'+(pct>0?'▲':'▼')+' '+_ncMoney(l.precioAnterior)+' → <b>'+_ncMoney(l.cambioPrecio)+'</b> ('+(pct>0?'+':'')+pct.toFixed(1)+'%)</div>';
-        }
+        h2+='<div id="nc-dif-'+i+'" style="margin-top:3px">'+_pedDifHTML(l)+'</div>';
         return h2;
       })()
         +'<div style="margin-top:8px"><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><input type="checkbox" '+(l.aInv?'checked':'')+' onchange="ncSet('+i+',\'aInv\',this.checked)"> Sumar a '+_ncEsc(l.tipoSom||'Sombrero')+'s (crea cada talla en Stock)</label></div>';
@@ -7332,15 +7376,11 @@ function renderNcLineas(){
         var p=_precioGet(l);
         var h2='';
         if(p && p.costoU){
-          h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 Último precio registrado: <b style="color:var(--accent2)">'+_ncMoney(p.costoU)+'</b>'+(p.fecha?' ('+p.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
+          h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 '+(p.fuente==='stock'?'Costo guardado en tu inventario':'Último precio registrado')+': <b style="color:var(--accent2)">'+_ncMoney(p.costoU)+'</b>'+(p.fecha?' ('+p.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
         }
         h2+='<div style="margin-top:6px"><label style="font-size:10px;color:var(--text2)">💱 Cambio de precio (solo si te lo subieron/bajaron)</label>'
           +'<input type="number" min="0" step="0.01" placeholder="nuevo costo unitario" value="'+(l.cambioPrecio||'')+'" oninput="ncSetCambioPrecio('+i+',this.value)" style="width:100%"></div>';
-        if(l.cambioPrecio && l.precioAnterior){
-          var pct=_precioPct(l.cambioPrecio, l.precioAnterior);
-          var col=pct>0?'var(--red)':'var(--green)';
-          h2+='<div style="font-size:10px;color:'+col+';margin-top:3px">'+(pct>0?'▲':'▼')+' '+_ncMoney(l.precioAnterior)+' → <b>'+_ncMoney(l.cambioPrecio)+'</b> ('+(pct>0?'+':'')+pct.toFixed(1)+'%)</div>';
-        }
+        h2+='<div id="nc-dif-'+i+'" style="margin-top:3px">'+_pedDifHTML(l)+'</div>';
         return h2;
       })()
       +'<div style="margin-top:8px"><label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><input type="checkbox" '+(l.aInv?'checked':'')+' onchange="ncSet('+i+',\'aInv\',this.checked)"> Sumar a '+_ncEsc(_ncCatLabel(cat))+' (costo c/envío + precio de tienda)</label></div>'
@@ -7363,20 +7403,37 @@ function ncSetCambioPrecio(i,val){
     l.precioAnterior=(p&&p.costoU)?p.costoU:(l.costoU||0);
     l.costoU=nuevo; l.cambioPrecio=nuevo; l.autoCosto=false;
   } else { l.cambioPrecio=0; }
-  renderNcLineas();
+  var e=document.getElementById('nc-dif-'+i);
+  if(e) e.innerHTML=_pedDifHTML(l);
+  ncRecalcTotal();
 }
 function ncGestionOpc(listaKey){
   if(typeof abrirGestionOpciones==='function'){ _ncOpcAbiertoDesdeNota=true; abrirGestionOpciones(listaKey); }
 }
 var _ncOpcAbiertoDesdeNota=false;
+function _pintaChipTalla(id, q){
+  var chip=document.getElementById(id); if(!chip) return;
+  chip.style.borderColor = q>0 ? 'var(--accent2)' : 'var(--border)';
+  chip.style.background  = q>0 ? 'rgba(224,168,58,.10)' : 'transparent';
+  var lb=chip.querySelector('div');
+  if(lb) lb.style.color = q>0 ? 'var(--accent2)' : 'var(--text2)';
+}
+function _pedDifHTML(l){
+  if(!l || !l.cambioPrecio || !l.precioAnterior) return '';
+  var pct=_precioPct(l.cambioPrecio, l.precioAnterior);
+  var col=pct>0?'var(--red)':'var(--green)';
+  return '<span style="font-size:10px;color:'+col+'">'+(pct>0?'▲':'▼')+' '+_ncMoney(l.precioAnterior)+' → <b>'+_ncMoney(l.cambioPrecio)+'</b> ('+(pct>0?'+':'')+pct.toFixed(1)+'%)</span>';
+}
 function ncSetTalla(i,talla,val){
   var l=ncLineas[i]; if(!l) return;
   if(!l.tallas) l.tallas={};
   var q=parseInt(val)||0;
   if(q>0) l.tallas[talla]=q; else delete l.tallas[talla];
-  var sp=document.getElementById('nc-tot-'+i);
+  // Solo se repinta lo necesario: redibujar todo cierra el teclado y brinca la pantalla
+  _pintaChipTalla('nc-chip-'+i+'-'+talla, q);
+  var tp=document.getElementById('nc-totpz-'+i);
+  if(tp) tp.textContent=_ncLineaCant(l);
   ncRecalcTotal();
-  renderNcLineas();
 }
 function ncSetCat(i,cat){ var l=ncLineas[i]; if(!l) return; l.cat=cat; l.desc=''; l.ref=null; l.otro=false; l.aInv=false;
   if(cat==='Sombrero'){ if(!l.tipoSom) l.tipoSom='Sombrero'; if(!l.tallas) l.tallas={}; }
@@ -7996,7 +8053,7 @@ function renderPedLineas(){
     var pie=function(){
       var h2='';
       if(hist && hist.costoU){
-        h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 Último precio '+(((l.cat||'')==='Sombrero'&&(l.tipoSom||'Sombrero')==='Sombrero')?'de '+_ncEsc(l.marca||'')+' '+_ncEsc(l.calidad||'')+' (todas las hormas)':'registrado')+': <b style="color:var(--accent2)">'+_ncMoney(hist.costoU)+'</b>'+(hist.fecha?' ('+hist.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
+        h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">💾 '+(hist.fuente==='stock'?'Costo guardado en tu inventario':('Último precio '+(((l.cat||'')==='Sombrero'&&(l.tipoSom||'Sombrero')==='Sombrero')?'de '+_ncEsc(l.marca||'')+' '+_ncEsc(l.calidad||'')+' (todas las hormas)':'registrado')))+': <b style="color:var(--accent2)">'+_ncMoney(hist.costoU)+'</b>'+(hist.fecha?' ('+hist.fecha+')':'')+(l.autoCosto?' <span style="color:var(--green)">· autollenado</span>':'')+'</div>';
       } else if(!_precioListo(l) && (l.cat||'')==='Sombrero' && (l.tipoSom||'Sombrero')==='Texana'){
         h2+='<div style="font-size:10px;color:var(--text2);margin-top:4px">Elige marca, calidad, horma y color — las texanas cambian de precio según horma y color.</div>';
       } else {
@@ -8004,11 +8061,7 @@ function renderPedLineas(){
       }
       h2+='<div style="margin-top:6px"><label style="font-size:10px;color:var(--text2)">💱 Cambio de precio</label>'
         +'<input type="number" min="0" step="0.01" placeholder="nuevo costo unitario" value="'+(l.cambioPrecio||'')+'" oninput="pedSetCambioPrecio('+i+',this.value)" style="width:100%"></div>';
-      if(l.cambioPrecio && l.precioAnterior){
-        var pct=_precioPct(l.cambioPrecio, l.precioAnterior);
-        var col=pct>0?'var(--red)':'var(--green)';
-        h2+='<div style="font-size:10px;color:'+col+';margin-top:3px">'+(pct>0?'▲':'▼')+' '+_ncMoney(l.precioAnterior)+' → <b>'+_ncMoney(l.cambioPrecio)+'</b> ('+(pct>0?'+':'')+pct.toFixed(1)+'%)</div>';
-      }
+      h2+='<div id="ped-dif-'+i+'" style="margin-top:3px">'+_pedDifHTML(l)+'</div>';
       h2+='<div id="ped-cred-'+i+'" style="font-size:10px;color:#e8b84b;margin-top:3px"></div>';
       h2+='<div id="ped-imp-'+i+'" style="text-align:right;font-size:11px;color:var(--text2);margin-top:4px"></div>';
       return h2;
@@ -8028,7 +8081,7 @@ function renderPedLineas(){
         var q=(l.tallas&&l.tallas[t.cm])?l.tallas[t.cm]:'';
         var on=!!q;
         var enStock=(l.marca&&l.horma)?_pedStockTalla(l,t.cm):0;
-        return '<div style="border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:7px;padding:5px;text-align:center;background:'+(on?'rgba(224,168,58,.10)':'transparent')+'">'
+        return '<div id="ped-chip-'+i+'-'+t.cm+'" style="border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:7px;padding:5px;text-align:center;background:'+(on?'rgba(224,168,58,.10)':'transparent')+'">'
           +'<div style="font-size:10px;font-weight:700;color:'+(on?'var(--accent2)':'var(--text2)')+'">'+t.cm+' cm</div>'
           +'<div style="font-size:8px;color:var(--text2);margin-bottom:3px">'+t.pulg+'" · '+enStock+' pz</div>'
           +'<input type="number" min="0" placeholder="0" value="'+q+'" oninput="pedSetTalla('+i+',\''+t.cm+'\',this.value)" style="width:100%;text-align:center;padding:3px;font-size:11px">'
@@ -8049,7 +8102,7 @@ function renderPedLineas(){
         +'<div style="margin-top:8px"><label style="font-size:10px;color:var(--text2)">📏 Tallas y piezas que vas a pedir</label>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;margin-top:4px">'+chips+'</div></div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr 30px;gap:6px;margin-top:8px;align-items:end">'
-        +'<div><label style="font-size:10px;color:var(--text2)">Total piezas</label><div style="padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;text-align:center;font-weight:700;color:var(--accent2)">'+totalPz+'</div></div>'
+        +'<div><label style="font-size:10px;color:var(--text2)">Total piezas</label><div id="ped-totpz-'+i+'" style="padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;text-align:center;font-weight:700;color:var(--accent2)">'+totalPz+'</div></div>'
         +'<div><label style="font-size:10px;color:var(--text2)">Costo U.</label><input type="number" min="0" step="0.01" placeholder="0.00" value="'+(l.costoU||'')+'" oninput="pedSet('+i+',\'costoU\',this.value)" style="width:100%"></div>'
         +'<button onclick="pedQuitarLinea('+i+')" style="height:34px;background:rgba(244,91,105,.1);border:1px solid rgba(244,91,105,.2);color:var(--red);border-radius:6px;cursor:pointer">✕</button>'
         +'</div>'
@@ -8084,7 +8137,11 @@ function pedSetTalla(i,talla,val){
   if(!l.tallas) l.tallas={};
   var q=parseInt(val)||0;
   if(q>0) l.tallas[talla]=q; else delete l.tallas[talla];
-  renderPedLineas();
+  // Solo se repinta lo necesario: redibujar todo cierra el teclado y brinca la pantalla
+  _pintaChipTalla('ped-chip-'+i+'-'+talla, q);
+  var tp=document.getElementById('ped-totpz-'+i);
+  if(tp) tp.textContent=_pedLineaCant(l);
+  pedRecalcTotal();
 }
 function pedGestionOpc(listaKey){ if(typeof abrirGestionOpciones==='function') abrirGestionOpciones(listaKey); }
 function _pedEsCredito(){
@@ -8122,7 +8179,9 @@ function pedSetCambioPrecio(i,val){
   var nuevo=parseFloat(val)||0;
   if(nuevo>0){ var p=_precioGet(l); l.precioAnterior=(p&&p.costoU)?p.costoU:(l.costoU||0); l.costoU=nuevo; l.cambioPrecio=nuevo; l.autoCosto=false; }
   else { l.cambioPrecio=0; }
-  renderPedLineas();
+  var e=document.getElementById('ped-dif-'+i);
+  if(e) e.innerHTML=_pedDifHTML(l);
+  pedRecalcTotal();
 }
 function pedSet(i,k,v){ if(!pedLineas[i]) return; if(k==='desc') pedLineas[i][k]=v; else pedLineas[i][k]=parseFloat(v)||0; pedRecalcTotal(); }
 function pedAgregarLinea(){ pedLineas.push(_pedLineaNueva()); renderPedLineas(); }
