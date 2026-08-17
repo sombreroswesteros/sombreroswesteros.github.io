@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v341</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v342</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -15137,6 +15137,153 @@ function asisEvaluacionCopiar(empId){
   });
   try{ navigator.clipboard.writeText(t); if(typeof mostrarToast==='function') mostrarToast('📋 Evaluación copiada','green'); }
   catch(err){ prompt('Copia el texto:', t); }
+}
+
+/* ═══════ SOLICITUDES DE CORRECCIÓN DE HORA (se me olvidó marcar) ═══════
+   La colaboradora pide la hora que realmente entró/salió y queda PENDIENTE.
+   Solo se registra en asistencia cuando Fer la autoriza. */
+var ASIS_SOLIC_KEY='asis_solicitudes';
+function loadAsisSolic(){ try{ var v=JSON.parse(localStorage.getItem(ASIS_SOLIC_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function saveAsisSolic(a){ try{ save(ASIS_SOLIC_KEY,a); }catch(e){} }
+function _asisSlotNombre(slot){ for(var i=0;i<ASIS_SLOTS.length;i++){ if(ASIS_SLOTS[i][0]===slot) return ASIS_SLOTS[i][1]; } return slot; }
+function _asisEmpNombre(empId){
+  var L=(typeof empleadasData!=='undefined'?empleadasData:[]);
+  for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)) return L[i].nombre; }
+  return 'Colaboradora';
+}
+function _asisSolicPend(fecha, empId, slot){
+  var a=loadAsisSolic();
+  for(var i=0;i<a.length;i++){
+    var s=a[i];
+    if(s.estado==='pend' && s.fecha===fecha && String(s.empId)===String(empId) && s.slot===slot) return s;
+  }
+  return null;
+}
+
+function asisPedirCorreccion(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var r=(asistencia[f]&&asistencia[f][empId])?asistencia[f][empId]:{};
+  var actual=r[slot]||'';
+  var yaPend=_asisSolicPend(f, empId, slot);
+  if(yaPend){ alert('Ya mandaste una solicitud para "'+_asisSlotNombre(slot)+'" ('+yaPend.hora+'). Está esperando la autorización de Fer.'); return; }
+  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='asol-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100030;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var inp='width:100%;box-sizing:border-box;background:#0f0f13;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px';
+  var ahora=new Date(); var hh=('0'+ahora.getHours()).slice(-2)+':'+('0'+ahora.getMinutes()).slice(-2);
+  ov.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:18px">'
+    +'<h3 style="margin:0 0 4px;color:var(--accent2);font-size:16px">🙋 Se me olvidó marcar</h3>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:14px">'+_ncEsc(_asisSlotNombre(slot))+' · '+_asisFmtFechaLarga(f)+(actual?(' · ahora dice '+actual):'')+'</div>'
+    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿A QUÉ HORA FUE REALMENTE?</label>'
+    +'<input type="time" id="asol-hora" value="'+(actual||hh)+'" style="'+inp+';margin-bottom:10px">'
+    +'<label style="font-size:10px;color:var(--text2);display:block;margin-bottom:3px">¿POR QUÉ NO SE MARCÓ A TIEMPO?</label>'
+    +'<textarea id="asol-motivo" rows="3" placeholder="Ej. llegué y me puse a atender a un cliente y se me pasó marcar" style="'+inp+';resize:vertical;font-size:13px"></textarea>'
+    +'<div style="font-size:11px;color:var(--accent2);background:rgba(184,137,43,.12);border-radius:8px;padding:9px 10px;margin-top:10px">⚠️ Esta hora <b>no se registra todavía</b>. Le llega a Fer y ella la autoriza.</div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button class="btn btn-secondary" style="flex:1" onclick="document.getElementById(\'asol-ov\').remove()">Cancelar</button>'
+      +'<button class="btn btn-accent" style="flex:1" onclick="asisEnviarSolicitud('+empId+',\''+slot+'\')">📨 Enviar a Fer</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+}
+function asisEnviarSolicitud(empId, slot){
+  var f=_asisFecha||_asisHoy();
+  var hora=(document.getElementById('asol-hora')||{value:''}).value;
+  var motivo=((document.getElementById('asol-motivo')||{value:''}).value||'').trim();
+  if(!hora){ alert('Pon la hora.'); return; }
+  if(motivo.length<4){ alert('Escribe brevemente por qué no se marcó a tiempo.'); return; }
+  var arr=loadAsisSolic();
+  arr.push({
+    id:'s'+Date.now()+Math.random().toString(36).slice(2,5),
+    fecha:f, empId:empId, slot:slot, hora:hora, motivo:motivo,
+    anterior:(asistencia[f]&&asistencia[f][empId]&&asistencia[f][empId][slot])||'',
+    uid:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'',
+    creada:new Date().toISOString(), estado:'pend'
+  });
+  saveAsisSolic(arr);
+  var ov=document.getElementById('asol-ov'); if(ov) ov.remove();
+  try{
+    var primer=(_asisEmpNombre(empId)||'').split(' ')[0];
+    notificarUsuario('admin','🙋 '+primer+' pide autorizar '+_asisSlotNombre(slot)+' de '+hora+' ('+f+'): '+motivo);
+    renderNotifBanner();
+  }catch(e){}
+  renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast('📨 Enviado. Falta que Fer lo autorice','green');
+}
+
+function _asisAplicarManual(fecha, empId, slot, hora){
+  if(!asistencia[fecha]) asistencia[fecha]={};
+  if(!asistencia[fecha][empId]) asistencia[fecha][empId]={};
+  asistencia[fecha][empId][slot]=hora;
+  if(!asistencia[fecha][empId]._manual) asistencia[fecha][empId]._manual={};
+  asistencia[fecha][empId]._manual[slot]=true;
+  if(asistencia[fecha][empId]._geo) delete asistencia[fecha][empId]._geo[slot];
+  saveAsistencia();
+  var prev=_asisFecha; _asisFecha=fecha;
+  try{
+    if(slot==='entrada'){ _asisCheckRetardo(empId, hora); }
+    if(slot==='desFin' || slot==='comFin'){ _asisCheckDescanso(empId, slot); }
+  }catch(e){}
+  _asisFecha=prev;
+}
+function asisAutorizarSolic(id){
+  if(!_asisEsAdmin()) return;
+  var arr=loadAsisSolic(); var s=null;
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s || s.estado!=='pend') return;
+  if(!confirm('¿Autorizar '+_asisSlotNombre(s.slot)+' de '+s.hora+' para '+_asisEmpNombre(s.empId)+' el '+s.fecha+'?\n\nSe va a registrar en su asistencia.')) return;
+  _asisAplicarManual(s.fecha, s.empId, s.slot, s.hora);
+  s.estado='ok'; s.respondida=new Date().toISOString();
+  saveAsisSolic(arr);
+  try{ if(s.uid) notificarUsuario(s.uid,'✅ Fer autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+'). Ya quedó registrada.'); renderNotifBanner(); }catch(e){}
+  renderAsistencia();
+  if(typeof mostrarToast==='function') mostrarToast('✅ Autorizado y registrado','green');
+}
+function asisRechazarSolic(id){
+  if(!_asisEsAdmin()) return;
+  var arr=loadAsisSolic(); var s=null;
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s || s.estado!=='pend') return;
+  var nota=prompt('¿Por qué no la autorizas? (le llega el mensaje a ella)','');
+  if(nota===null) return;
+  s.estado='no'; s.nota=nota; s.respondida=new Date().toISOString();
+  saveAsisSolic(arr);
+  try{ if(s.uid) notificarUsuario(s.uid,'❌ Fer no autorizó tu '+_asisSlotNombre(s.slot)+' de '+s.hora+' ('+s.fecha+')'+(nota?': '+nota:'')); renderNotifBanner(); }catch(e){}
+  renderAsistencia();
+}
+function asisBorrarSolicitud(id){
+  var arr=loadAsisSolic();
+  var s=null; for(var i=0;i<arr.length;i++){ if(arr[i].id===id) s=arr[i]; }
+  if(!s) return;
+  var mia=(typeof currentUser!=='undefined'&&currentUser&&s.uid===currentUser.id);
+  if(!mia && !_asisEsAdmin()) return;
+  if(s.estado!=='pend') return;
+  if(!confirm('¿Cancelar tu solicitud?')) return;
+  saveAsisSolic(arr.filter(function(x){ return x.id!==id; }));
+  renderAsistencia();
+}
+
+function _asisSolicPanelAdmin(){
+  var pend=loadAsisSolic().filter(function(s){ return s.estado==='pend'; })
+    .sort(function(a,b){ return (a.creada||'').localeCompare(b.creada||''); });
+  if(!pend.length) return '';
+  var h='<div style="border:1px solid var(--accent2);border-radius:9px;padding:11px 12px;margin-bottom:12px;background:rgba(184,137,43,.10)">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:8px">🙋 Horas por autorizar ('+pend.length+')</div>';
+  pend.forEach(function(s){
+    h+='<div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:7px;background:var(--surface)">'
+      +'<div style="font-size:12px"><b>'+_ncEsc((_asisEmpNombre(s.empId)||'').split(' ')[0])+'</b> · '+_ncEsc(_asisSlotNombre(s.slot))+' → <b style="color:var(--accent2)">'+_ncEsc(s.hora)+'</b>'
+      +(s.anterior?(' <span style="color:var(--text2);font-size:11px">(antes '+_ncEsc(s.anterior)+')</span>'):'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin:3px 0 7px">📅 '+_ncEsc(s.fecha)+' · 📝 '+_ncEsc(s.motivo||'')+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button onclick="asisAutorizarSolic(\''+s.id+'\')" style="background:var(--green);border:none;color:#0f0f13;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">✅ Autorizar</button>'
+        +'<button onclick="asisRechazarSolic(\''+s.id+'\')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700">❌ No autorizar</button>'
+        +'<button onclick="asisIrAFecha(\''+s.fecha+'\')" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">Ver ese día</button>'
+      +'</div>'
+    +'</div>';
+  });
+  h+='</div>';
+  return h;
 }
 
 function renderAsistencia(){
