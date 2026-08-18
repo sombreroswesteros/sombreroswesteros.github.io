@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v346</span></p>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v349</span></p>
   </div>
   <div class="nav">
     <div class="nav-section admin-only">Operación</div>
@@ -11092,12 +11092,32 @@ function saveTkPlant(a){ try{ save(TK_PLANT,a); }catch(e){} }
 function saveTkHechas(o){ try{ save(TK_HECHAS,o); }catch(e){} }
 /* Cada colaboradora guarda SOLO su propia clave. Si todas escribieran el mismo
    bloque, el último dispositivo en sincronizar borraría lo de las demás. */
+/* La nube no admite . # $ / [ ] dentro de las llaves: al subir, el '#' se
+   convertía en '_' y al recargar ya no coincidía nada. Por eso "se borraba". */
+function _tkKey(pid, i){ return String(pid)+'_'+i; }
+function _tkRepararClaves(reg){
+  var cambio=false;
+  for(var f in reg){
+    var dia=reg[f]; if(!dia || typeof dia!=='object') continue;
+    for(var k in dia){
+      if(k.indexOf('#')>=0){
+        var nk=k.replace(/#/g,'_');
+        if(!dia[nk]) dia[nk]=dia[k];
+        delete dia[k]; cambio=true;
+      }
+    }
+  }
+  return cambio;
+}
 function _tkClavePersona(p){
   return 'tareas_hechas__'+String(p||'').toLowerCase().normalize('NFD')
     .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_');
 }
 function loadTkRegPersona(persona){
-  try{ var v=JSON.parse(localStorage.getItem(_tkClavePersona(persona))); return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; }
+  var v={};
+  try{ var p=JSON.parse(localStorage.getItem(_tkClavePersona(persona))); if(p&&typeof p==='object') v=p; }catch(e){ return {}; }
+  try{ if(_tkRepararClaves(v)) saveTkRegPersona(persona, v); }catch(e){}
+  return v;
 }
 function saveTkRegPersona(persona, obj){ try{ save(_tkClavePersona(persona), obj); }catch(e){} }
 /* Vista combinada { fecha: { persona: {tareas} } } para los paneles y la evaluación */
@@ -11131,6 +11151,7 @@ function _tkMigrarHechas(){
       var porPersona={};
       for(var f in leg){ for(var p in leg[f]){ if(!porPersona[p]) porPersona[p]={}; porPersona[p][f]=leg[f][p]; } }
       for(var per in porPersona){
+        try{ _tkRepararClaves(porPersona[per]); }catch(e){}
         var actual=loadTkRegPersona(per);
         for(var ff in porPersona[per]){
           actual[ff]=actual[ff]||{};
@@ -11406,10 +11427,23 @@ function renderTareas(){
   _tkSeed();
   _tkMigrarHechas();
   if(!_tkFecha) _tkFecha=_tkHoy();
+  // Se guarda dónde estaba la vista: al repintar la lista, el navegador
+  // brincaba hasta arriba y parecía que la palomita no se había registrado.
+  var sy=0, sm=0, m=document.getElementById('main');
+  try{ sy=window.pageYOffset||document.documentElement.scrollTop||0; if(m) sm=m.scrollTop||0; }catch(e){}
   var esAdmin=_tkEsAdmin();
   var h='';
   if(esAdmin){ h+=_tkPanelAdmin(); } else { h+=_tkPanelEmpleada(); }
   c.innerHTML=h;
+  try{
+    if(sy||sm){
+      window.scrollTo(0, sy);
+      if(m && sm) m.scrollTop=sm;
+      requestAnimationFrame(function(){
+        try{ window.scrollTo(0, sy); if(m && sm) m.scrollTop=sm; }catch(e){}
+      });
+    }
+  }catch(e){}
 }
 
 /* ── Vista de la colaboradora ── */
@@ -11425,7 +11459,7 @@ function _tkPanelEmpleada(){
   var listas=loadTkPlant().filter(function(p){ return p.persona===persona && (p.dias||[]).indexOf(dia)>=0; });
   var hechas=loadTkHechas(); var reg=(hechas[f]&&hechas[f][persona])?hechas[f][persona]:{};
   var tot=0, ok=0;
-  listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[p.id+'#'+i]) ok++; }); });
+  listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[_tkKey(p.id,i)]) ok++; }); });
   var pct=tot?Math.round(ok/tot*100):0;
 
   var h='<div class="card" style="margin-bottom:14px">'
@@ -11451,14 +11485,14 @@ function _tkPanelEmpleada(){
 
 function _tkListaHTML(p, reg, editable, persona){
   var tareas=p.tareas||[];
-  var ok=0; tareas.forEach(function(t,i){ if(reg[p.id+'#'+i]) ok++; });
+  var ok=0; tareas.forEach(function(t,i){ if(reg[_tkKey(p.id,i)]) ok++; });
   var h='<div class="card" style="margin-bottom:14px">'
     +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
       +'<span>📋 '+_tkEsc(p.nombre||'Lista')+'</span>'
       +'<span style="font-size:11px;color:var(--text2);font-weight:400">'+(p.dias||[]).map(function(d){return TK_DIAS_C[d];}).join(' · ')+' · <b style="color:'+(ok===tareas.length&&tareas.length?'var(--green)':'var(--accent2)')+'">'+ok+'/'+tareas.length+'</b></span>'
     +'</div>';
   tareas.forEach(function(t,i){
-    var k=p.id+'#'+i, r=reg[k];
+    var k=_tkKey(p.id,i), r=reg[k];
     var done=!!r;
     h+='<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)'+(done?';background:rgba(76,175,80,.06)':'')+'">'
       +(editable
@@ -11487,7 +11521,7 @@ function tkToggle(pid, idx){
   var f=_tkEsAdmin()?(_tkFecha||_tkHoy()):_tkHoy();
   var reg=loadTkRegPersona(persona);
   if(!reg[f]) reg[f]={};
-  var k=pid+'#'+idx;
+  var k=_tkKey(pid,idx);
   if(reg[f][k]){
     if(!confirm('Ya estaba palomeada. ¿Quitar la palomita?')) return;
     delete reg[f][k];
@@ -11495,9 +11529,15 @@ function tkToggle(pid, idx){
   }
   var txt='';
   try{ var pl=loadTkPlant().filter(function(x){return x.id===pid;})[0]; if(pl) txt=(pl.tareas||[])[idx]||''; }catch(e){}
-  reg[f][k]={t:_tkHora(), geo:null, por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'', txt:txt};
+  var hora=_tkHora();
+  reg[f][k]={t:hora, geo:null, por:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:'', txt:txt};
   saveTkRegPersona(persona, reg);
+  // Se relee lo guardado: si no quedó, hay que avisar en vez de fingir que sí
+  var ok=false;
+  try{ var v=loadTkRegPersona(persona); ok=!!(v[f]&&v[f][k]); }catch(e){}
   renderTareas();
+  if(!ok){ alert('⚠️ No se pudo guardar la palomita. Revisa tu conexión y avísale a Fer.'); return; }
+  if(typeof mostrarToast==='function') mostrarToast('✅ Guardado '+hora,'green');
   // La ubicación se agrega después: la hora nunca se pierde por GPS lento
   if(navigator.geolocation){
     var tarde=false; var tmr=setTimeout(function(){ tarde=true; }, 8000);
@@ -11540,7 +11580,7 @@ function _tkPanelAdmin(){
   personas.forEach(function(per){
     var listas=loadTkPlant().filter(function(p){ return p.persona===per && (p.dias||[]).indexOf(dia)>=0; });
     var reg=regDia[per]||{}; var tot=0, ok=0;
-    listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[p.id+'#'+i]) ok++; }); });
+    listas.forEach(function(p){ (p.tareas||[]).forEach(function(t,i){ tot++; if(reg[_tkKey(p.id,i)]) ok++; }); });
     var pct=tot?Math.round(ok/tot*100):0;
     var col=!tot?'var(--text2)':(pct===100?'var(--green)':(pct>=50?'var(--accent2)':'var(--red)'));
     h+='<div class="card" style="padding:14px;cursor:pointer;'+(_tkVerPersona===per?'border-color:var(--accent)':'')+'" onclick="_tkVerPersona='+(_tkVerPersona===per?'null':'\''+per+'\'')+';renderTareas()">'
@@ -15094,7 +15134,7 @@ function _asisTareasStats(persona, mes){
       if(!listas.length) continue;
       var reg=(hechas[f]&&hechas[f][persona])?hechas[f][persona]:{};
       var t=0,o=0;
-      listas.forEach(function(p){ (p.tareas||[]).forEach(function(x,i){ t++; if(reg[p.id+'#'+i]) o++; }); });
+      listas.forEach(function(p){ (p.tareas||[]).forEach(function(x,i){ t++; if(reg[_tkKey(p.id,i)]) o++; }); });
       if(!t) continue;
       out.dias++; out.tot+=t; out.ok+=o;
       out.detalle.push({f:f, d:d, t:t, o:o, pct:Math.round(o/t*100)});
