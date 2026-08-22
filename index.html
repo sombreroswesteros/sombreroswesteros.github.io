@@ -368,7 +368,7 @@
 <nav id="sidebar">
   <div class="logo" style="padding:12px 16px 8px;text-align:center">
     <img id="sidebar-logo" src="" alt="Sombreros Westeros" style="width:150px;max-width:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">
-    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v350</span>
+    <p style="font-size:10px;color:var(--text2);margin-top:4px;letter-spacing:.5px">ERP · Morelia · <span style="color:var(--green);font-weight:700">v351</span>
     <span onclick="forzarActualizacion()" title="Borrar la copia guardada y bajar la versión más nueva" style="cursor:pointer;color:var(--accent2);text-decoration:underline;margin-left:6px">🔄 actualizar</span></p>
   </div>
   <div class="nav">
@@ -14408,8 +14408,73 @@ function tiendaTab(t){
 }
 
 // ═══ ASISTENCIA — Entradas y salidas ═══
-var asistencia = JSON.parse(localStorage.getItem('asistencia_registros')||'{}');
-function saveAsistencia(){ save('asistencia_registros', asistencia); }
+/* ── Asistencia: una clave por colaboradora ──
+   Antes todas guardaban el mismo bloque completo. Como cada dispositivo tenía
+   su copia cargada al abrir, el último en guardar borraba lo de las demás. */
+function _asisClaveEmp(empId){ return 'asistencia_emp_'+String(empId).replace(/[^A-Za-z0-9_-]/g,'_'); }
+function _asisCargarTodo(){
+  var out={};
+  try{
+    var leg=JSON.parse(localStorage.getItem('asistencia_registros')||'{}');
+    for(var f in leg){ if(!out[f]) out[f]={}; for(var e in leg[f]) out[f][e]=leg[f][e]; }
+  }catch(e){}
+  try{
+    var pre='asistencia_emp_';
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!k || k.indexOf(pre)!==0) continue;
+      var emp=k.slice(pre.length);
+      var d={};
+      try{ d=JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(e2){ d={}; }
+      for(var ff in d){ if(!out[ff]) out[ff]={}; out[ff][emp]=d[ff]; }
+    }
+  }catch(e){}
+  return out;
+}
+var asistencia = _asisCargarTodo();
+function saveAsistencia(empId){
+  if(empId===undefined || empId===null || empId===''){
+    var ids={};
+    for(var f in asistencia){ for(var e in asistencia[f]) ids[e]=1; }
+    for(var e2 in ids) saveAsistencia(e2);
+    return;
+  }
+  var slice={};
+  for(var f2 in asistencia){
+    if(asistencia[f2] && asistencia[f2][empId]!==undefined) slice[f2]=asistencia[f2][empId];
+  }
+  save(_asisClaveEmp(empId), slice);
+}
+/* Pasa una sola vez el bloque viejo a claves por colaboradora */
+(function _asisMigrar(){
+  try{
+    if(localStorage.getItem('asis_split_v1')==='1') return;
+    var leg=JSON.parse(localStorage.getItem('asistencia_registros')||'null');
+    if(leg && typeof leg==='object'){ saveAsistencia(); }
+    localStorage.setItem('asis_split_v1','1');
+  }catch(e){}
+})();
+/* Trae de la nube lo que las demás acaban de marcar */
+function asisRefrescar(){
+  if(!window.FB_URL || !window.FB_IDTOKEN){
+    if(typeof mostrarToast==='function') mostrarToast('Sin conexión a la nube','');
+    return;
+  }
+  fetch(window.FB_URL+'/'+(window.FB_NODE||'erp')+'.json?auth='+window.FB_IDTOKEN)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || typeof d!=='object'){ if(typeof mostrarToast==='function') mostrarToast('No llegó nada de la nube',''); return; }
+      for(var k in d){
+        if((k.indexOf('asistencia_emp_')===0 || k==='asistencia_registros' || k==='asis_solicitudes') && d[k]!==null){
+          try{ localStorage.setItem(k, JSON.stringify(d[k])); }catch(e){}
+        }
+      }
+      asistencia=_asisCargarTodo();
+      renderAsistencia();
+      if(typeof mostrarToast==='function') mostrarToast('🔄 Asistencia actualizada','green');
+    })
+    .catch(function(){ if(typeof mostrarToast==='function') mostrarToast('No se pudo conectar',''); });
+}
 var asisUsuarios = JSON.parse(localStorage.getItem('asistencia_usuarios')||'{}'); // {userId: empId}
 function saveAsisUsuarios(){ save('asistencia_usuarios', asisUsuarios); }
 var asisTienda = JSON.parse(localStorage.getItem('asistencia_tienda_coords')||'null'); // {lat,lng} o null
@@ -14582,7 +14647,7 @@ function asisSet(empId, slot, val){
   if(!asistencia[f]) asistencia[f]={};
   if(!asistencia[f][empId]) asistencia[f][empId]={};
   asistencia[f][empId][slot]=val;
-  saveAsistencia();
+  saveAsistencia(empId);
   renderAsistencia();
 }
 function _asisGuardarConGeo(empId, slot, hora, geo){
@@ -14592,7 +14657,7 @@ function _asisGuardarConGeo(empId, slot, hora, geo){
   asistencia[f][empId][slot]=hora;
   if(!asistencia[f][empId]._geo) asistencia[f][empId]._geo={};
   if(geo) asistencia[f][empId]._geo[slot]=geo; else delete asistencia[f][empId]._geo[slot];
-  saveAsistencia();
+  saveAsistencia(empId);
   if(slot==='entrada'){ try{ _asisCheckRetardo(empId, hora); }catch(e){} }
   if(slot==='desFin' || slot==='comFin'){ try{ _asisCheckDescanso(empId, slot); }catch(e){} }
   renderAsistencia();
@@ -14755,7 +14820,7 @@ function _asisCheckRetardo(empId, hora){
   if(ya==='leve' && !mayor) return;
   if(!asistencia[f]) asistencia[f]={}; if(!asistencia[f][empId]) asistencia[f][empId]={};
   asistencia[f][empId]._retNotif = mayor?'mayor':'leve';
-  saveAsistencia();
+  saveAsistencia(empId);
   var L=(typeof empleadasData!=='undefined'?empleadasData:[]); var nombre='';
   for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nombre=L[i].nombre; break; } }
   var primer=(nombre||'').split(' ')[0];
@@ -14811,7 +14876,7 @@ function _asisAgregarGeo(empId, slot, fecha, geo){
   if(asistencia[fecha][empId][slot]==null) return; // el registro se borró mientras tanto
   if(!asistencia[fecha][empId]._geo) asistencia[fecha][empId]._geo={};
   asistencia[fecha][empId]._geo[slot]=geo;
-  saveAsistencia();
+  saveAsistencia(empId);
   if(fecha===(_asisFecha||_asisHoy())) renderAsistencia();
 }
 function asisBorrarHora(empId, slot){
@@ -14820,7 +14885,7 @@ function asisBorrarHora(empId, slot){
   if(asistencia[f] && asistencia[f][empId]){
     delete asistencia[f][empId][slot];
     if(asistencia[f][empId]._geo) delete asistencia[f][empId]._geo[slot];
-    saveAsistencia(); renderAsistencia();
+    saveAsistencia(empId); renderAsistencia();
   }
 }
 function asisSetPermiso(empId, val){
@@ -14828,7 +14893,7 @@ function asisSetPermiso(empId, val){
   if(!asistencia[f]) asistencia[f]={};
   if(!asistencia[f][empId]) asistencia[f][empId]={};
   asistencia[f][empId].permiso=val;
-  saveAsistencia();
+  saveAsistencia(empId);
 }
 function asisToggleJustificado(empId, val){
   if(!_asisEsAdmin()) return;
@@ -14836,7 +14901,7 @@ function asisToggleJustificado(empId, val){
   if(!asistencia[f]) asistencia[f]={};
   if(!asistencia[f][empId]) asistencia[f][empId]={};
   asistencia[f][empId].justificado=!!val;
-  saveAsistencia(); renderAsistencia();
+  saveAsistencia(empId); renderAsistencia();
   if(typeof mostrarToast==='function') mostrarToast(val?'✅ Día justificado — no contará como retardo':'Día ya no justificado','green');
 }
 function asisBorrarDia(empId){
@@ -14844,7 +14909,7 @@ function asisBorrarDia(empId){
   var f=_asisFecha||_asisHoy();
   var nom=''; var L=(typeof empleadasData!=='undefined'?empleadasData:[]); for(var i=0;i<L.length;i++){ if(String(L[i].id)===String(empId)){ nom=L[i].nombre; break; } }
   if(!confirm('¿Borrar todo el registro de asistencia de '+(nom||'esta empleada')+' del día '+f+'? Esto no se puede deshacer.')) return;
-  if(asistencia[f] && asistencia[f][empId]){ delete asistencia[f][empId]; if(!Object.keys(asistencia[f]).length) delete asistencia[f]; saveAsistencia(); renderAsistencia(); if(typeof mostrarToast==='function') mostrarToast('🗑️ Registro borrado','green'); }
+  if(asistencia[f] && asistencia[f][empId]){ delete asistencia[f][empId]; if(!Object.keys(asistencia[f]).length) delete asistencia[f]; saveAsistencia(empId); renderAsistencia(); if(typeof mostrarToast==='function') mostrarToast('🗑️ Registro borrado','green'); }
 }
 function asisVincularUsuario(uid, empId){
   if(!_asisEsAdmin()) return;
@@ -15400,7 +15465,7 @@ function _asisAplicarManual(fecha, empId, slot, hora){
   if(!asistencia[fecha][empId]._manual) asistencia[fecha][empId]._manual={};
   asistencia[fecha][empId]._manual[slot]=true;
   if(asistencia[fecha][empId]._geo) delete asistencia[fecha][empId]._geo[slot];
-  saveAsistencia();
+  saveAsistencia(empId);
   var prev=_asisFecha; _asisFecha=fecha;
   try{
     if(slot==='entrada'){ _asisCheckRetardo(empId, hora); }
@@ -15532,7 +15597,9 @@ function renderAsistencia(){
     +'<button onclick="asisCambiarDia(-1)" style="'+navBtn+'">◀</button>'
     +'<div style="text-align:center;flex:1">'
       +'<div style="font-weight:700;font-size:14px">'+_asisFmtFechaLarga(f)+'</div>'
-      +(esHoy?'<div style="font-size:10px;color:var(--green);font-weight:700">● HOY</div>':'<div style="font-size:10px"><span onclick="asisIrHoy()" style="cursor:pointer;color:var(--accent2);text-decoration:underline">Ir a hoy</span></div>')
+      +'<div style="font-size:10px">'
+        +(esHoy?'<span style="color:var(--green);font-weight:700">● HOY</span>':'<span onclick="asisIrHoy()" style="cursor:pointer;color:var(--accent2);text-decoration:underline">Ir a hoy</span>')
+        +' · <span onclick="asisRefrescar()" style="cursor:pointer;color:var(--accent2);text-decoration:underline">🔄 Actualizar</span></div>'
     +'</div>'
     +'<button onclick="asisCambiarDia(1)" style="'+navBtn+'">▶</button>'
   +'</div>';
